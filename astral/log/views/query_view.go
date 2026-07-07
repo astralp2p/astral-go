@@ -1,0 +1,26 @@
+package views
+
+import (
+	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/cryptopunkscc/astral-go/astral/fmt"
+)
+
+type QueryView struct {
+	*astral.Query
+}
+
+func (view QueryView) Render() string {
+	return fmt.Sprintf(
+		"[%v] %v -> %v:%v",
+		&view.Nonce,
+		view.Caller,
+		view.Target,
+		view.QueryString,
+	)
+}
+
+func init() {
+	fmt.SetView(func(o *astral.Query) fmt.View {
+		return QueryView{Query: o}
+	})
+}
