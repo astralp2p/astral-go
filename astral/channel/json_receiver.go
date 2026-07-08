@@ -50,7 +50,7 @@ func (r *JSONReceiver) Receive() (object astral.Object, err error) {
 	}
 
 	if jsonObj.Object != nil {
-		err = json.Unmarshal(jsonObj.Object, &object)
+		err = json.Unmarshal(jsonObj.Object, object)
 	}
 	if err != nil {
 		return nil, err

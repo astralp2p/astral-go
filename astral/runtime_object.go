@@ -468,7 +468,7 @@ func unmarshalFieldJSON(spec Spec, raw json.RawMessage) (Object, error) {
 		if obj == nil {
 			return nil, fmt.Errorf("%w: %s", ErrBlueprintNotFound, s.PrimitiveType)
 		}
-		err := json.Unmarshal(raw, &obj)
+		err := json.Unmarshal(raw, obj)
 		if err != nil {
 			return nil, err
 		}
@@ -479,7 +479,7 @@ func unmarshalFieldJSON(spec Spec, raw json.RawMessage) (Object, error) {
 		if obj == nil {
 			return nil, fmt.Errorf("%w: %s", ErrBlueprintNotFound, s.Type)
 		}
-		err := json.Unmarshal(raw, &obj)
+		err := json.Unmarshal(raw, obj)
 		if err != nil {
 			return nil, err
 		}
@@ -526,7 +526,7 @@ func unmarshalFieldJSON(spec Spec, raw json.RawMessage) (Object, error) {
 		if obj == nil {
 			return nil, fmt.Errorf("%w: %s", ErrBlueprintNotFound, s.Type)
 		}
-		err := json.Unmarshal(raw, &obj)
+		err := json.Unmarshal(raw, obj)
 		if err != nil {
 			return nil, err
 		}
@@ -546,7 +546,7 @@ func unmarshalFieldJSON(spec Spec, raw json.RawMessage) (Object, error) {
 			return nil, fmt.Errorf("%w: %s", ErrBlueprintNotFound, env.Type)
 		}
 		if env.Object != nil {
-			err = json.Unmarshal(env.Object, &obj)
+			err = json.Unmarshal(env.Object, obj)
 			if err != nil {
 				return nil, err
 			}
