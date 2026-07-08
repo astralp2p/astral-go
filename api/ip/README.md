@@ -1,3 +1,3 @@
-# IP module
+# ip
 
-The IP module provides a unified IP address type and is responsible for monitoring network changes.
+Protocol spec: [astral-docs/protocols/ip](https://github.com/cryptopunkscc/astral-docs/tree/master/protocols/ip)
