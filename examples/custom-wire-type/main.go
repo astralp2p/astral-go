@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	"github.com/cryptopunkscc/astral-go/streams"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/streams"
 )
 
 var _ astral.Object = &Note{}

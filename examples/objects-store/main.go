@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/api/objects"
-	objectsClient "github.com/cryptopunkscc/astral-go/api/objects/client"
-	"github.com/cryptopunkscc/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/api/objects"
+	objectsClient "github.com/astralp2p/astral-go/api/objects/client"
+	"github.com/astralp2p/astral-go/lib/astrald"
 )
 
 func main() {

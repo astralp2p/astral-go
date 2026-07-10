@@ -4,7 +4,7 @@ Runnable programs, one concept each. Every example builds with the module;
 `custom-wire-type` also runs with no node.
 
 The node-backed examples require a running
-[astrald](https://github.com/cryptopunkscc/astrald) node and
+[astrald](https://github.com/astralp2p/astrald) node and
 `ASTRALD_APPHOST_TOKEN` set to an access token; the SDK dials
 `tcp:127.0.0.1:8625`.
 

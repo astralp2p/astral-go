@@ -6,6 +6,6 @@ protocol's RPC client.
 
 Protocol spec:
 
-* [astral-docs/protocols/apphost](https://github.com/cryptopunkscc/astral-docs/tree/master/protocols/apphost) — overview and op specs
-* [astral-docs/topics/astral-ipc.md](https://github.com/cryptopunkscc/astral-docs/blob/master/topics/astral-ipc.md) — the IPC wire protocol
-* [astral-docs/topics/ws-transport.md](https://github.com/cryptopunkscc/astral-docs/blob/master/topics/ws-transport.md) — the WebSocket transport
+* [astral-docs/protocols/apphost](https://github.com/astralp2p/astral-docs/tree/master/protocols/apphost) — overview and op specs
+* [astral-docs/topics/astral-ipc.md](https://github.com/astralp2p/astral-docs/blob/master/topics/astral-ipc.md) — the IPC wire protocol
+* [astral-docs/topics/ws-transport.md](https://github.com/astralp2p/astral-docs/blob/master/topics/ws-transport.md) — the WebSocket transport

@@ -5,9 +5,9 @@ package main
 import (
 	"fmt"
 
-	"github.com/cryptopunkscc/astral-go/lib/apphost"
-	"github.com/cryptopunkscc/astral-go/lib/astrald"
-	"github.com/cryptopunkscc/astral-go/lib/query"
+	"github.com/astralp2p/astral-go/lib/apphost"
+	"github.com/astralp2p/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 func main() {

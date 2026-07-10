@@ -6,11 +6,11 @@ types and clients under `api/`, and the app libraries under `lib/`.
 ## Install
 
 ```sh
-go get github.com/cryptopunkscc/astral-go
+go get github.com/astralp2p/astral-go
 ```
 
 Requires Go 1.25. Talking to the network requires a running
-[astrald](https://github.com/cryptopunkscc/astrald) node: the SDK dials
+[astrald](https://github.com/astralp2p/astrald) node: the SDK dials
 `tcp:127.0.0.1:8625` and reads the access token from
 `ASTRALD_APPHOST_TOKEN`.
 
@@ -22,8 +22,8 @@ package main
 import (
 	"fmt"
 
-	"github.com/cryptopunkscc/astral-go/lib/astrald"
-	"github.com/cryptopunkscc/astral-go/lib/query"
+	"github.com/astralp2p/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 func main() {
@@ -51,10 +51,10 @@ func main() {
 package main
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/lib/apps"
-	"github.com/cryptopunkscc/astral-go/lib/astrald"
-	"github.com/cryptopunkscc/astral-go/lib/routing"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/lib/apps"
+	"github.com/astralp2p/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/lib/routing"
 )
 
 type API struct{}
@@ -107,13 +107,13 @@ Runnable programs under [`examples/`](examples/), one concept each:
 - `sig/`, `streams/` — dependency-free utilities: signal-driven concurrency,
   stream helpers.
 - `pub.go` — the registration aggregator: a blank import of
-  `github.com/cryptopunkscc/astral-go` registers the astral primitives and
+  `github.com/astralp2p/astral-go` registers the astral primitives and
   every `api/` wire type, so `astral.Decode` materializes them by type name.
 
 ## The spec
 
 Protocol truth lives in
-[astral-docs](https://github.com/cryptopunkscc/astral-docs), pinned at
+[astral-docs](https://github.com/astralp2p/astral-docs), pinned at
 `.ai/system`:
 
 ```sh
