@@ -9,7 +9,6 @@ import (
 	"github.com/cryptopunkscc/astral-go/api/gateway"
 	"github.com/cryptopunkscc/astral-go/api/tcp"
 	"github.com/cryptopunkscc/astral-go/api/tor"
-	"github.com/cryptopunkscc/astral-go/api/utp"
 	"github.com/cryptopunkscc/astral-go/astral"
 	"github.com/cryptopunkscc/astral-go/streams"
 	"github.com/jxskiss/base62"
@@ -53,8 +52,6 @@ func (info NodeInfo) WriteTo(w io.Writer) (n int64, err error) {
 			t = 1
 		case *gateway.Endpoint:
 			t = 2
-		case *utp.Endpoint:
-			t = 3
 		default:
 			return n, errors.New("unknown endpoint type")
 		}

@@ -23,7 +23,6 @@ import (
 	_ "github.com/cryptopunkscc/astral-go/api/tor"
 	_ "github.com/cryptopunkscc/astral-go/api/tree"
 	_ "github.com/cryptopunkscc/astral-go/api/user"
-	_ "github.com/cryptopunkscc/astral-go/api/utp"
 	_ "github.com/cryptopunkscc/astral-go/astral"
 	_ "github.com/cryptopunkscc/astral-go/astral/log"
 )

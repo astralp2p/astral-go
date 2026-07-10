@@ -34,7 +34,7 @@ func (e *Endpoint) Address() string {
 }
 
 func (e *Endpoint) Network() string {
-	return "utp"
+	return "kcp"
 }
 
 func (e *Endpoint) HostString() string {
