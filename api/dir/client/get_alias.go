@@ -1,10 +1,10 @@
 package dir
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/dir"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	"github.com/cryptopunkscc/astral-go/lib/query"
+	"github.com/astralp2p/astral-go/api/dir"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 // GetAlias returns the human-readable alias for the given identity, consulting the

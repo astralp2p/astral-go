@@ -5,7 +5,7 @@ import (
 	"errors"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // JSONSender writes a stream of astral.Objects encoded as JSON lines to the underlying io.Writer.

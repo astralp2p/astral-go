@@ -3,7 +3,7 @@ package tree
 import (
 	"errors"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 var ErrNodeHasSubnodes = astral.NewError("node has subnodes")

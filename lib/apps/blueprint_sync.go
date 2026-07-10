@@ -5,8 +5,8 @@ import (
 	"log"
 	"sync"
 
-	objectsClient "github.com/cryptopunkscc/astral-go/api/objects/client"
-	"github.com/cryptopunkscc/astral-go/astral"
+	objectsClient "github.com/astralp2p/astral-go/api/objects/client"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 var (

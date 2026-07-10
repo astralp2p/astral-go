@@ -1,9 +1,9 @@
 package crypto
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/crypto"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/api/crypto"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 )
 
 func (client *Client) PublicKey(ctx *astral.Context, privateKey *crypto.PrivateKey) (publicKey *crypto.PublicKey, err error) {

@@ -1,6 +1,6 @@
 package fmt
 
-import "github.com/cryptopunkscc/astral-go/astral"
+import "github.com/astralp2p/astral-go/astral"
 
 // Format tokenizes format and returns the rendered arguments as astral objects, not a string.
 // Verbs %v keep the argument as-is; %s and %d Stringify it; \t \n \r expand; a missing arg

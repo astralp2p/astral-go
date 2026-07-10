@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Alias holds a human-readable name for a node. Defined in mod/dir as it is

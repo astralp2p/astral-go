@@ -1,7 +1,7 @@
 package exonet
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Endpoint represents a dialable address on a network (such as an IP address with port number)

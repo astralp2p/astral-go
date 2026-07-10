@@ -1,13 +1,13 @@
 package objects
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/objects"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	"github.com/cryptopunkscc/astral-go/lib/query"
-	"github.com/cryptopunkscc/astral-go/sig"
+	"github.com/astralp2p/astral-go/api/objects"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/query"
+	"github.com/astralp2p/astral-go/sig"
 
-	_ "github.com/cryptopunkscc/astral-go"
+	_ "github.com/astralp2p/astral-go"
 )
 
 // Describe streams descriptors on the returned channel until EOS, then closes it.

@@ -5,7 +5,7 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 var objectType = reflect.TypeOf((*astral.Object)(nil)).Elem()

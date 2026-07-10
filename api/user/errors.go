@@ -1,6 +1,6 @@
 package user
 
-import "github.com/cryptopunkscc/astral-go/astral"
+import "github.com/astralp2p/astral-go/astral"
 
 var ErrInvitationDeclined = astral.NewError("invitation declined")
 var ErrRequestDeclined = astral.NewError("request declined")

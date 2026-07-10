@@ -1,6 +1,6 @@
 package channel
 
-import "github.com/cryptopunkscc/astral-go/astral"
+import "github.com/astralp2p/astral-go/astral"
 
 const (
 	Canonical = "canonical"

@@ -3,8 +3,8 @@ package apps
 import (
 	"errors"
 
-	"github.com/cryptopunkscc/astral-go/astral"
-	libastrald "github.com/cryptopunkscc/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/astral"
+	libastrald "github.com/astralp2p/astral-go/lib/astrald"
 )
 
 type ServeOption func(*serveConfig) error

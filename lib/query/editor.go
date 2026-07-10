@@ -8,7 +8,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/cryptopunkscc/astral-go/astral/log"
+	"github.com/astralp2p/astral-go/astral/log"
 )
 
 var ErrFieldNotFound = errors.New("field not found")

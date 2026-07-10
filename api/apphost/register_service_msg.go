@@ -3,7 +3,7 @@ package apphost
 import (
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // RegisterServiceMsg registers the guest's connection as the handler for inbound queries

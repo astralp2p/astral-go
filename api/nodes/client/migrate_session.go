@@ -1,9 +1,9 @@
 package nodes
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/nodes"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/api/nodes"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 )
 
 type MigrateSessionArgs struct {

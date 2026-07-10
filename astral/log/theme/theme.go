@@ -1,6 +1,6 @@
 package theme
 
-import . "github.com/cryptopunkscc/astral-go/astral/log/styles"
+import . "github.com/astralp2p/astral-go/astral/log/styles"
 
 var Normal = White
 

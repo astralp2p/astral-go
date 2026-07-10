@@ -5,12 +5,12 @@ import (
 	"errors"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/api/exonet"
-	"github.com/cryptopunkscc/astral-go/api/gateway"
-	"github.com/cryptopunkscc/astral-go/api/tcp"
-	"github.com/cryptopunkscc/astral-go/api/tor"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/streams"
+	"github.com/astralp2p/astral-go/api/exonet"
+	"github.com/astralp2p/astral-go/api/gateway"
+	"github.com/astralp2p/astral-go/api/tcp"
+	"github.com/astralp2p/astral-go/api/tor"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/streams"
 	"github.com/jxskiss/base62"
 )
 

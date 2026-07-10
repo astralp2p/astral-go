@@ -3,7 +3,7 @@ package apphost
 import (
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // IncomingQueryMsg notifies a registered service WS of an inbound query awaiting handling.

@@ -1,7 +1,7 @@
 package tree
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // ErrNoValue is returned when a node holds no value; it also implements astral.Object so it can be transmitted over the wire.

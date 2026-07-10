@@ -1,11 +1,11 @@
 package user
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/auth"
-	"github.com/cryptopunkscc/astral-go/api/crypto"
-	"github.com/cryptopunkscc/astral-go/api/user"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/api/auth"
+	"github.com/astralp2p/astral-go/api/crypto"
+	"github.com/astralp2p/astral-go/api/user"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 )
 
 // AcceptMembership submits a signed contract to the remote user node and returns the subject's countersignature.

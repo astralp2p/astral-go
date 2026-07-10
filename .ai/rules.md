@@ -20,7 +20,7 @@
 - `lib/` - app libraries: `apphost` (session), `apps` (serving),
   `astrald` (node client), `ipc`, `query`, `routing`.
 - `pub.go` - the root registration aggregator; a blank import of
-  `github.com/cryptopunkscc/astral-go` registers the full wire surface.
+  `github.com/astralp2p/astral-go` registers the full wire surface.
   Extend it when a new package registers blueprints.
 
 ## Wire Types

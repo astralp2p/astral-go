@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Action is the base struct embedded by all typed action objects.

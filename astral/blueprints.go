@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/cryptopunkscc/astral-go/sig"
+	"github.com/astralp2p/astral-go/sig"
 )
 
 // Blueprints holds prototypes of astral objects. Compile-time prototypes and runtime

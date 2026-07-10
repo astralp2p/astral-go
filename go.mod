@@ -1,4 +1,4 @@
-module github.com/cryptopunkscc/astral-go
+module github.com/astralp2p/astral-go
 
 go 1.25.0
 

@@ -7,11 +7,11 @@ import (
 	"strings"
 	"sync/atomic"
 
-	"github.com/cryptopunkscc/astral-go/api/apphost"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	libapphost "github.com/cryptopunkscc/astral-go/lib/apphost"
-	"github.com/cryptopunkscc/astral-go/lib/ipc"
+	"github.com/astralp2p/astral-go/api/apphost"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	libapphost "github.com/astralp2p/astral-go/lib/apphost"
+	"github.com/astralp2p/astral-go/lib/ipc"
 )
 
 // Handler accepts inbound IPC queries from an apphost-registered endpoint.

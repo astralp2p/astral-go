@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // TestJSONChannel_RuntimeObject_RoundTrip exercises the silent-loss scenario directly:

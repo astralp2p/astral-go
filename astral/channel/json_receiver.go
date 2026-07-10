@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // JSONReceiver reads a stream of astral.Objects encoded as JSON lines from the underlying io.Reader.

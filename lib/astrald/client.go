@@ -1,10 +1,10 @@
 package astrald
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	libapphost "github.com/cryptopunkscc/astral-go/lib/apphost"
-	"github.com/cryptopunkscc/astral-go/lib/query"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	libapphost "github.com/astralp2p/astral-go/lib/apphost"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 // Client wraps a Router with an optional fixed target identity, used to direct queries

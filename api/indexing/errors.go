@@ -3,7 +3,7 @@ package indexing
 import (
 	"errors"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 var ErrIndexNotFound = errors.New("index not found")

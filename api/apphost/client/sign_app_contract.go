@@ -1,10 +1,10 @@
 package apphost
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/apphost"
-	"github.com/cryptopunkscc/astral-go/api/auth"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/api/apphost"
+	"github.com/astralp2p/astral-go/api/auth"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 )
 
 func SignAppContract(ctx *astral.Context, contract *auth.Contract) (*auth.SignedContract, error) {

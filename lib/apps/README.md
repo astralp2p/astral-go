@@ -24,11 +24,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cryptopunkscc/astrald/astral"
-	"github.com/cryptopunkscc/astrald/astral/channel"
-	"github.com/cryptopunkscc/astrald/lib/apps"
-	libastrald "github.com/cryptopunkscc/astrald/lib/astrald"
-	"github.com/cryptopunkscc/astrald/lib/routing"
+	"github.com/astralp2p/astrald/astral"
+	"github.com/astralp2p/astrald/astral/channel"
+	"github.com/astralp2p/astrald/lib/apps"
+	libastrald "github.com/astralp2p/astrald/lib/astrald"
+	"github.com/astralp2p/astrald/lib/routing"
 )
 
 type API struct{}

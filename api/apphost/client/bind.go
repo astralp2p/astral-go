@@ -1,9 +1,9 @@
 package apphost
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/apphost"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/api/apphost"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 )
 
 // Bind opens a persistent channel to the apphost; the caller must close it when done.

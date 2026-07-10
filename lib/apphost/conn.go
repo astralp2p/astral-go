@@ -3,7 +3,7 @@ package apphost
 import (
 	"net"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Conn wraps a net.Conn with the astral Query that opened it and the direction

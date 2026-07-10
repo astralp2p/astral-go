@@ -3,8 +3,8 @@ package user
 import (
 	"time"
 
-	"github.com/cryptopunkscc/astral-go/api/auth"
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/api/auth"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // IsNodeContract reports whether a contract grants swarm membership.

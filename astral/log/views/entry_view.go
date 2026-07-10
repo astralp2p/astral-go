@@ -1,8 +1,8 @@
 package views
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral/fmt"
-	"github.com/cryptopunkscc/astral-go/astral/log"
+	"github.com/astralp2p/astral-go/astral/fmt"
+	"github.com/astralp2p/astral-go/astral/log"
 )
 
 type EntryView struct {

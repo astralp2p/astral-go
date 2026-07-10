@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // TestDecode_UnknownType_WrapsBothSentinels pins the top-level-desync contract:

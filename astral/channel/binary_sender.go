@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // BinarySender writes a stream of astral.Objects to the underlying io.Writer.

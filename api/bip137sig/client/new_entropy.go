@@ -1,10 +1,10 @@
 package bip137sig
 
 import (
-	"github.com/cryptopunkscc/astral-go/api/bip137sig"
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	"github.com/cryptopunkscc/astral-go/lib/query"
+	"github.com/astralp2p/astral-go/api/bip137sig"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 func (client *Client) NewEntropy(ctx *astral.Context, bits int) (entropy *bip137sig.Entropy, err error) {

@@ -1,7 +1,7 @@
 package objects
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Searcher is used to search for objects matching a query

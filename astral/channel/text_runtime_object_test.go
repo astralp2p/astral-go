@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // TestTextChannel_RuntimeObject_RoundTrip pins the base64-via-Text fallback for

@@ -3,8 +3,8 @@ package user
 import (
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/api/auth"
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/api/auth"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // SwarmMembershipAction is the permit type embedded in node contracts; its

@@ -15,8 +15,8 @@ How to use with the default client:
 */
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/sig"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/sig"
 )
 
 // RouterMonitor wraps a Router and tracks all active outbound connections that pass through it.

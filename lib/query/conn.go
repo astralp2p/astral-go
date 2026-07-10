@@ -3,7 +3,7 @@ package query
 import (
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Conn is a basic implementation of an astral.Conn over a Reader and a WriteCloser.

@@ -3,7 +3,7 @@ package dir
 import (
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // AliasMap maps aliases to identities. Aliases is constructed in one shot by the producer

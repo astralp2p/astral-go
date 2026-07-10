@@ -4,7 +4,7 @@ import (
 	"encoding/base32"
 	"encoding/json"
 	"errors"
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral"
 	"io"
 	"strings"
 )

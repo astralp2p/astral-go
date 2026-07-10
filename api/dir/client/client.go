@@ -1,10 +1,10 @@
 package dir
 
 import (
-	"github.com/cryptopunkscc/astral-go/astral"
-	"github.com/cryptopunkscc/astral-go/astral/channel"
-	"github.com/cryptopunkscc/astral-go/lib/astrald"
-	"github.com/cryptopunkscc/astral-go/sig"
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/sig"
 )
 
 // Client is a dir module RPC client; when EnableCache is true, resolved identities

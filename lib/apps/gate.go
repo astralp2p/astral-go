@@ -3,8 +3,8 @@ package apps
 import (
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/astral"
-	libastrald "github.com/cryptopunkscc/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/astral"
+	libastrald "github.com/astralp2p/astral-go/lib/astrald"
 )
 
 // NewGateRouter wraps an inbound astral.Router and blocks all queries until gate is ready.

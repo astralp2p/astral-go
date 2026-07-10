@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/cryptopunkscc/astral-go/api/crypto"
-	"github.com/cryptopunkscc/astral-go/astral"
+	"github.com/astralp2p/astral-go/api/crypto"
+	"github.com/astralp2p/astral-go/astral"
 )
 
 // Contract is the unsigned body of an authorization grant from Issuer to Subject.
