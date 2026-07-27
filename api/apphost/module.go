@@ -6,6 +6,7 @@ import (
 
 const (
 	MethodCreateToken     = "apphost.create_token"
+	MethodDeleteToken     = "apphost.delete_token"
 	MethodListTokens      = "apphost.list_tokens"
 	MethodRegisterHandler = "apphost.register_handler"
 	MethodCancel          = "apphost.cancel"
