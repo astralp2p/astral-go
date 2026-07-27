@@ -37,6 +37,11 @@ func (l *Logger) SetFilter(filter func(*Entry) bool) {
 	l.filter = filter
 }
 
+// EntryLogger receives every entry the root logger emits. LogEntry is called
+// synchronously under the root logger mutex and must not block: a subscriber
+// with a slow or stalling sink buffers or drops, never waits — a blocked
+// LogEntry stops every goroutine that logs. The entry is shared across
+// subscribers and must be treated as immutable.
 type EntryLogger interface {
 	LogEntry(*Entry)
 }
