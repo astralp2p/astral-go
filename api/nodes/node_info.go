@@ -27,7 +27,16 @@ func (NodeInfo) ObjectType() string {
 }
 
 func (info NodeInfo) WriteTo(w io.Writer) (n int64, err error) {
-	n, err = streams.WriteAllTo(w, info.Alias, info.Identity)
+	// `Identity.WriteTo` has a value receiver, so a nil pointer panics rather than
+	// erroring. The zero identity encodes as the 33 null bytes `ReadFrom` already
+	// maps back to a zero value; the field carries no presence byte, so nil and
+	// zero are the same on the wire.
+	id := info.Identity
+	if id == nil {
+		id = &astral.Identity{}
+	}
+
+	n, err = streams.WriteAllTo(w, info.Alias, id)
 	if err != nil {
 		return
 	}
@@ -75,6 +84,9 @@ func (info NodeInfo) WriteTo(w io.Writer) (n int64, err error) {
 func (info *NodeInfo) ReadFrom(r io.Reader) (n int64, err error) {
 	info.Identity = &astral.Identity{}
 	n, err = streams.ReadAllFrom(r, &info.Alias, info.Identity)
+	if err != nil {
+		return
+	}
 
 	var l astral.Uint8
 	m, err := l.ReadFrom(r)
