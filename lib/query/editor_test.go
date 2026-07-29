@@ -3,6 +3,7 @@ package query
 import (
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -362,6 +363,96 @@ func TestEditValue_MatchesEdit(t *testing.T) {
 	}
 }
 
-// Editor.SetArgs is deliberately untested here: it does not terminate on a
-// positional argument, so any call spins until the allocator gives out. The
-// defect is filed as its own task; these tests land with the fix.
+// TestEditor_SetArgs pins the flag-parsing contract, including termination.
+//
+// The non-flag branch previously appended args[i] and re-entered the loop without
+// advancing i, so the same element was appended forever and the process spun until
+// the allocator gave out. Every case here reaches its assertion only if SetArgs
+// terminates; a regression hangs the package until the test timeout kills it.
+func TestEditor_SetArgs(t *testing.T) {
+	type target struct {
+		UserName string
+		Count    uint32
+	}
+
+	tests := []struct {
+		name     string
+		args     []string
+		wantName string
+		wantUnpa []string
+	}{
+		{
+			name:     "flag pair",
+			args:     []string{"-user_name", "bob"},
+			wantName: "bob",
+		},
+		{
+			name:     "positional only",
+			args:     []string{"positional"},
+			wantUnpa: []string{"positional"},
+		},
+		{
+			name:     "positional before a flag pair",
+			args:     []string{"positional", "-user_name", "bob"},
+			wantName: "bob",
+			wantUnpa: []string{"positional"},
+		},
+		{
+			name:     "positional after a flag pair",
+			args:     []string{"-user_name", "bob", "positional"},
+			wantName: "bob",
+			wantUnpa: []string{"positional"},
+		},
+		{
+			name:     "several positionals keep their order",
+			args:     []string{"one", "two", "three"},
+			wantUnpa: []string{"one", "two", "three"},
+		},
+		{
+			name:     "trailing flag with no value is unparsed, prefix intact",
+			args:     []string{"-user_name"},
+			wantUnpa: []string{"-user_name"},
+		},
+		{
+			name: "empty slice",
+			args: []string{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var got target
+
+			unparsed, err := Edit(&got).SetArgs(test.args)
+			if err != nil {
+				t.Fatalf("SetArgs returned error: %v", err)
+			}
+			if got.UserName != test.wantName {
+				t.Fatalf("UserName: want %q, got %q", test.wantName, got.UserName)
+			}
+			if !slices.Equal(unparsed, test.wantUnpa) {
+				t.Fatalf("unparsed: want %v, got %v", test.wantUnpa, unparsed)
+			}
+		})
+	}
+}
+
+// TestEditor_SetArgs_UnknownFlag pins an unrecognised flag being reported rather than
+// collected: it is a caller mistake, not a positional argument.
+func TestEditor_SetArgs_UnknownFlag(t *testing.T) {
+	var got struct{ UserName string }
+
+	if _, err := Edit(&got).SetArgs([]string{"-nope", "value"}); err == nil {
+		t.Fatal("SetArgs accepted an unknown flag, want an error")
+	}
+}
+
+// TestEditor_SetArgs_ConversionError pins a value that does not fit its field being
+// reported, not skipped.
+func TestEditor_SetArgs_ConversionError(t *testing.T) {
+	var got struct{ Count uint32 }
+
+	if _, err := Edit(&got).SetArgs([]string{"-count", "not-a-number"}); err == nil {
+		t.Fatal("SetArgs accepted a non-numeric value for a uint32 field, want an error")
+	}
+}

@@ -172,6 +172,7 @@ func (editor *Editor) SetArgs(args []string) (unparsed []string, err error) {
 		argName, found := strings.CutPrefix(args[i], "-")
 		if !found {
 			unparsed = append(unparsed, args[i])
+			i++
 			continue
 		}
 
