@@ -129,17 +129,12 @@ func (ops *NodeOps) setBatch(ctx *astral.Context, ch *channel.Channel, args SetA
 		return ch.Send(astral.Err(err))
 	}
 
-	return ch.Switch(
-		func(object astral.Object) error {
-			err := node.Set(ctx, object)
-			if err != nil {
-				return ch.Send(astral.Err(err))
-			}
-			return ch.Send(&astral.Ack{})
-		},
-		channel.BreakOnEOS,
-		channel.WithContext(ctx),
-	)
+	return channel.Batch(ch, func(object astral.Object) astral.Object {
+		if err := node.Set(ctx, object); err != nil {
+			return astral.Err(err)
+		}
+		return &astral.Ack{}
+	}, channel.WithContext(ctx))
 }
 
 type DeleteArgs struct {
