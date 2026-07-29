@@ -14,6 +14,13 @@ func (*PrimitiveSpec) ObjectType() string { return "astral.blueprint.primitive_s
 func (s *PrimitiveSpec) WriteTo(w io.Writer) (int64, error)  { return Objectify(s).WriteTo(w) }
 func (s *PrimitiveSpec) ReadFrom(r io.Reader) (int64, error) { return Objectify(s).ReadFrom(r) }
 
+// why: plain encoding/json decodes a carrier payload reflectively and ignores keys it does
+// not recognise, so a misspelled key inside the {"Type","Object"} envelope decoded to a
+// zero-valued carrier with no error and registered a corrupted schema permanently.
+// Objectify routes through structValue, which rejects excess fields.
+func (s *PrimitiveSpec) MarshalJSON() ([]byte, error) { return Objectify(s).MarshalJSON() }
+func (s *PrimitiveSpec) UnmarshalJSON(b []byte) error { return Objectify(s).UnmarshalJSON(b) }
+
 // ReferencedType satisfies Spec. PrimitiveSpec is self-contained — no other Blueprint name needs
 // to be resolvable for it to encode/decode.
 func (*PrimitiveSpec) ReferencedType() string { return "" }

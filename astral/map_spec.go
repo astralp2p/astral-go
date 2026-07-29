@@ -16,6 +16,13 @@ func (*MapSpec) ObjectType() string { return "astral.blueprint.map_spec" }
 func (s *MapSpec) WriteTo(w io.Writer) (int64, error)  { return Objectify(s).WriteTo(w) }
 func (s *MapSpec) ReadFrom(r io.Reader) (int64, error) { return Objectify(s).ReadFrom(r) }
 
+// why: plain encoding/json decodes a carrier payload reflectively and ignores keys it does
+// not recognise, so a misspelled key inside the {"Type","Object"} envelope decoded to a
+// zero-valued carrier with no error and registered a corrupted schema permanently.
+// Objectify routes through structValue, which rejects excess fields.
+func (s *MapSpec) MarshalJSON() ([]byte, error) { return Objectify(s).MarshalJSON() }
+func (s *MapSpec) UnmarshalJSON(b []byte) error { return Objectify(s).UnmarshalJSON(b) }
+
 // ReferencedType satisfies Spec. MapSpec depends on its ValueType for closure validation; KeyType
 // is bounded to the primitive allowlist so it never names a runtime Blueprint.
 func (s *MapSpec) ReferencedType() string { return s.ValueType.String() }
