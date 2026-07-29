@@ -58,6 +58,13 @@ func NewBlueprintAlias(typeName, underlying string) *Blueprint {
 func (bp Blueprint) WriteTo(w io.Writer) (int64, error)   { return Objectify(&bp).WriteTo(w) }
 func (bp *Blueprint) ReadFrom(r io.Reader) (int64, error) { return Objectify(bp).ReadFrom(r) }
 
+// why: plain encoding/json cannot fill the interface-typed Field.Spec slot, so a Blueprint
+// arriving on a JSON channel failed to decode on its first field. Objectify's interfaceValue
+// frames the slot as a nested {"Type","Object"} container (spec: topics/blueprints.md#json),
+// mirroring the tagged Spec slot of the binary codec.
+func (bp Blueprint) MarshalJSON() ([]byte, error)  { return Objectify(&bp).MarshalJSON() }
+func (bp *Blueprint) UnmarshalJSON(b []byte) error { return Objectify(bp).UnmarshalJSON(b) }
+
 var _ Object = (*Field)(nil)
 
 // Spec describes the shape of one Field on the wire. Implementers are the closed set of Spec
@@ -82,6 +89,11 @@ func (*Field) ObjectType() string { return "astral.blueprint.field" }
 
 func (f Field) WriteTo(w io.Writer) (int64, error)   { return Objectify(&f).WriteTo(w) }
 func (f *Field) ReadFrom(r io.Reader) (int64, error) { return Objectify(f).ReadFrom(r) }
+
+// Same routing as Blueprint: the Spec slot needs interfaceValue's container framing, both
+// inside a Blueprint's Fields and when a Field travels as a standalone typed object.
+func (f Field) MarshalJSON() ([]byte, error)  { return Objectify(&f).MarshalJSON() }
+func (f *Field) UnmarshalJSON(b []byte) error { return Objectify(f).UnmarshalJSON(b) }
 
 // isASCII reports whether s contains only printable ASCII bytes (0x20..0x7E).
 func isASCII(s string) bool {

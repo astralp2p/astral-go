@@ -157,6 +157,14 @@ func (i interfaceValue) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("%w: %s", ErrBlueprintNotFound, j.Type)
 	}
 
+	// why: the envelope names any registered type, so a slot narrower than astral.Object
+	// (e.g. Field.Spec) must reject a non-implementing type here — the guard ReadFrom has
+	// at its Convert. Without it a hostile envelope panics reflect.Value.Convert, and JSON
+	// channels make the slot network-reachable (objects.register_blueprint -in json).
+	if !reflect.ValueOf(o).CanConvert(i.Type()) {
+		return fmt.Errorf("cannot convert %s to %s", reflect.TypeOf(o), i.Type())
+	}
+
 	if j.Object != nil {
 		err = json.Unmarshal(j.Object, o)
 		if err != nil {
