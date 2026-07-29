@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"encoding"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"strings"
 )
 
 // Object defines the basic interface of an astral object. An object must have a unique type and must be able to
@@ -35,6 +37,55 @@ type TextObject interface {
 type JSONAdapter struct {
 	Type   string
 	Object json.RawMessage `json:",omitempty"`
+}
+
+// UnmarshalJSON decodes the envelope, admitting only the "Type" and "Object" keys. Key
+// names are matched case-insensitively, and two keys differing only in case are rejected
+// rather than resolved.
+//
+// why: plain encoding/json ignores an unrecognised key, so a misspelled "Object" left the
+// payload unread and the carrier at its zero value with a nil error — a corrupted schema
+// that registers silently. Every envelope decode in the module routes through this type
+// (interfaceValue, channel.JSONReceiver, RuntimeObject's ObjectSpec branch, Bundle), so
+// the check sits here rather than at each slot. The spec fixes the container's shape to
+// these two keys, so nothing conforming is refused (.ai/system/topics/json-encoding.md);
+// an absent payload key is left to the caller, matching the absent value's own null form.
+func (j *JSONAdapter) UnmarshalJSON(data []byte) error {
+	var fields map[string]json.RawMessage
+
+	err := json.Unmarshal(data, &fields)
+	if err != nil {
+		return err
+	}
+
+	var envType, envObject json.RawMessage
+	var haveType, haveObject bool
+
+	for k, v := range fields {
+		switch strings.ToLower(k) {
+		case "type":
+			if haveType {
+				return errors.New("json envelope has duplicate fields due to case insensitivity")
+			}
+			envType, haveType = v, true
+		case "object":
+			if haveObject {
+				return errors.New("json envelope has duplicate fields due to case insensitivity")
+			}
+			envObject, haveObject = v, true
+		default:
+			return errors.New("excess fields in json envelope")
+		}
+	}
+
+	if haveType {
+		if err = json.Unmarshal(envType, &j.Type); err != nil {
+			return err
+		}
+	}
+	j.Object = envObject
+
+	return nil
 }
 
 var jsonNull = []byte("null")
