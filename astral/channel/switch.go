@@ -122,6 +122,17 @@ func BreakOnEOS(*astral.EOS) error {
 	return ErrBreak
 }
 
+// MarkEOS records an explicit EOS input in *sawEOS and stops the Switch
+// function. Use it over BreakOnEOS when the caller must tell an explicit EOS
+// apart from EOF after Switch returns — Switch returns nil on both. See Batch
+// for the canonical use.
+func MarkEOS(sawEOS *bool) func(*astral.EOS) error {
+	return func(*astral.EOS) error {
+		*sawEOS = true
+		return ErrBreak
+	}
+}
+
 // PassErrors makes Switch surface received error objects instead of treating them as unexpected.
 func PassErrors(err error) error {
 	return err
