@@ -49,7 +49,7 @@ func (msg ErrorMessage) MarshalJSON() ([]byte, error) {
 }
 
 func (msg *ErrorMessage) UnmarshalJSON(bytes []byte) error {
-	return json.Unmarshal(bytes, &msg)
+	return json.Unmarshal(bytes, &msg.err)
 }
 
 // text
