@@ -35,7 +35,7 @@ type API struct{}
 
 type helloArgs struct {
 	Name string `query:"required"`
-	Out  string `query:"optional"`
+	Out  string
 }
 
 func (api *API) Hello(ctx *astral.Context, q *routing.IncomingQuery, args helloArgs) error {
@@ -301,8 +301,8 @@ type objectOps struct {
 }
 
 type findArgs struct {
-	ID  *astral.ObjectID
-	Out string `query:"optional"`
+	ID  *astral.ObjectID `query:"required"`
+	Out string
 }
 
 func (ops *objectOps) Find(ctx *astral.Context, q *routing.IncomingQuery, args findArgs) error {

@@ -18,8 +18,8 @@ type objectFinderOps struct {
 }
 
 type objectFindArgs struct {
-	ID  *astral.ObjectID
-	Out string `query:"optional"`
+	ID  *astral.ObjectID `query:"required"`
+	Out string
 }
 
 // WithObjectFinder mounts the objects.find IPC op and registers the app as a Finder with the node.

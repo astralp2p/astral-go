@@ -18,8 +18,8 @@ type objectSearcherOps struct {
 }
 
 type objectSearchArgs struct {
-	Query string `query:"key:q"`
-	Out   string `query:"optional"`
+	Query string `query:"key:q;required"`
+	Out   string
 }
 
 // WithObjectSearcher mounts the objects.search IPC op and registers the app as a Searcher with the node.

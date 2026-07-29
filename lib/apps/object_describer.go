@@ -18,8 +18,8 @@ type objectDescriberOps struct {
 }
 
 type objectDescribeArgs struct {
-	ID  *astral.ObjectID
-	Out string `query:"optional"`
+	ID  *astral.ObjectID `query:"required"`
+	Out string
 }
 
 // WithObjectDescriber mounts the objects.describe IPC op and registers the app as a Describer with the node.
