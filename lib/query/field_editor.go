@@ -59,7 +59,7 @@ func (editor FieldEditor) ObjectType() string {
 	case reflect.Float32:
 		return astral.Float32(0).ObjectType()
 	case reflect.Float64:
-		return astral.Float32(0).ObjectType()
+		return astral.Float64(0).ObjectType()
 	case reflect.Bool:
 		return astral.Bool(false).ObjectType()
 

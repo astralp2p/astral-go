@@ -429,6 +429,33 @@ func TestOp_ArgumentSpecs(t *testing.T) {
 	}
 }
 
+// An op's published spec carries each float argument at its own width. A float64
+// argument previously advertised "float32", so a caller reading .spec could size or
+// validate its input to 32-bit precision while the field parsed and held 64.
+func TestOp_ArgumentSpecs_FloatWidths(t *testing.T) {
+	type floatArgs struct {
+		Ratio  float32
+		Amount float64
+	}
+
+	op, err := NewOp(func(*astral.Context, *IncomingQuery, floatArgs) error { return nil })
+	if err != nil {
+		t.Fatalf("NewOp: %v", err)
+	}
+
+	byName := map[string]query.FieldSpec{}
+	for _, spec := range op.ArgumentSpecs() {
+		byName[spec.Name] = spec
+	}
+
+	if got := byName["ratio"].Type; got != "float32" {
+		t.Fatalf("ratio.Type: want %q, got %q", "float32", got)
+	}
+	if got := byName["amount"].Type; got != "float64" {
+		t.Fatalf("amount.Type: want %q, got %q", "float64", got)
+	}
+}
+
 // An op without a third argument advertises no parameters.
 func TestOp_ArgumentSpecsWithoutArguments(t *testing.T) {
 	op, err := NewOp(func(*astral.Context, *IncomingQuery) error { return nil })

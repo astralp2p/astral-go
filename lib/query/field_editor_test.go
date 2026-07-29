@@ -23,13 +23,10 @@ func fieldOf(t *testing.T, structPtr any, name string) *FieldEditor {
 }
 
 // ObjectType maps a Go kind to the astral type an app author sees in a spec.
-// Every integer width maps to its own astral type; the sized types are not
-// collapsed.
-//
-// reflect.Float64 is absent from this table on purpose: field_editor.go:62
-// maps it to astral.Float32, although astral.Float64 exists and reports
-// "float64". That is a defect, filed as its own task — asserting the current
-// value here would cement it.
+// Every float and integer width maps to its own astral type; the sized types are
+// not collapsed. The f64 row is the regression guard: reflect.Float64 reported
+// astral.Float32, so a float64 argument advertised half its width to every
+// caller reading .spec.
 func TestFieldEditor_ObjectType(t *testing.T) {
 	type kinds struct {
 		Str     string
@@ -44,6 +41,7 @@ func TestFieldEditor_ObjectType(t *testing.T) {
 		U64     uint64
 		U       uint
 		F32     float32
+		F64     float64
 		Boolean bool
 		Bytes   []byte
 	}
@@ -64,6 +62,7 @@ func TestFieldEditor_ObjectType(t *testing.T) {
 		{"u64", astral.Uint64(0).ObjectType()},
 		{"u", astral.Uint64(0).ObjectType()},
 		{"f32", astral.Float32(0).ObjectType()},
+		{"f64", astral.Float64(0).ObjectType()},
 		{"boolean", astral.Bool(false).ObjectType()},
 		{"bytes", astral.Bytes32{}.ObjectType()},
 	}
