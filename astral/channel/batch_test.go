@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"io"
+	"strings"
 	"testing"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -141,4 +142,100 @@ func TestBatch_ErrorReply_ContinuesBatch(t *testing.T) {
 	}
 
 	wantTypes(t, decodeTypes(t, &out), []string{"error_message", "ack", "eos"})
+}
+
+// encodeUnknownType appends a well-framed object whose type is not registered: the
+// "unknown type tag on a binary channel" receive failure. Framing stays valid so the
+// receiver fails on the decode, not on a truncated read.
+func encodeUnknownType(t *testing.T, buf *bytes.Buffer, typeName string) {
+	t.Helper()
+	if _, err := astral.String8(typeName).WriteTo(buf); err != nil {
+		t.Fatalf("encode type: %v", err)
+	}
+	if _, err := astral.Bytes32(nil).WriteTo(buf); err != nil {
+		t.Fatalf("encode payload: %v", err)
+	}
+}
+
+// TestBatch_ReceiveError_ReportsBeforeClosing: an input the channel cannot decode is
+// answered with an error_message before the batch closes.
+//
+// Batch previously returned the Switch error with nothing sent, so the channel closed
+// bare and the peer could not tell a rejected payload from a dropped transport. Replies
+// for inputs already handled must survive ahead of the report.
+func TestBatch_ReceiveError_ReportsBeforeClosing(t *testing.T) {
+	a := astral.String8("a")
+	in := encodeObjects(t, &a)
+	encodeUnknownType(t, in, "unregistered.x.batch")
+	var out bytes.Buffer
+
+	err := Batch(New(Join(in, &out)), func(*astral.String8) astral.Object {
+		return &astral.Ack{}
+	})
+	if err == nil {
+		t.Fatal("want the receive error returned, got nil")
+	}
+	if !errors.Is(err, astral.ErrBlueprintNotFound) {
+		t.Fatalf("want ErrBlueprintNotFound, got %v", err)
+	}
+
+	wantTypes(t, decodeTypes(t, &out), []string{"ack", "error_message"})
+}
+
+// TestBatch_ReceiveError_ReportCarriesTheReason: the reported error_message carries the
+// failure text, so the peer learns why rather than only that something went wrong.
+// Decoding it is itself the check that a Go peer survives reading the report.
+func TestBatch_ReceiveError_ReportCarriesTheReason(t *testing.T) {
+	in := encodeObjects(t)
+	encodeUnknownType(t, in, "unregistered.x.reason")
+	var out bytes.Buffer
+
+	if err := Batch(New(Join(in, &out)), func(*astral.String8) astral.Object {
+		return &astral.Ack{}
+	}); err == nil {
+		t.Fatal("want the receive error returned, got nil")
+	}
+
+	got, err := NewBinaryReceiver(bytes.NewReader(out.Bytes())).Receive()
+	if err != nil {
+		t.Fatalf("decode the report: %v", err)
+	}
+	msg, ok := got.(*astral.ErrorMessage)
+	if !ok {
+		t.Fatalf("want *astral.ErrorMessage, got %T", got)
+	}
+	if !strings.Contains(msg.Error(), "unregistered.x.reason") {
+		t.Fatalf("report text: want it to name the offending type, got %q", msg.Error())
+	}
+}
+
+// TestBatch_NoReceiveError_SendsNoReport: the report is not emitted on the healthy
+// paths. An EOF-terminated stream still closes bare — the caller is gone — and an
+// EOS-terminated one still ends with exactly one EOS.
+func TestBatch_NoReceiveError_SendsNoReport(t *testing.T) {
+	t.Run("eof", func(t *testing.T) {
+		a := astral.String8("a")
+		in := encodeObjects(t, &a)
+		var out bytes.Buffer
+
+		if err := Batch(New(Join(in, &out)), func(*astral.String8) astral.Object {
+			return &astral.Ack{}
+		}); err != nil {
+			t.Fatalf("batch: %v", err)
+		}
+		wantTypes(t, decodeTypes(t, &out), []string{"ack"})
+	})
+
+	t.Run("eos", func(t *testing.T) {
+		a := astral.String8("a")
+		in := encodeObjects(t, &a, &astral.EOS{})
+		var out bytes.Buffer
+
+		if err := Batch(New(Join(in, &out)), func(*astral.String8) astral.Object {
+			return &astral.Ack{}
+		}); err != nil {
+			t.Fatalf("batch: %v", err)
+		}
+		wantTypes(t, decodeTypes(t, &out), []string{"ack", "eos"})
+	})
 }

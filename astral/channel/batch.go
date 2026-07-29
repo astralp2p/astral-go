@@ -26,8 +26,19 @@ func Batch[T astral.Object](ch *Channel, fn func(T) astral.Object, config ...any
 		MarkEOS(&sawEOS),
 	}
 	args = append(args, config...)
-	if err := ch.Switch(args...); err != nil || !sawEOS {
+
+	// why: Switch fails on an input the channel cannot decode at all — an undecodable
+	// JSON line, an unknown type tag on a binary channel, a corrupted frame. Returning
+	// bare closed the channel with nothing on it, leaving the peer unable to tell a
+	// rejected payload from a dropped transport. Report before closing. A failed report
+	// is discarded: it means the channel is already broken, and the Switch error is the
+	// one worth returning.
+	if err := ch.Switch(args...); err != nil {
+		_ = ch.Send(astral.Err(err))
 		return err
+	}
+	if !sawEOS {
+		return nil
 	}
 	return ch.Send(&astral.EOS{})
 }
