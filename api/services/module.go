@@ -1,6 +1,7 @@
 package services
 
 const (
-	MethodDiscover = "services.discover"
-	MethodSync     = "services.sync"
+	MethodAdvertise = "services.advertise"
+	MethodDiscover  = "services.discover"
+	MethodSync      = "services.sync"
 )
