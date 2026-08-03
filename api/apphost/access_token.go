@@ -52,9 +52,16 @@ func (at *AccessToken) UnmarshalJSON(bytes []byte) error {
 
 // text
 
+// MarshalText renders the token as `identity,token,expiry`. The expiry carries
+// astral.Time's text encoding (RFC 3339). The %s verb resolves astral.Time
+// through Stringer, which yields a layout UnmarshalText rejects.
 func (at AccessToken) MarshalText() (text []byte, err error) {
-	s := fmt.Sprintf("%s,%s,%s", at.Identity, at.Token, at.ExpiresAt)
-	return []byte(s), nil
+	expiresAt, err := at.ExpiresAt.MarshalText()
+	if err != nil {
+		return nil, err
+	}
+
+	return fmt.Appendf(nil, "%s,%s,%s", at.Identity, at.Token, expiresAt), nil
 }
 
 func (at *AccessToken) UnmarshalText(text []byte) (err error) {
