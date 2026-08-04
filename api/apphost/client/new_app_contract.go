@@ -13,7 +13,10 @@ func NewAppContract(ctx *astral.Context, id *astral.Identity, duration astral.Du
 }
 
 func (client *Client) NewAppContract(ctx *astral.Context, id *astral.Identity, duration astral.Duration) (contract *auth.Contract, err error) {
-	ch, err := client.queryCh(ctx, apphost.MethodNewAppContract, query.Args{"ID": id, "Duration": duration})
+	// why: the node snake-cases and lower-cases op argument names, and binds by that
+	// name. Capitalised keys reach the wire verbatim, match nothing, and are dropped
+	// without complaint, so the op ran with a zero identity and a zero duration.
+	ch, err := client.queryCh(ctx, apphost.MethodNewAppContract, query.Args{"id": id, "duration": duration})
 	if err != nil {
 		return
 	}
