@@ -69,19 +69,24 @@ func NewRuntimeObject(bp *Blueprint) (*RuntimeObject, error) {
 // Dispatches on bp.Kind(): struct kind populates fields/index from bp.Fields; alias kind
 // allocates the underlying primitive via bps.New(bp.Underlying).
 func newRuntimeObjectWith(bps *Blueprints, bp *Blueprint) (*RuntimeObject, error) {
-	return newRuntimeObjectAt(bps, bp, 0)
+	return newRuntimeObjectAt(bps, bp, 0, newBuildBudget())
 }
 
 // newRuntimeObjectAt threads a construction-time depth counter so a RefSpec/PtrSpec cycle
 // (A.RefSpec→B, B.RefSpec→A) recursing through specZero → bps.New → newRuntimeObjectAt
 // surfaces ErrDepthExceeded instead of overflowing the Go stack. The cap mirrors the
 // runtime depth wrapper at WriteTo/ReadFrom (MaxBlueprintDepth).
-func newRuntimeObjectAt(bps *Blueprints, bp *Blueprint, depth int) (*RuntimeObject, error) {
+func newRuntimeObjectAt(bps *Blueprints, bp *Blueprint, depth int, budget *buildBudget) (*RuntimeObject, error) {
 	if bp == nil {
 		return &RuntimeObject{}, nil
 	}
 	if depth > MaxBlueprintDepth {
 		return nil, fmt.Errorf("%w: %s (construction)", ErrDepthExceeded, bp.Type)
+	}
+	// why: depth bounds the stack, not the work. A Blueprint with several reference
+	// fields per level costs k^depth frames while staying well inside the depth cap.
+	if !budget.take() {
+		return nil, fmt.Errorf("%w: %s (construction budget %d)", ErrDepthExceeded, bp.Type, MaxBlueprintNodes)
 	}
 	if err := validateBlueprint(bp); err != nil {
 		return nil, err
@@ -100,7 +105,7 @@ func newRuntimeObjectAt(bps *Blueprints, bp *Blueprint, depth int) (*RuntimeObje
 	}
 	for i, f := range bp.Fields {
 		name := f.Name.String()
-		v, zerr := specZeroAtErr(bps, f.Spec, depth+1)
+		v, zerr := specZeroAtErr(bps, f.Spec, depth+1, budget)
 		if zerr != nil {
 			return nil, zerr
 		}
@@ -236,7 +241,7 @@ func (ro *RuntimeObject) find(name string) int {
 // element types through the supplied registry so a custom Blueprints (WithBlueprints) sees its
 // own types, not defaultBlueprints.
 func specZero(bps *Blueprints, spec Spec) Object {
-	return specZeroAt(bps, spec, 0)
+	return specZeroAt(bps, spec, 0, newBuildBudget())
 }
 
 // specZeroAt is the depth-aware variant. RefSpec materialization is the only branch that can
@@ -244,20 +249,20 @@ func specZero(bps *Blueprints, spec Spec) Object {
 // Blueprint); a cycle is bounded by MaxBlueprintDepth. PrimitiveSpec resolves to a compile-time
 // prototype and never recurses; container Specs construct empty carriers; PtrSpec/ObjectSpec
 // return &Nil{}.
-func specZeroAt(bps *Blueprints, spec Spec, depth int) Object {
-	v, _ := specZeroAtErr(bps, spec, depth)
+func specZeroAt(bps *Blueprints, spec Spec, depth int, budget *buildBudget) Object {
+	v, _ := specZeroAtErr(bps, spec, depth, budget)
 	return v
 }
 
 // specZeroAtErr is the error-propagating variant. Only ErrDepthExceeded escapes — other
 // failures (unregistered type, etc.) still resolve to nil to preserve the documented
 // "treat-as-unregistered" contract at the codec layer.
-func specZeroAtErr(bps *Blueprints, spec Spec, depth int) (Object, error) {
+func specZeroAtErr(bps *Blueprints, spec Spec, depth int, budget *buildBudget) (Object, error) {
 	switch s := spec.(type) {
 	case *PrimitiveSpec:
 		return bps.New(s.PrimitiveType.String()), nil
 	case *RefSpec:
-		return newAt(bps, s.Type.String(), depth)
+		return newAt(bps, s.Type.String(), depth, budget)
 	case *SliceSpec:
 		// why: no heterogeneous fallback when the element type is unregistered — would silently
 		// swap wire shape and let encode succeed against bytes decode can't read. Codec layer

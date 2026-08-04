@@ -63,6 +63,16 @@ func resolveElemType(bps *Blueprints, typeName string) (reflect.Type, error) {
 	if typeName == "" {
 		return reflect.TypeOf((*Object)(nil)).Elem(), nil
 	}
+
+	// why: a runtime Blueprint always materializes as *RuntimeObject, so its reflect.Type
+	// is known without building a prototype. Building one resolved the element's own
+	// spec-zeros — and an element type naming a Blueprint that reaches this container
+	// again recursed without bound, because bps.New restarts the construction depth at
+	// zero. The prototype was discarded either way; only reflect.TypeOf survived it.
+	if isRuntimeBlueprintType(bps, typeName) {
+		return reflect.TypeOf((*RuntimeObject)(nil)), nil
+	}
+
 	proto := bps.New(typeName)
 	if proto == nil {
 		return nil, fmt.Errorf("%w: %s", ErrBlueprintNotFound, typeName)
