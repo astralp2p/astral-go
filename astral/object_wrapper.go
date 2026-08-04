@@ -49,7 +49,7 @@ func (o objectWrapper) WriteTo(w io.Writer) (n int64, err error) {
 func (o objectWrapper) ReadFrom(r io.Reader) (n int64, err error) {
 	var l uint32
 	var m int
-	var k int64
+
 	err = binary.Read(r, ByteOrder, &l)
 	if err != nil {
 		return
@@ -63,8 +63,9 @@ func (o objectWrapper) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	k, err = o.o.ReadFrom(bytes.NewReader(buf))
-	n += k
+	// why: n already counts the payload read from r above. Adding the inner object's
+	// own count over the same buffer reported it twice.
+	_, err = o.o.ReadFrom(bytes.NewReader(buf))
 
 	return
 }

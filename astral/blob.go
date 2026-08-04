@@ -72,7 +72,8 @@ func (b Blob) String() string {
 	return base64.StdEncoding.EncodeToString([]byte(b))
 }
 
-func init() {
-	var b Blob
-	_ = Add(&b)
-}
+// why: Blob has no ObjectType — an empty type name is the wire marker for an untyped
+// payload, which both channel receivers rely on to reconstruct one. There is no name to
+// register under and none a peer could ask for, and Add rejects an empty type, so this
+// registration always failed and the error was discarded. Its absence is deliberate:
+// Blob is reached by construction, not by New.

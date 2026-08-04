@@ -1,7 +1,6 @@
 package astral
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"io"
 	"strconv"
@@ -18,20 +17,12 @@ func (Int8) ObjectType() string {
 	return "int8"
 }
 
-func (i Int8) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i Int8) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, int8(i))
 }
 
-func (i *Int8) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i *Int8) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*int8)(i))
 }
 
 func (i Int8) MarshalJSON() ([]byte, error) {
@@ -47,12 +38,7 @@ func (i Int8) MarshalText() ([]byte, error) {
 }
 
 func (i *Int8) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseInt(string(text), 10, 8)
-	if err != nil {
-		return err
-	}
-	*i = Int8(v)
-	return nil
+	return parseIntText(text, (*int8)(i))
 }
 
 func (i Int8) String() string {
@@ -70,20 +56,12 @@ func (Int16) ObjectType() string {
 	return "int16"
 }
 
-func (i Int16) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i Int16) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, int16(i))
 }
 
-func (i *Int16) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i *Int16) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*int16)(i))
 }
 
 func (i Int16) MarshalJSON() ([]byte, error) {
@@ -99,12 +77,7 @@ func (i Int16) MarshalText() ([]byte, error) {
 }
 
 func (i *Int16) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseInt(string(text), 10, 8)
-	if err != nil {
-		return err
-	}
-	*i = Int16(v)
-	return nil
+	return parseIntText(text, (*int16)(i))
 }
 
 func (i Int16) String() string {
@@ -122,20 +95,12 @@ func (Int32) ObjectType() string {
 	return "int32"
 }
 
-func (i Int32) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i Int32) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, int32(i))
 }
 
-func (i *Int32) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i *Int32) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*int32)(i))
 }
 
 func (i Int32) MarshalJSON() ([]byte, error) {
@@ -151,12 +116,7 @@ func (i Int32) MarshalText() ([]byte, error) {
 }
 
 func (i *Int32) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseInt(string(text), 10, 8)
-	if err != nil {
-		return err
-	}
-	*i = Int32(v)
-	return nil
+	return parseIntText(text, (*int32)(i))
 }
 
 func (i Int32) String() string {
@@ -174,20 +134,12 @@ func (Int64) ObjectType() string {
 	return "int64"
 }
 
-func (i Int64) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i Int64) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, int64(i))
 }
 
-func (i *Int64) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, i)
-	if err == nil {
-		n = 1
-	}
-	return
+func (i *Int64) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*int64)(i))
 }
 
 func (i Int64) MarshalJSON() ([]byte, error) {
@@ -203,12 +155,7 @@ func (i Int64) MarshalText() ([]byte, error) {
 }
 
 func (i *Int64) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseInt(string(text), 10, 8)
-	if err != nil {
-		return err
-	}
-	*i = Int64(v)
-	return nil
+	return parseIntText(text, (*int64)(i))
 }
 
 func (i Int64) String() string {

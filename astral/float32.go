@@ -1,7 +1,6 @@
 package astral
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"io"
 	"strconv"
@@ -20,20 +19,12 @@ func (Float32) ObjectType() string { return "float32" }
 
 // binary
 
-func (f Float32) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, float32(f))
-	if err == nil {
-		n = 4
-	}
-	return
+func (f Float32) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, float32(f))
 }
 
-func (f *Float32) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, f)
-	if err == nil {
-		n = 4
-	}
-	return
+func (f *Float32) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*float32)(f))
 }
 
 // json

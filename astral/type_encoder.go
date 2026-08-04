@@ -20,14 +20,18 @@ func CanonicalTypeEncoder(w io.Writer, t string) (n int64, err error) {
 
 	var m int64
 
+	// why: these two lines read `n = +m` — a unary plus, not an addition — so the
+	// canonical encoder reported only the type name and dropped the 4-byte Stamp,
+	// disagreeing with CanonicalTypeDecoder about the same stream. Neither gofmt nor
+	// go vet flags the form.
 	m, err = Stamp{}.WriteTo(w)
-	n = +m
+	n += m
 	if err != nil {
 		return
 	}
 
 	m, err = ObjectType(t).WriteTo(w)
-	n = +m
+	n += m
 	return
 }
 

@@ -59,6 +59,10 @@ func (a sliceValue) ReadFrom(r io.Reader) (n int64, err error) {
 	if err != nil {
 		return
 	}
+	// why: the four length bytes were consumed but never counted, so every slice
+	// under-reported by four and a type embedding one reported a smaller ReadFrom
+	// than WriteTo for the same object. WriteTo counts them.
+	n += 4
 
 	a.Set(reflect.MakeSlice(a.Type(), int(l), int(l)))
 

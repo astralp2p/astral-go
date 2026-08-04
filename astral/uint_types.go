@@ -1,7 +1,6 @@
 package astral
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"io"
 	"strconv"
@@ -18,20 +17,12 @@ func (Uint8) ObjectType() string {
 	return "uint8"
 }
 
-func (u Uint8) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u Uint8) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, uint8(u))
 }
 
-func (u *Uint8) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u *Uint8) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*uint8)(u))
 }
 
 func (u Uint8) MarshalJSON() ([]byte, error) {
@@ -47,12 +38,7 @@ func (u Uint8) MarshalText() ([]byte, error) {
 }
 
 func (u *Uint8) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseUint(string(text), 10, 8)
-	if err != nil {
-		return err
-	}
-	*u = Uint8(v)
-	return nil
+	return parseUintText(text, (*uint8)(u))
 }
 
 func (u Uint8) String() string {
@@ -70,20 +56,12 @@ func (Uint16) ObjectType() string {
 	return "uint16"
 }
 
-func (u Uint16) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u Uint16) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, uint16(u))
 }
 
-func (u *Uint16) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u *Uint16) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*uint16)(u))
 }
 
 func (u Uint16) MarshalJSON() ([]byte, error) {
@@ -99,12 +77,7 @@ func (u Uint16) MarshalText() ([]byte, error) {
 }
 
 func (u *Uint16) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseUint(string(text), 10, 16)
-	if err != nil {
-		return err
-	}
-	*u = Uint16(v)
-	return nil
+	return parseUintText(text, (*uint16)(u))
 }
 
 func (u Uint16) String() string {
@@ -122,20 +95,12 @@ func (Uint32) ObjectType() string {
 	return "uint32"
 }
 
-func (u Uint32) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u Uint32) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, uint32(u))
 }
 
-func (u *Uint32) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u *Uint32) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*uint32)(u))
 }
 
 func (u Uint32) MarshalJSON() ([]byte, error) {
@@ -151,12 +116,7 @@ func (u Uint32) MarshalText() ([]byte, error) {
 }
 
 func (u *Uint32) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseUint(string(text), 10, 32)
-	if err != nil {
-		return err
-	}
-	*u = Uint32(v)
-	return nil
+	return parseUintText(text, (*uint32)(u))
 }
 
 func (u Uint32) String() string {
@@ -174,20 +134,12 @@ func (Uint64) ObjectType() string {
 	return "uint64"
 }
 
-func (u Uint64) WriteTo(w io.Writer) (n int64, err error) {
-	err = binary.Write(w, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u Uint64) WriteTo(w io.Writer) (int64, error) {
+	return writeFixed(w, uint64(u))
 }
 
-func (u *Uint64) ReadFrom(r io.Reader) (n int64, err error) {
-	err = binary.Read(r, ByteOrder, u)
-	if err == nil {
-		n = 1
-	}
-	return
+func (u *Uint64) ReadFrom(r io.Reader) (int64, error) {
+	return readFixed(r, (*uint64)(u))
 }
 
 func (u Uint64) MarshalJSON() ([]byte, error) {
@@ -203,12 +155,7 @@ func (u Uint64) MarshalText() ([]byte, error) {
 }
 
 func (u *Uint64) UnmarshalText(text []byte) error {
-	v, err := strconv.ParseUint(string(text), 10, 64)
-	if err != nil {
-		return err
-	}
-	*u = Uint64(v)
-	return nil
+	return parseUintText(text, (*uint64)(u))
 }
 
 func (u Uint64) String() string {

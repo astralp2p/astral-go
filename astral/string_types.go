@@ -48,6 +48,12 @@ func (s *String8) ReadFrom(r io.Reader) (n int64, err error) {
 	var buf = make([]byte, l)
 	m, err := io.ReadFull(r, buf)
 	n += int64(m)
+	// why: assigning before checking the error left the destination holding a prefix
+	// of the intended value, so a caller that ignored the error could not tell a
+	// truncated string from a complete one.
+	if err != nil {
+		return
+	}
 
 	*s = String8(buf[:m])
 
@@ -113,6 +119,12 @@ func (s *String16) ReadFrom(r io.Reader) (n int64, err error) {
 	var buf = make([]byte, l)
 	m, err := io.ReadFull(r, buf)
 	n += int64(m)
+	// why: assigning before checking the error left the destination holding a prefix
+	// of the intended value, so a caller that ignored the error could not tell a
+	// truncated string from a complete one.
+	if err != nil {
+		return
+	}
 
 	*s = String16(buf[:m])
 
@@ -179,6 +191,12 @@ func (s *String32) ReadFrom(r io.Reader) (n int64, err error) {
 	var buf = make([]byte, l)
 	m, err := io.ReadFull(r, buf)
 	n += int64(m)
+	// why: assigning before checking the error left the destination holding a prefix
+	// of the intended value, so a caller that ignored the error could not tell a
+	// truncated string from a complete one.
+	if err != nil {
+		return
+	}
 
 	*s = String32(buf[:m])
 
@@ -238,6 +256,12 @@ func (s *String64) ReadFrom(r io.Reader) (n int64, err error) {
 	var buf = make([]byte, l)
 	m, err := io.ReadFull(r, buf)
 	n += int64(m)
+	// why: assigning before checking the error left the destination holding a prefix
+	// of the intended value, so a caller that ignored the error could not tell a
+	// truncated string from a complete one.
+	if err != nil {
+		return
+	}
 
 	*s = String64(buf[:m])
 
