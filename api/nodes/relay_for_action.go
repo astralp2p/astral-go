@@ -27,4 +27,4 @@ func (a RelayForAction) ApplyConstraints(cs *astral.Bundle) bool {
 	return cs == nil || len(cs.Objects()) == 0
 }
 
-func init() { _ = astral.Add(&RelayForAction{}) }
+func init() { astral.MustAdd(&RelayForAction{}) }

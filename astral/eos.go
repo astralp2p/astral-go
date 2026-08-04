@@ -12,5 +12,5 @@ func (E EOS) ObjectType() string {
 }
 
 func init() {
-	Add(&EOS{})
+	MustAdd(&EOS{})
 }

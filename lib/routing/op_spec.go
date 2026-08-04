@@ -41,5 +41,5 @@ func (s *OpSpec) UnmarshalJSON(bytes []byte) error {
 // ...
 
 func init() {
-	_ = astral.Add(&OpSpec{})
+	astral.MustAdd(&OpSpec{})
 }

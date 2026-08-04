@@ -213,5 +213,5 @@ func (id *Identity) Scan(src any) error {
 }
 
 func init() {
-	_ = Add(&Identity{})
+	MustAdd(&Identity{})
 }

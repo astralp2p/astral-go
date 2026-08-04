@@ -25,4 +25,4 @@ func (s *PtrSpec) UnmarshalJSON(b []byte) error { return Objectify(s).UnmarshalJ
 // registered before this Blueprint for closure validation to pass.
 func (s *PtrSpec) ReferencedType() string { return s.Type.String() }
 
-func init() { _ = Add(&PtrSpec{}) }
+func init() { MustAdd(&PtrSpec{}) }

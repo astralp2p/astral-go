@@ -144,5 +144,5 @@ func tokenizeQuery(s string) []string {
 }
 
 func init() {
-	astral.Add(&SearchQuery{})
+	astral.MustAdd(&SearchQuery{})
 }

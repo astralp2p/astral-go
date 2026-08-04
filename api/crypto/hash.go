@@ -57,5 +57,5 @@ func (hash *Hash) UnmarshalText(text []byte) (err error) {
 // ...
 
 func init() {
-	_ = astral.Add(&Hash{})
+	astral.MustAdd(&Hash{})
 }

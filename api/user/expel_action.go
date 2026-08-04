@@ -27,4 +27,4 @@ func (a ExpelAction) ApplyConstraints(cs *astral.Bundle) bool {
 	return cs == nil || len(cs.Objects()) == 0
 }
 
-func init() { _ = astral.Add(&ExpelAction{}) }
+func init() { astral.MustAdd(&ExpelAction{}) }

@@ -294,5 +294,5 @@ func init() {
 		b64 Bytes64
 	)
 
-	_ = Add(&b8, &b16, &b32, &b64)
+	MustAdd(&b8, &b16, &b32, &b64)
 }

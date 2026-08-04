@@ -240,6 +240,6 @@ type PrimitiveAlias interface {
 }
 
 func init() {
-	_ = Add(&Blueprint{})
-	_ = Add(&Field{})
+	MustAdd(&Blueprint{})
+	MustAdd(&Field{})
 }

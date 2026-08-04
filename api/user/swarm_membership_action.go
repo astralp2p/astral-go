@@ -24,4 +24,4 @@ func (a *SwarmMembershipAction) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(a).ReadFrom(r)
 }
 
-func init() { _ = astral.Add(&SwarmMembershipAction{}) }
+func init() { astral.MustAdd(&SwarmMembershipAction{}) }

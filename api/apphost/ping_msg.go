@@ -22,5 +22,5 @@ func (p PingMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&PingMsg{})
+	astral.MustAdd(&PingMsg{})
 }

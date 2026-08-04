@@ -248,5 +248,5 @@ func Fetch[T Object](bundle *Bundle, objectID ObjectID) (object T, found bool) {
 }
 
 func init() {
-	_ = Add(&Bundle{})
+	MustAdd(&Bundle{})
 }

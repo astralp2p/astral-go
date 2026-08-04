@@ -134,5 +134,5 @@ func (e Endpoint) String() string {
 }
 
 func init() {
-	astral.Add(&Endpoint{})
+	astral.MustAdd(&Endpoint{})
 }

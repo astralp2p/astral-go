@@ -295,5 +295,5 @@ func init() {
 		s64 String64
 	)
 
-	_ = Add(&s8, &s16, &s32, &s64)
+	MustAdd(&s8, &s16, &s32, &s64)
 }

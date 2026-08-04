@@ -195,5 +195,5 @@ func (id *ObjectID) IsZero() bool {
 }
 
 func init() {
-	_ = Add(&ObjectID{})
+	MustAdd(&ObjectID{})
 }

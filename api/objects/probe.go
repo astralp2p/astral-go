@@ -43,5 +43,5 @@ func (s *Probe) UnmarshalJSON(bytes []byte) error {
 // ...
 
 func init() {
-	_ = astral.Add(&Probe{})
+	astral.MustAdd(&Probe{})
 }

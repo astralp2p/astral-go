@@ -75,5 +75,5 @@ func (b Bool) String() string {
 
 func init() {
 	var b Bool
-	_ = Add(&b)
+	MustAdd(&b)
 }

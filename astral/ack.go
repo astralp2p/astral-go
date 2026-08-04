@@ -11,5 +11,5 @@ var _ Object = &Ack{}
 func (Ack) ObjectType() string { return "ack" }
 
 func init() {
-	Add(&Ack{})
+	MustAdd(&Ack{})
 }

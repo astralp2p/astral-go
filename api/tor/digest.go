@@ -90,5 +90,5 @@ func (d Digest) String() string {
 }
 
 func init() {
-	_ = astral.Add(&Digest{})
+	astral.MustAdd(&Digest{})
 }

@@ -46,5 +46,5 @@ func (e *ErrUnexpectedObject) Is(other error) bool {
 }
 
 func init() {
-	_ = Add(&ErrUnexpectedObject{})
+	MustAdd(&ErrUnexpectedObject{})
 }

@@ -89,6 +89,6 @@ func (c *Contract) SignableText() string {
 }
 
 func init() {
-	_ = astral.Add(&Contract{})
-	_ = astral.Add(&Permit{})
+	astral.MustAdd(&Contract{})
+	astral.MustAdd(&Permit{})
 }

@@ -25,4 +25,4 @@ func (a CreateObjectAction) ApplyConstraints(_ *astral.Bundle) bool {
 	return true
 }
 
-func init() { _ = astral.Add(&CreateObjectAction{}) }
+func init() { astral.MustAdd(&CreateObjectAction{}) }

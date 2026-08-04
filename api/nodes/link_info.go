@@ -62,5 +62,5 @@ func (e *LinkInfo) UnmarshalJSON(b []byte) error {
 }
 
 func init() {
-	astral.Add(&LinkInfo{})
+	astral.MustAdd(&LinkInfo{})
 }

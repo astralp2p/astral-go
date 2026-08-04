@@ -23,4 +23,4 @@ func (a *ReadObjectAction) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(a).ReadFrom(r)
 }
 
-func init() { _ = astral.Add(&ReadObjectAction{}) }
+func init() { astral.MustAdd(&ReadObjectAction{}) }

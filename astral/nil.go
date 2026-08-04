@@ -10,5 +10,5 @@ var _ Object = &Nil{}
 func (Nil) ObjectType() string { return "nil" }
 
 func init() {
-	Add(&Nil{})
+	MustAdd(&Nil{})
 }

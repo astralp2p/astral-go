@@ -169,5 +169,5 @@ func init() {
 		i32 Int32
 		i64 Int64
 	)
-	_ = Add(&i8, &i16, &i32, &i64)
+	MustAdd(&i8, &i16, &i32, &i64)
 }

@@ -33,7 +33,7 @@ func (n *Note) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func init() {
-	_ = astral.Add(&Note{})
+	astral.MustAdd(&Note{})
 }
 
 func main() {

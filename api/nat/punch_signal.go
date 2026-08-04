@@ -59,5 +59,5 @@ func (f *PunchSignal) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&PunchSignal{})
+	astral.MustAdd(&PunchSignal{})
 }

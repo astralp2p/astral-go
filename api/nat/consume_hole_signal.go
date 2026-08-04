@@ -60,7 +60,7 @@ func (s *ConsumeHoleSignal) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&ConsumeHoleSignal{})
+	astral.MustAdd(&ConsumeHoleSignal{})
 }
 
 // ExpectConsumeHoleSignal returns a handler that validates pair and signal type.

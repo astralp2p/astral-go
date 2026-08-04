@@ -27,5 +27,5 @@ func (s *SwarmMember) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	astral.Add(&SwarmMember{})
+	astral.MustAdd(&SwarmMember{})
 }

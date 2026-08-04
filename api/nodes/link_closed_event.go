@@ -41,5 +41,5 @@ func (m *LinkClosedEvent) UnmarshalJSON(b []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&LinkClosedEvent{})
+	astral.MustAdd(&LinkClosedEvent{})
 }

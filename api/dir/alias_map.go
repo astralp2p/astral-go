@@ -33,5 +33,5 @@ func (a *AliasMap) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	astral.Add(&AliasMap{})
+	astral.MustAdd(&AliasMap{})
 }

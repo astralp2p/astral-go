@@ -43,4 +43,4 @@ func isAllowedMapKey(name string) bool {
 	return false
 }
 
-func init() { _ = Add(&MapSpec{}) }
+func init() { MustAdd(&MapSpec{}) }

@@ -71,5 +71,5 @@ func (e *Entropy) UnmarshalText(text []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&Entropy{})
+	astral.MustAdd(&Entropy{})
 }

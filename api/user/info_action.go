@@ -26,4 +26,4 @@ func (a InfoAction) ApplyConstraints(cs *astral.Bundle) bool {
 	return cs == nil || len(cs.Objects()) == 0
 }
 
-func init() { _ = astral.Add(&InfoAction{}) }
+func init() { astral.MustAdd(&InfoAction{}) }

@@ -25,5 +25,5 @@ func (n *Notification) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func init() {
-	astral.Add(&Notification{})
+	astral.MustAdd(&Notification{})
 }

@@ -26,5 +26,5 @@ type ObjectTyper interface {
 
 func init() {
 	var ot ObjectType
-	_ = Add(&ot)
+	MustAdd(&ot)
 }

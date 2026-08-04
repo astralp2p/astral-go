@@ -59,5 +59,5 @@ func (e *EndpointWithTTL) Address() string { return e.Endpoint.Address() }
 func (e *EndpointWithTTL) Pack() []byte    { return e.Endpoint.Pack() }
 
 func init() {
-	_ = astral.Add(&EndpointWithTTL{})
+	astral.MustAdd(&EndpointWithTTL{})
 }

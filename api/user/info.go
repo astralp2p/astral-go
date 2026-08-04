@@ -27,5 +27,5 @@ func (i *Info) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	astral.Add(&Info{})
+	astral.MustAdd(&Info{})
 }

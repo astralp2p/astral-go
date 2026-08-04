@@ -37,5 +37,5 @@ func (s *Stamp) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = Add(&Stamp{})
+	MustAdd(&Stamp{})
 }

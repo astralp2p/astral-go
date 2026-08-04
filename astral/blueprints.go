@@ -69,6 +69,18 @@ func Add(object ...Object) error {
 	return defaultBlueprints.Add(object...)
 }
 
+// MustAdd registers object prototypes with the default Blueprints and panics on
+// failure.
+//
+// why: registration happens in package init, where a failure means the process's wire
+// surface is incomplete and there is no caller left to hand the error to. Every site
+// discarded it, which hid a registration that had never once succeeded.
+func MustAdd(object ...Object) {
+	if err := Add(object...); err != nil {
+		panic("astral: " + err.Error())
+	}
+}
+
 // New returns a zero-value object of the specified type or nil if no blueprint is found.
 //
 // The stored entry under typeName disambiguates: a *Blueprint registered under its own Type

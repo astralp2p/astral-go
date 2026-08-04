@@ -127,5 +127,5 @@ func (e *Endpoint) UDPAddr() *net.UDPAddr {
 }
 
 func init() {
-	_ = astral.Add(&Endpoint{})
+	astral.MustAdd(&Endpoint{})
 }

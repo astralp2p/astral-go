@@ -89,5 +89,5 @@ func (at *AccessToken) UnmarshalText(text []byte) (err error) {
 }
 
 func init() {
-	_ = astral.Add(&AccessToken{})
+	astral.MustAdd(&AccessToken{})
 }

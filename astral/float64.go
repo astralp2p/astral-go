@@ -56,5 +56,5 @@ func (f *Float64) UnmarshalText(text []byte) error {
 
 func init() {
 	var f Float64
-	Add(&f)
+	MustAdd(&f)
 }

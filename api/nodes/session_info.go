@@ -53,5 +53,5 @@ func (s SessionInfo) MarshalJSON() ([]byte, error) {
 }
 
 func init() {
-	astral.Add(&SessionInfo{})
+	astral.MustAdd(&SessionInfo{})
 }

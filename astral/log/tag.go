@@ -33,5 +33,5 @@ func (l Tag) String() string {
 
 func init() {
 	var v Tag
-	astral.Add(&v)
+	astral.MustAdd(&v)
 }

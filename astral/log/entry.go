@@ -46,5 +46,5 @@ func (e *Entry) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	astral.Add(&Entry{})
+	astral.MustAdd(&Entry{})
 }

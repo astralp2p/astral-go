@@ -23,5 +23,5 @@ func (msg *BindMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&BindMsg{})
+	astral.MustAdd(&BindMsg{})
 }

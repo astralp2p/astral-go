@@ -34,5 +34,5 @@ func (t *QueryTag) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func init() {
-	astral.Add(&QueryTag{})
+	astral.MustAdd(&QueryTag{})
 }

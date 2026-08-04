@@ -25,5 +25,5 @@ func (a Alias) String() string { return string(a) }
 
 func init() {
 	var a Alias
-	_ = astral.Add(&a)
+	astral.MustAdd(&a)
 }
