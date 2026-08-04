@@ -108,7 +108,9 @@ func (val mapValue) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	val.Set(reflect.MakeMapWithSize(val.Type(), int(l)))
+	// why: l is the peer's claim. Sizing the map to it let a four-byte count
+	// name an arbitrarily large allocation; the map grows as entries arrive.
+	val.Set(reflect.MakeMapWithSize(val.Type(), elemCap(l)))
 	flagged := elemNeedsPresenceFlag(val.Type().Elem())
 
 	for range l {

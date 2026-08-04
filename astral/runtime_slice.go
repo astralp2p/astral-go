@@ -94,13 +94,19 @@ func (s *RuntimeSlice) readRuntimeBlueprintElements(r io.Reader, bps *Blueprints
 	}
 	var n int64 = 4
 
-	sl := reflect.MakeSlice(s.ptr.Elem().Type(), int(l), int(l))
+	// why: l is the peer's claim. Reserving l elements up front let a four-byte
+	// count name an arbitrarily large allocation, so the slice grows as elements
+	// arrive.
+	sliceType := s.ptr.Elem().Type()
+	sl := reflect.MakeSlice(sliceType, 0, elemCap(l))
 	for i := 0; i < int(l); i++ {
-		m, err := readRuntimeBlueprintPtr(r, bps, s.elemName, sl.Index(i))
+		elem := reflect.New(sliceType.Elem()).Elem()
+		m, err := readRuntimeBlueprintPtr(r, bps, s.elemName, elem)
 		n += m
 		if err != nil {
 			return n, err
 		}
+		sl = reflect.Append(sl, elem)
 	}
 	s.ptr.Elem().Set(sl)
 	return n, nil
