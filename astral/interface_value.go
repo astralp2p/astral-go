@@ -118,7 +118,14 @@ func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	o := New(objectType)
+	// why: a polymorphic field is the one slot whose type is not known until the bytes
+	// arrive, so it is precisely where a per-call registry has to be consulted. The
+	// package-level New reads defaultBlueprints, which meant a registry passed with
+	// WithBlueprints reached a struct's own fields and was then dropped at the first
+	// polymorphic one. resolve() falls back to defaultBlueprints when no registry was
+	// threaded, and a child registry walks its parent chain, so nothing that resolved
+	// before stops resolving.
+	o := or.resolve().New(objectType)
 	if o == nil {
 		return n, fmt.Errorf("%w: %w: %s", ErrStreamCorrupted, ErrBlueprintNotFound, objectType)
 	}
@@ -180,6 +187,12 @@ func (i interfaceValue) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// The JSON twin of the resolution ReadFrom does, and it cannot be fixed the same
+	// way: UnmarshalJSON's signature carries no configuration, so there is nowhere to
+	// thread a per-call registry. Every JSON type-name resolution in this package has
+	// the same ceiling — here, unmarshalFieldJSON, unmarshalRuntimeBlueprintPtr and
+	// Bundle — so WithBlueprints is a binary-path facility today. Widening it needs an
+	// API decision, not a call-site change.
 	o := New(j.Type)
 	if o == nil {
 		return fmt.Errorf("%w: %s", ErrBlueprintNotFound, j.Type)
