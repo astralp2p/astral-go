@@ -102,12 +102,19 @@ type ConfigFunc func(*endecConfig)
 func Encode(w io.Writer, obj Object, config ...ConfigFunc) (n int64, err error) {
 	cfg := makeConfig(config...)
 
-	n, err = cfg.Encoder(w, obj.ObjectType())
+	// why: Decode attaches a ledger and bounds what one call may consume; without the
+	// same attachment here the encoder is unbounded, so this module emits objects it
+	// then refuses to read back — measured at 5000 nested frames encoding cleanly and
+	// failing to decode past 32. astral-docs topics/codec.md states the rule: an
+	// implementation that bounds decoding applies the same bound when encoding.
+	ow := attachWriter(w)
+
+	n, err = cfg.Encoder(ow, obj.ObjectType())
 	if err != nil {
 		return
 	}
 
-	m, err := obj.WriteTo(w)
+	m, err := obj.WriteTo(ow)
 	n += m
 
 	return

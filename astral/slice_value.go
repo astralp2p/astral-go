@@ -20,6 +20,13 @@ func (a sliceValue) ObjectType() string {
 }
 
 func (a sliceValue) WriteTo(w io.Writer) (n int64, err error) {
+	ow, gerr := enterWriter(w, frameName("slice"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
 	var o Object
 	var m int64
 

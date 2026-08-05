@@ -31,6 +31,13 @@ func (s structValue) ObjectType() string {
 }
 
 func (s structValue) WriteTo(w io.Writer) (n int64, err error) {
+	ow, gerr := enterWriter(w, frameName("struct"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
 	var m int64
 	var o Object
 

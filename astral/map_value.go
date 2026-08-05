@@ -31,6 +31,13 @@ func (val mapValue) ObjectType() string {
 // which naturally produces tag+payload for interface element types and bare payload for
 // concrete Object types — matching StringMap/IntMap heterogeneous and homogeneous modes.
 func (val mapValue) WriteTo(w io.Writer) (n int64, err error) {
+	ow, gerr := enterWriter(w, frameName("map"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
 	keyWidth, ok := supportedMapKey(val.Type().Key().Kind())
 	if !ok {
 		return 0, fmt.Errorf("map_value: unsupported key kind %s", val.Type().Key().Kind())

@@ -34,6 +34,13 @@ func (i interfaceValue) IsAbsent() bool {
 }
 
 func (i interfaceValue) WriteTo(w io.Writer) (n int64, err error) {
+	ow, gerr := enterWriter(w, frameName("interface"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
 	if i.IsAbsent() {
 		err = binary.Write(w, ByteOrder, uint8(0)) // zero-length type means nil
 		if err == nil {

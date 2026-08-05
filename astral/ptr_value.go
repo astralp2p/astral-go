@@ -39,6 +39,13 @@ func (p ptrValue) ObjectType() string {
 }
 
 func (p ptrValue) WriteTo(w io.Writer) (n int64, err error) {
+	ow, gerr := enterWriter(w, frameName("ptr"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
 	if p.IsNil() {
 		if p.skipNilFlag {
 			return 0, nil

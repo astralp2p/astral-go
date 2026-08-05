@@ -130,7 +130,29 @@ func (ow *objectWriter) subWriter(w io.Writer) *objectWriter {
 	return &objectWriter{Writer: w, b: ow.b}
 }
 
+// Read hands over at most the bytes the budget still allows.
+//
+// why: returning bytes and an error together loses the error. io.ReadFull and
+// io.ReadAtLeast end with `if n >= min { err = nil }`, so a read that was satisfied
+// discards whatever the reader reported alongside it — and every length-prefixed
+// payload in the codec reads through them. Charging after the fact was therefore
+// inert: a payload of twice MaxCodecBytes decoded with err=<nil>.
+//
+// Clamping the slice moves enforcement into what the reader will hand over. Once the
+// budget is spent the next Read yields no bytes at all, so the short read cannot be
+// silently completed by any wrapper, and no byte the underlying reader produced is
+// dropped on the floor.
 func (or *objectReader) Read(p []byte) (int, error) {
+	if or.b != nil {
+		room := MaxCodecBytes - or.b.bytes
+		if room <= 0 {
+			return 0, fmt.Errorf("%w: byte budget %d", ErrDepthExceeded, MaxCodecBytes)
+		}
+		if int64(len(p)) > room {
+			p = p[:room]
+		}
+	}
+
 	n, err := or.Reader.Read(p)
 	if cerr := or.b.charge(n); cerr != nil {
 		return n, cerr
