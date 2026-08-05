@@ -612,9 +612,13 @@ func TestAllBlueprints_RuntimeTopoAfterCompileTime(t *testing.T) {
 	mustPrecede(t, names, "test.all_leaf", "test.all_top")
 }
 
+// The example is notAStruct rather than Bool: bool is on the primitive allowlist, so its
+// derivation failure is by design and no longer aggregated. The claim under test is
+// unchanged — a prototype that cannot be described is reported and does not reach the
+// returned slice — but it needs a name the allowlist does not hold to still mean it.
 func TestAllBlueprints_BadPrototypeAggregated(t *testing.T) {
 	bps := NewBlueprints(nil)
-	b := Bool(false)
+	b := notAStruct(0)
 	_ = bps.Add(&Blueprint{}, &b)
 
 	all, err := bps.AllBlueprints()

@@ -557,6 +557,19 @@ func (bp *Blueprints) AllBlueprints() ([]*Blueprint, error) {
 		case kindStructProto:
 			derived, err := BlueprintOf(obj)
 			if err != nil {
+				// why: an allowlisted primitive registered under its own name has no
+				// derivable Blueprint by design — primitive_spec.go says so — and every
+				// peer already knows the type, so there is nothing to sync and nothing
+				// wrong. Seventeen such entries buried the ones that are real, which is
+				// what let a genuinely undescribable type go unnoticed.
+				//
+				// Suppressed on failure rather than before deriving: identity and time
+				// are allowlisted and do derive, so testing the name first drops two
+				// live entries from the sync. The returned slice is unchanged.
+				if IsPrimitiveType(name) {
+					continue
+				}
+
 				errs = append(errs, fmt.Errorf("blueprint %s: %w", name, err))
 				continue
 			}
