@@ -47,6 +47,11 @@ func (o objectWrapper) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (o objectWrapper) ReadFrom(r io.Reader) (n int64, err error) {
+	// why: WriteTo guards this and ReadFrom did not.
+	if o.o == nil {
+		return 0, nil
+	}
+
 	var l uint32
 	var m int
 	var k int64

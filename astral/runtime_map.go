@@ -79,10 +79,22 @@ func resolveKeyType(name string) (reflect.Type, error) {
 }
 
 func (m *RuntimeMap) WriteTo(w io.Writer) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !m.ptr.IsValid() {
+		return 0, nil
+	}
 	return mapValue{Value: m.ptr.Elem()}.WriteTo(w)
 }
 
 func (m *RuntimeMap) ReadFrom(r io.Reader) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !m.ptr.IsValid() {
+		return 0, nil
+	}
 	bps := blueprintsFromReader(r)
 	if !isRuntimeBlueprintType(bps, m.valueName) {
 		return mapValue{Value: m.ptr.Elem()}.ReadFrom(r)

@@ -145,10 +145,13 @@ func (bp *Blueprints) Add(object ...Object) error {
 	return nil
 }
 
-// OrderedBlueprints returns all registered type names in dependency order. Walks
-// the parent chain. At each level: non-alias compile-time prototypes first
-// (alpha-sorted), then aliases (alpha-sorted, leaves with no internal refs),
-// then runtime Blueprints topo-sorted by referencedType.
+// OrderedBlueprints returns all registered type names in dependency order. Walks the
+// parent chain. At each level: leaves (registered names with no derivable Blueprint,
+// alpha-sorted), then aliases (alpha-sorted), then struct-kind compile-time prototypes
+// topo-sorted by reference, then runtime Blueprints topo-sorted by reference.
+//
+// The order matches AllBlueprints and the sync order the spec states — aliases first,
+// then structs topologically sorted (topics/blueprints.md).
 //
 // Aliases precede runtime Blueprints so that a Blueprint's RefSpec to an alias
 // resolves on the peer when replayed in this order. An entry classifies as an
@@ -157,6 +160,21 @@ func (bp *Blueprints) Add(object ...Object) error {
 //
 // Names that appear in both the local entries and the parent chain (parent-add-after-child
 // shadow) are emitted once, with the parent occurrence preserved.
+// appendByName appends the blueprints in bps whose type name appears in names, in the
+// order names gives.
+func appendByName(out, bps []*Blueprint, names []string) []*Blueprint {
+	index := make(map[string]*Blueprint, len(bps))
+	for _, b := range bps {
+		index[b.Type.String()] = b
+	}
+	for _, n := range names {
+		if b, ok := index[n]; ok {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
 func (bp *Blueprints) OrderedBlueprints() []string {
 	var out []string
 	seen := map[string]bool{}
@@ -169,7 +187,7 @@ func (bp *Blueprints) OrderedBlueprints() []string {
 		}
 	}
 
-	var proto []string
+	proto := map[string]Object{}
 	var aliases []string
 	var runtime []*Blueprint
 	for name, obj := range bp.entries.Clone() {
@@ -187,19 +205,49 @@ func (bp *Blueprints) OrderedBlueprints() []string {
 		case kindAliasProto:
 			aliases = append(aliases, name)
 		case kindStructProto:
-			proto = append(proto, name)
+			proto[name] = obj
 		}
 	}
 
-	sort.Strings(proto)
+	// why: the spec orders a sync as aliases first, then structs topologically sorted, so
+	// every RefSpec/PtrSpec/SliceSpec/ArraySpec/MapSpec edge targets an already-replayed
+	// name (topics/blueprints.md). This emitted prototypes before aliases, which put a
+	// struct ahead of an alias it referenced, and alpha-sorted the prototypes, which put
+	// a struct ahead of another struct it referenced.
+	leaves, structs := orderProtoNames(proto)
 	sort.Strings(aliases)
-	out = append(out, proto...)
+	out = append(out, leaves...)
 	out = append(out, aliases...)
+	out = append(out, structs...)
 	// note: cycle error is silenced here so the public []string signature stays unchanged;
 	// AllBlueprints surfaces the same condition via its error return for callers that need it.
 	ordered, _ := orderBlueprintsByReference(runtime)
 	out = append(out, ordered...)
 	return out
+}
+
+// orderProtoNames splits compile-time prototypes into leaves and dependency-ordered
+// structs.
+//
+// why: leaves are the registered names with no derivable Blueprint — the primitives, and
+// prototypes whose Go shape the reflector cannot describe. They reference nothing, so
+// emitting them first can never violate dependency order, and it puts the primitives an
+// alias names as its Underlying ahead of that alias.
+func orderProtoNames(proto map[string]Object) (leaves, structs []string) {
+	var derived []*Blueprint
+
+	for name, obj := range proto {
+		b, err := BlueprintOf(obj)
+		if err != nil {
+			leaves = append(leaves, name)
+			continue
+		}
+		derived = append(derived, b)
+	}
+
+	sort.Strings(leaves)
+	structs, _ = orderBlueprintsByReference(derived)
+	return leaves, structs
 }
 
 // orderBlueprintsByReference returns blueprint names ordered (Kahn-style topological sort)
@@ -444,7 +492,8 @@ func (bp *Blueprints) validateReferences(b *Blueprint) error {
 
 // AllBlueprints returns every runtime Blueprint (struct kind + alias kind) ordered for sync
 // replay: aliases first (alpha within each parent level), then struct-kind compile-time
-// prototypes (alpha), then struct-kind runtime Blueprints topo-sorted by reference.
+// prototypes topo-sorted by reference (not alphabetical), then struct-kind runtime
+// Blueprints topo-sorted by reference.
 // Parent-chain entries precede local ones. Per-entry derivation failures (BlueprintOf/AliasOf)
 // are aggregated into err; the returned slice contains the successful entries.
 func (bp *Blueprints) AllBlueprints() ([]*Blueprint, error) {
@@ -508,10 +557,13 @@ func (bp *Blueprints) AllBlueprints() ([]*Blueprint, error) {
 	})
 	out = append(out, aliases...)
 
-	sort.Slice(proto, func(i, j int) bool {
-		return proto[i].Type.String() < proto[j].Type.String()
-	})
-	out = append(out, proto...)
+	// why: same spec clause as OrderedBlueprints — the struct bucket must be dependency
+	// ordered, not alphabetical, or a struct replays before the struct it references.
+	protoOrdered, protoCycleErr := orderBlueprintsByReference(proto)
+	if protoCycleErr != nil {
+		errs = append(errs, protoCycleErr)
+	}
+	out = appendByName(out, proto, protoOrdered)
 
 	ordered, cycleErr := orderBlueprintsByReference(runtime)
 	if cycleErr != nil {
