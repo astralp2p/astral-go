@@ -457,11 +457,33 @@ func cloneSpec(s Spec) Spec {
 
 // GetBlueprint returns the runtime Blueprint for typeName, or nil. Compile-time prototypes
 // live under "astral.blueprint", never under their own runtime Type, so they return nil.
+// GetBlueprint returns a copy of the runtime Blueprint registered under typeName, or nil.
+//
+// why the copy: RegisterBlueprint clones on the way in, to insulate the registry from a
+// caller that keeps its own copy. Handing the stored pointer back out left the other half
+// of that open — a caller could append a Field and change what every later decode of the
+// type expects, from outside the registry's API. Names are documented as immutable; this
+// makes the descriptors so too.
 func (bp *Blueprints) GetBlueprint(typeName string) *Blueprint {
+	b := bp.getBlueprintRef(typeName)
+	if b == nil {
+		return nil
+	}
+
+	return cloneBlueprint(b)
+}
+
+// getBlueprintRef returns the stored *Blueprint without copying it.
+//
+// why: an internal caller that only tests existence or reads a field must not pay for a
+// deep copy. isRuntimeBlueprintType calls this per element type during construction —
+// the path PR #27 narrowed to fix a DoS — so cloning there would allocate a Blueprint
+// only to discard it. Anything leaving the package goes through GetBlueprint instead.
+func (bp *Blueprints) getBlueprintRef(typeName string) *Blueprint {
 	o, ok := bp.entries.Get(typeName)
 	if !ok {
 		if bp.Parent != nil {
-			return bp.Parent.GetBlueprint(typeName)
+			return bp.Parent.getBlueprintRef(typeName)
 		}
 		return nil
 	}
@@ -473,6 +495,7 @@ func (bp *Blueprints) GetBlueprint(typeName string) *Blueprint {
 	if b.Type.String() != typeName {
 		return nil
 	}
+
 	return b
 }
 

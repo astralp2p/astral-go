@@ -18,7 +18,7 @@ import (
 // (as opposed to a compile-time prototype or an empty/heterogeneous slot). bps is the
 // registry to consult; pass defaultBlueprints when no per-call registry is in play.
 func isRuntimeBlueprintType(bps *Blueprints, typeName string) bool {
-	return typeName != "" && bps.GetBlueprint(typeName) != nil
+	return typeName != "" && bps.getBlueprintRef(typeName) != nil
 }
 
 // readRuntimeBlueprintPtr decodes a single *RuntimeObject slot from r with the wire shape

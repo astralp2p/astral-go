@@ -19,6 +19,7 @@ func (client *Client) SetAlias(ctx *astral.Context, identity *astral.Identity, a
 	if err != nil {
 		return err
 	}
+	defer ch.Close()
 
 	return ch.Switch(channel.ExpectAck, channel.PassErrors)
 }
