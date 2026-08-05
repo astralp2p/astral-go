@@ -41,11 +41,13 @@ func (b *Bytes8) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	var buf = make([]byte, l)
-	m, err := io.ReadFull(r, buf)
-	n += int64(m)
+	buf, m, err := readNBytes(r, uint64(l))
+	n += m
+	if err != nil {
+		return
+	}
 
-	*b = Bytes8(buf[:m])
+	*b = Bytes8(buf)
 
 	return
 }
@@ -111,11 +113,13 @@ func (b *Bytes16) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	var buf = make([]byte, l)
-	m, err := io.ReadFull(r, buf)
-	n += int64(m)
+	buf, m, err := readNBytes(r, uint64(l))
+	n += m
+	if err != nil {
+		return
+	}
 
-	*b = Bytes16(buf[:m])
+	*b = Bytes16(buf)
 
 	return
 }
@@ -181,11 +185,13 @@ func (b *Bytes32) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	var buf = make([]byte, l)
-	m, err := io.ReadFull(r, buf)
-	n += int64(m)
+	buf, m, err := readNBytes(r, uint64(l))
+	n += m
+	if err != nil {
+		return
+	}
 
-	*b = Bytes32(buf[:m])
+	*b = Bytes32(buf)
 
 	return
 }
@@ -248,11 +254,13 @@ func (b *Bytes64) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	var buf = make([]byte, l)
-	m, err := io.ReadFull(r, buf)
-	n += int64(m)
+	buf, m, err := readNBytes(r, uint64(l))
+	n += m
+	if err != nil {
+		return
+	}
 
-	*b = Bytes64(buf[:m])
+	*b = Bytes64(buf)
 
 	return
 }

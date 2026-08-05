@@ -88,7 +88,7 @@ func MustAdd(object ...Object) {
 // anything else is a compile-time prototype handed back via reflect.New (giving the
 // originating peer the typed Go value rather than a wire carrier).
 func (bp *Blueprints) New(typeName string) Object {
-	o, _ := newAt(bp, typeName, 0)
+	o, _ := newAt(bp, typeName, 0, newBuildBudget())
 	return o
 }
 
@@ -97,11 +97,11 @@ func (bp *Blueprints) New(typeName string) Object {
 // by MaxBlueprintDepth rather than overflowing the Go stack. Returns the constructor's
 // error when it's ErrDepthExceeded so the outer construction can surface it; other errors
 // are intentionally swallowed to nil to match the documented "treat as unregistered" contract.
-func newAt(bp *Blueprints, typeName string, depth int) (Object, error) {
+func newAt(bp *Blueprints, typeName string, depth int, budget *buildBudget) (Object, error) {
 	p, ok := bp.entries.Get(typeName)
 	if !ok {
 		if bp.Parent != nil {
-			return newAt(bp.Parent, typeName, depth)
+			return newAt(bp.Parent, typeName, depth, budget)
 		}
 		return nil, nil
 	}
@@ -113,7 +113,7 @@ func newAt(bp *Blueprints, typeName string, depth int) (Object, error) {
 	// way as an unregistered type. Depth-exceeded escapes the nil-swallow so the
 	// originating construction surfaces a typed error.
 	if classify(typeName, p) == kindRuntimeBP {
-		ro, err := newRuntimeObjectAt(bp, p.(*Blueprint), depth)
+		ro, err := newRuntimeObjectAt(bp, p.(*Blueprint), depth, budget)
 		if err != nil {
 			if errors.Is(err, ErrDepthExceeded) {
 				return nil, err

@@ -157,6 +157,18 @@ func (node *Node) Create(ctx *astral.Context, name string) (tree.Node, error) {
 	}
 	defer ch.Close()
 
+	// why: the server opens the path before it starts reading, and reports a failure
+	// there by writing. Sending the terminator inline would put both sides in a write,
+	// which deadlocks on an unbuffered transport; the deferred Close releases this send
+	// on the failure path. The send error is discarded because Switch's result is the
+	// authoritative one.
+	go func() { _ = ch.Send(&astral.EOS{}) }()
+
+	// success mirrors the terminator back; failure sends an error object, then EOF.
+	if err = ch.Switch(channel.BreakOnEOS, channel.PassErrors); err != nil {
+		return nil, err
+	}
+
 	return &Node{client: node.client, path: append(node.path, name)}, nil
 }
 

@@ -64,11 +64,18 @@ func (a sliceValue) ReadFrom(r io.Reader) (n int64, err error) {
 	// than WriteTo for the same object. WriteTo counts them.
 	n += 4
 
-	a.Set(reflect.MakeSlice(a.Type(), int(l), int(l)))
+	// why: l is the peer's claim, not a measurement. Reserving l elements up front
+	// let a four-byte count name an arbitrarily large allocation, so the slice is
+	// grown as elements arrive and the destination is set only once the whole run
+	// reads clean.
+	slice := reflect.MakeSlice(a.Type(), 0, elemCap(l))
+	elemType := a.Type().Elem()
+	flagged := elemNeedsPresenceFlag(elemType)
 
-	flagged := elemNeedsPresenceFlag(a.Type().Elem())
-	for i := range int(l) {
-		o, err = objectify(a.Index(i))
+	for range int(l) {
+		elem := reflect.New(elemType).Elem()
+
+		o, err = objectify(elem)
 		if err != nil {
 			return
 		}
@@ -84,7 +91,11 @@ func (a sliceValue) ReadFrom(r io.Reader) (n int64, err error) {
 		if err != nil {
 			return
 		}
+
+		slice = reflect.Append(slice, elem)
 	}
+
+	a.Set(slice)
 	return
 }
 
