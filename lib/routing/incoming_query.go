@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"reflect"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -20,6 +21,14 @@ type IncomingQuery struct {
 	remoteWriter io.WriteCloser
 	response     chan queryResponse
 	resolved     atomic.Bool
+
+	// mu guards accepted, which holds the read half AcceptRaw kept for the op. It is
+	// retained only so a panicking op's abandoned connection can be torn down, and is
+	// nil for a query that was never accepted. AcceptRaw normally runs on the same
+	// goroutine as the teardown, but an op may accept from one it spawned, so the two
+	// are synchronised rather than assumed ordered.
+	mu       sync.Mutex
+	accepted *io.PipeReader
 }
 
 var typeOfIncomingQuery = reflect.TypeOf((*IncomingQuery)(nil)).Elem()
@@ -41,11 +50,43 @@ func (query *IncomingQuery) AcceptRaw() (conn io.ReadWriteCloser) {
 
 	localReader, localWriter := io.Pipe()
 
+	query.mu.Lock()
+	query.accepted = localReader
+	query.mu.Unlock()
+
 	conn = NewConn(query.Query.Caller, query.Query.Target, query.remoteWriter, localReader, false)
 
 	query.response <- queryResponse{localWriter, nil}
 
 	return conn
+}
+
+// abandon tears down a connection whose op accepted it and then failed to service it.
+//
+// why: AcceptRaw gives the caller the write half of a pipe and keeps the read half for
+// the op. A pipe write parks until a reader takes the bytes, so once the op's goroutine
+// is gone the caller's first write never returns — not a timeout, an indefinite block.
+// Closing the read half with the cause turns that block into an error naming it, and
+// closing remoteWriter ends the response direction so the caller sees a finished stream
+// rather than silence.
+//
+// Noop unless the query was accepted: a rejected query has no connection to tear down,
+// so calling this after RejectWithCode is safe and does nothing.
+func (query *IncomingQuery) abandon(cause error) {
+	query.mu.Lock()
+	r := query.accepted
+	query.accepted = nil
+	query.mu.Unlock()
+
+	if r == nil {
+		return
+	}
+
+	r.CloseWithError(cause)
+
+	if query.remoteWriter != nil {
+		query.remoteWriter.Close()
+	}
 }
 
 // Accept accepts the query and returns the established channel

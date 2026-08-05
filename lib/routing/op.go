@@ -107,9 +107,16 @@ func (op *Op) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, remoteWri
 		// why: a panicking op is an internal error, not a plain rejection. This runs
 		// before the deferred Reject above, so it wins the resolve; an op that already
 		// accepted or rejected keeps its own outcome.
+		//
+		// The two calls cover the two shapes a panic can take, and exactly one of them
+		// does anything. Panicking before resolving: RejectWithCode wins the CAS and
+		// abandon finds no connection. Panicking after accepting: the CAS fails and the
+		// caller rightly keeps its connection, but the op is gone and nothing else would
+		// ever close it, so abandon does.
 		var errPanic *ErrPanic
 		if errors.As(report.Err, &errPanic) {
 			inQuery.RejectWithCode(astral.CodeInternalError)
+			inQuery.abandon(report.Err)
 		}
 
 		if op.LogFunc != nil {
