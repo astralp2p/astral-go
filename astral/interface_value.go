@@ -21,8 +21,20 @@ func (i interfaceValue) ObjectType() string {
 	return ""
 }
 
+// IsAbsent reports whether the slot carries no value. Three forms mean the same
+// thing — interface-nil, a typed nil pointer, and the *Nil marker the runtime
+// Blueprint codec installs as a polymorphic field's zero — and the spec spells all
+// of them as the zero-length type tag (topics/binary-encoding.md, topics/codec.md).
+func (i interfaceValue) IsAbsent() bool {
+	if !i.IsValid() || i.IsNil() || i.IsElemNilPtr() {
+		return true
+	}
+	_, isNil := i.Interface().(*Nil)
+	return isNil
+}
+
 func (i interfaceValue) WriteTo(w io.Writer) (n int64, err error) {
-	if i.IsNil() || i.IsElemNilPtr() {
+	if i.IsAbsent() {
 		err = binary.Write(w, ByteOrder, uint8(0)) // zero-length type means nil
 		if err == nil {
 			return 1, nil
@@ -78,6 +90,13 @@ func (i interfaceValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("interface"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	var objectType string
 	m, err := (*String8)(&objectType).ReadFrom(r)
 	n += m
@@ -85,7 +104,9 @@ func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	if len(objectType) == 0 {
+	// why: the zero-length tag is the spec's spelling of absence. nilTypeName is
+	// accepted alongside it for peers written before that was settled.
+	if len(objectType) == 0 || objectType == nilTypeName {
 		i.Set(reflect.Zero(i.Type()))
 		return
 	}
@@ -112,7 +133,7 @@ func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (i interfaceValue) MarshalJSON() ([]byte, error) {
-	if !i.IsValid() || i.IsNil() || i.IsElemNilPtr() {
+	if i.IsAbsent() {
 		return jsonNull, nil
 	}
 

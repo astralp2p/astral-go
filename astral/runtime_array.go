@@ -56,10 +56,22 @@ func newRuntimeArrayWith(bps *Blueprints, typeName string, length uint32) (*Runt
 }
 
 func (a *RuntimeArray) WriteTo(w io.Writer) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !a.ptr.IsValid() {
+		return 0, nil
+	}
 	return arrayValue{Value: a.ptr.Elem()}.WriteTo(w)
 }
 
 func (a *RuntimeArray) ReadFrom(r io.Reader) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !a.ptr.IsValid() {
+		return 0, nil
+	}
 	bps := blueprintsFromReader(r)
 	if !isRuntimeBlueprintType(bps, a.elemName) {
 		return arrayValue{Value: a.ptr.Elem()}.ReadFrom(r)

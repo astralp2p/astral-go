@@ -72,6 +72,13 @@ func (p ptrValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (p ptrValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("ptr"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	if !p.skipNilFlag {
 		var nilFlag uint8
 		err = binary.Read(r, ByteOrder, &nilFlag)

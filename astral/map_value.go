@@ -91,6 +91,13 @@ func (val mapValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (val mapValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("map"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	keyWidth, ok := supportedMapKey(val.Type().Key().Kind())
 	if !ok {
 		return 0, fmt.Errorf("map_value: unsupported key kind %s", val.Type().Key().Kind())

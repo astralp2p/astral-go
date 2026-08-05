@@ -81,6 +81,12 @@ func resolveElemType(bps *Blueprints, typeName string) (reflect.Type, error) {
 }
 
 func (s *RuntimeSlice) WriteTo(w io.Writer) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !s.ptr.IsValid() {
+		return 0, nil
+	}
 	return sliceValue{Value: s.ptr.Elem()}.WriteTo(w)
 }
 
@@ -89,6 +95,12 @@ func (s *RuntimeSlice) WriteTo(w io.Writer) (int64, error) {
 // constructs each element via bps.New(elemName) so it carries its schema binding. bps is
 // recovered from r via blueprintsFromReader so WithBlueprints flows through this frame.
 func (s *RuntimeSlice) ReadFrom(r io.Reader) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !s.ptr.IsValid() {
+		return 0, nil
+	}
 	bps := blueprintsFromReader(r)
 	if !isRuntimeBlueprintType(bps, s.elemName) {
 		return sliceValue{Value: s.ptr.Elem()}.ReadFrom(r)

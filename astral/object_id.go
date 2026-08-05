@@ -55,12 +55,12 @@ func (ObjectID) ObjectType() string {
 	return "object_id.sha256"
 }
 
+// WriteTo writes the id as Size||Hash, 40 bytes.
+//
+// why: this used to short-circuit on IsZero and write 40 zero bytes, which silently
+// dropped a non-zero Size, so WriteTo followed by ReadFrom was not a round trip. The
+// unconditional form emits the same 40 bytes for the true zero.
 func (id *ObjectID) WriteTo(w io.Writer) (n int64, err error) {
-	if id.IsZero() {
-		m, err := w.Write(make([]byte, 40))
-		return int64(m), err
-	}
-
 	err = binary.Write(w, ByteOrder, id.Size)
 	if err != nil {
 		return
@@ -88,11 +88,12 @@ func (id *ObjectID) ReadFrom(r io.Reader) (n int64, err error) {
 
 // json
 
+// MarshalJSON encodes the id as its data1 string.
+//
+// why: the zero id used to marshal to "", which UnmarshalJSON could not read back —
+// ParseID rejects it. The zero id renders as the bare "data1" prefix, which round-trips,
+// and which is what the text and SQL forms already emit.
 func (id ObjectID) MarshalJSON() ([]byte, error) {
-	if id.IsZero() {
-		return []byte("\"\""), nil
-	}
-
 	return []byte(fmt.Sprintf("\"%s\"", id.String())), nil
 }
 
@@ -103,6 +104,13 @@ func (id *ObjectID) UnmarshalJSON(b []byte) error {
 	var err = jsonDec.Decode(&s)
 	if err != nil {
 		return err
+	}
+
+	// why: transitional — peers built against the previous encoder, and astral-py which
+	// mirrors it, emit "" for the zero id. Accept it rather than erroring.
+	if s == "" {
+		*id = ObjectID{}
+		return nil
 	}
 
 	parsed, err := ParseID(s)
@@ -168,11 +176,11 @@ func (id ObjectID) String() string {
 	return idPrefix + enc
 }
 
+// IsEqual compares both components.
+//
+// why: this used to short-circuit on IsZero, which ignored Size, so two ids differing
+// only in Size compared equal to each other and to the true zero.
 func (id *ObjectID) IsEqual(other *ObjectID) bool {
-	if id.IsZero() {
-		return other.IsZero()
-	}
-
 	if id.Size != other.Size {
 		return false
 	}
@@ -180,10 +188,19 @@ func (id *ObjectID) IsEqual(other *ObjectID) bool {
 	return bytes.Compare(id.Hash[:], other.Hash[:]) == 0
 }
 
-// IsZero reports whether the id is the zero value (all-zero hash). A nil receiver counts as zero.
+// IsZero reports whether the id is the zero value — zero Size and all-zero Hash. A nil
+// receiver counts as zero.
+//
+// why: Size is part of the id. Ignoring it made {Size:99, Hash:0} report as zero, which
+// then dropped the Size on the binary wire, rendered as "" in JSON but as a data1 string
+// in text and SQL, and compared equal to every other zero-hash id whatever its Size.
 func (id *ObjectID) IsZero() bool {
 	if id == nil {
 		return true
+	}
+
+	if id.Size != 0 {
+		return false
 	}
 
 	for _, b := range id.Hash {

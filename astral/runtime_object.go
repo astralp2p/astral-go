@@ -150,10 +150,7 @@ func (ro *RuntimeObject) WriteTo(w io.Writer) (n int64, err error) {
 		return ro.value.WriteTo(w)
 	}
 
-	ow, ok := w.(*objectWriter)
-	if !ok {
-		ow = &objectWriter{Writer: w}
-	}
+	ow := attachWriter(w)
 	err = ow.enter(ro.bp.Type)
 	defer ow.exit()
 	if err != nil {
@@ -181,10 +178,7 @@ func (ro *RuntimeObject) ReadFrom(r io.Reader) (n int64, err error) {
 	// why: inherit the wrapper's *Blueprints (set by Decode from cfg.Blueprints) so nested
 	// PrimitiveSpec/RefSpec/PtrSpec resolutions use the caller's registry. A freshly
 	// constructed wrapper has bps=nil, which or.resolve() maps to defaultBlueprints.
-	or, ok := r.(*objectReader)
-	if !ok {
-		or = &objectReader{Reader: r}
-	}
+	or := attachReader(r, nil)
 	err = or.enter(ro.bp.Type)
 	defer or.exit()
 	if err != nil {
@@ -299,6 +293,40 @@ func specZeroAtErr(bps *Blueprints, spec Spec, depth int, budget *buildBudget) (
 }
 
 // writeField serializes a single field value according to its Spec.
+// readPolymorphic reads one polymorphic slot: a string8 type tag followed by the
+// payload. A zero-length tag is the absent value and consumes no payload, resolving to
+// the canonical &Nil{} carrier so Get returns a non-nil zero. Nil's own type name is
+// accepted as a legacy alias of that tag.
+//
+// why: Decode cannot express the absent case — its type decoder hands the empty name to
+// the registry and fails there — so the container reads the tag itself, which is what
+// the spec describes.
+func readPolymorphic(or *objectReader, bps *Blueprints) (Object, int64, error) {
+	var typ ObjectType
+	n, err := (&typ).ReadFrom(or)
+	if err != nil {
+		return nil, n, err
+	}
+
+	if typ == "" || typ.String() == nilTypeName {
+		return &Nil{}, n, nil
+	}
+
+	obj := bps.New(typ.String())
+	if obj == nil {
+		return nil, n, fmt.Errorf("%w: %w: %s", ErrStreamCorrupted, ErrBlueprintNotFound, typ)
+	}
+
+	// why: a nested field read resolves names through the reader's registry; pin it so
+	// the inner frame inherits the per-call Blueprints, exactly as Decode does.
+	if or.bps == nil {
+		or.bps = bps
+	}
+
+	m, err := obj.ReadFrom(or)
+	return obj, n + m, err
+}
+
 func writeField(w io.Writer, spec Spec, value Object) (int64, error) {
 	switch spec.(type) {
 	case *PrimitiveSpec, *RefSpec:
@@ -340,6 +368,13 @@ func writeField(w io.Writer, spec Spec, value Object) (int64, error) {
 	case *ObjectSpec:
 		if value == nil {
 			return 0, fmt.Errorf("nil value for ObjectSpec")
+		}
+		// why: absence in a polymorphic slot is the zero-length type tag, and the spec
+		// puts that tag in the container, emitted before any Type Encoder runs
+		// (topics/codec.md). Letting Encode run on the absent value instead produced
+		// string8("nil"), which no conforming reader accepts.
+		if isPtrNil(value) {
+			return ObjectType("").WriteTo(w)
 		}
 		return Encode(w, value)
 	}
@@ -634,7 +669,7 @@ func readField(or *objectReader, spec Spec) (Object, int64, error) {
 		m, err := obj.ReadFrom(or)
 		return obj, n + m, err
 	case *ObjectSpec:
-		return Decode(or, WithBlueprints(bps))
+		return readPolymorphic(or, bps)
 	}
 	return nil, 0, fmt.Errorf("unknown spec %T", spec)
 }
