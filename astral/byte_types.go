@@ -28,8 +28,8 @@ func (b Bytes8) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write(b)
-	n += int64(m)
+	m, err := writePayload(w, b)
+	n += m
 
 	return
 }
@@ -100,8 +100,8 @@ func (b Bytes16) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write(b)
-	n += int64(m)
+	m, err := writePayload(w, b)
+	n += m
 
 	return
 }
@@ -172,8 +172,8 @@ func (b Bytes32) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write(b)
-	n += int64(m)
+	m, err := writePayload(w, b)
+	n += m
 
 	return
 }
@@ -241,8 +241,8 @@ func (b Bytes64) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write(b)
-	n += int64(m)
+	m, err := writePayload(w, b)
+	n += m
 
 	return
 }

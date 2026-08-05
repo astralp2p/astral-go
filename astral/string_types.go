@@ -32,8 +32,8 @@ func (s String8) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write([]byte(s))
-	n += int64(m)
+	m, err := writePayload(w, []byte(s))
+	n += m
 
 	return
 }
@@ -103,8 +103,8 @@ func (s String16) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write([]byte(s))
-	n += int64(m)
+	m, err := writePayload(w, []byte(s))
+	n += m
 
 	return
 }
@@ -175,8 +175,8 @@ func (s String32) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write([]byte(s))
-	n += int64(m)
+	m, err := writePayload(w, []byte(s))
+	n += m
 
 	return
 }
@@ -240,8 +240,8 @@ func (s String64) WriteTo(w io.Writer) (n int64, err error) {
 		return
 	}
 
-	m, err := w.Write([]byte(s))
-	n += int64(m)
+	m, err := writePayload(w, []byte(s))
+	n += m
 
 	return
 }
