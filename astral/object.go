@@ -130,12 +130,7 @@ func Decode(r io.Reader, config ...ConfigFunc) (object Object, n int64, err erro
 	// why: nested field reads resolve names via dr.resolve(). Wrapping here propagates
 	// cfg.Blueprints into every recursive ReadFrom frame; inner RuntimeObject.ReadFrom
 	// inherits the wrapper rather than rebuilding a defaultBlueprints-bound one.
-	or, ok := r.(*objectReader)
-	if !ok {
-		or = &objectReader{Reader: r, bps: cfg.Blueprints}
-	} else if or.bps == nil {
-		or.bps = cfg.Blueprints
-	}
+	or := attachReader(r, cfg.Blueprints)
 
 	m, err := object.ReadFrom(or)
 	n += m

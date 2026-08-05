@@ -73,6 +73,13 @@ func (s structValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (s structValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("struct"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	var m int64
 	var o Object
 

@@ -150,10 +150,7 @@ func (ro *RuntimeObject) WriteTo(w io.Writer) (n int64, err error) {
 		return ro.value.WriteTo(w)
 	}
 
-	ow, ok := w.(*objectWriter)
-	if !ok {
-		ow = &objectWriter{Writer: w}
-	}
+	ow := attachWriter(w)
 	err = ow.enter(ro.bp.Type)
 	defer ow.exit()
 	if err != nil {
@@ -181,10 +178,7 @@ func (ro *RuntimeObject) ReadFrom(r io.Reader) (n int64, err error) {
 	// why: inherit the wrapper's *Blueprints (set by Decode from cfg.Blueprints) so nested
 	// PrimitiveSpec/RefSpec/PtrSpec resolutions use the caller's registry. A freshly
 	// constructed wrapper has bps=nil, which or.resolve() maps to defaultBlueprints.
-	or, ok := r.(*objectReader)
-	if !ok {
-		or = &objectReader{Reader: r}
-	}
+	or := attachReader(r, nil)
 	err = or.enter(ro.bp.Type)
 	defer or.exit()
 	if err != nil {

@@ -63,9 +63,19 @@ func (b *Bundle) Fetch(objectID ObjectID) Object {
 }
 
 // WriteTo writes Bundle's payload to the writer.
-func (b Bundle) WriteTo(w io.Writer) (n int64, err error) {
+//
+// why: a pointer receiver. The value receiver copied the mutex, so it locked a copy and
+// provided no exclusion at all — go vet reports it.
+func (b *Bundle) WriteTo(w io.Writer) (n int64, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+
+	ow, gerr := enterWriter(w, frameName("bundle"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
 
 	// write object count
 	n, err = Uint32(len(b.objects)).WriteTo(w)
@@ -76,7 +86,11 @@ func (b Bundle) WriteTo(w io.Writer) (n int64, err error) {
 	// write objects
 	var m int64
 	for _, o := range b.objects {
-		var buf = &bytes.Buffer{}
+		// why: the member block is length-prefixed, so its payload must exist before its
+		// length can be written — the staging buffer is required by the wire format. The
+		// derived writer shares this call's ledger so buffering cannot reset the guard.
+		var raw = &bytes.Buffer{}
+		var buf = ow.subWriter(raw)
 
 		// write the type to the buffer
 		_, err = String8(o.ObjectType()).WriteTo(buf)
@@ -91,7 +105,7 @@ func (b Bundle) WriteTo(w io.Writer) (n int64, err error) {
 		}
 
 		// write the length-encoded buffer to the writer
-		m, err = Bytes32(buf.Bytes()).WriteTo(w)
+		m, err = Bytes32(raw.Bytes()).WriteTo(w)
 		n += m
 		if err != nil {
 			return
@@ -106,8 +120,12 @@ func (b *Bundle) ReadFrom(r io.Reader) (n int64, err error) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 
-	b.objects = nil
-	b.index = make(map[string]int)
+	or, gerr := enterReader(r, frameName("bundle"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
 
 	// read object count
 	var count Uint32
@@ -115,6 +133,12 @@ func (b *Bundle) ReadFrom(r io.Reader) (n int64, err error) {
 	if err != nil {
 		return
 	}
+
+	// why: decode into locals and commit at the end. Resetting the receiver up front
+	// destroyed its previous contents on a read that then failed, and left a partially
+	// filled bundle that Objects, String and Fetch all served as if it were whole.
+	var objects []Object
+	index := make(map[string]int)
 
 	var m int64
 	var o Object
@@ -127,19 +151,39 @@ func (b *Bundle) ReadFrom(r io.Reader) (n int64, err error) {
 			return
 		}
 
-		// read the object in the buffer
-		o, _, err = Decode(bytes.NewReader(buf))
+		// why: or.sub shares this call's ledger. A bare bytes.Reader started a fresh
+		// one, so a Bundle anywhere in a nested payload reset the depth guard for
+		// everything below it — and it dropped the per-call Blueprints registry too.
+		o, _, err = Decode(or.sub(buf), WithBlueprints(or.resolve()))
 		if err != nil {
 			return
 		}
 
-		err = b.append(o)
+		objects, index, err = appendUnique(objects, index, o)
 		if err != nil {
 			return
 		}
 	}
 
+	b.objects, b.index = objects, index
+
 	return
+}
+
+// appendUnique adds o to a bundle under construction, rejecting a duplicate Object ID.
+func appendUnique(objects []Object, index map[string]int, o Object) ([]Object, map[string]int, error) {
+	objectID, err := ResolveObjectID(o)
+	if err != nil {
+		return objects, index, err
+	}
+
+	idstr := objectID.String()
+	if _, found := index[idstr]; found {
+		return objects, index, fmt.Errorf("duplicate object")
+	}
+
+	index[idstr] = len(objects)
+	return append(objects, o), index, nil
 }
 
 // Objects returns a copy of the underlying list of objects

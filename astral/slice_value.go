@@ -51,6 +51,13 @@ func (a sliceValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (a sliceValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("slice"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	var o Object
 	var m int64
 	var l uint32
