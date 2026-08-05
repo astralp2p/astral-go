@@ -25,6 +25,8 @@
   Extend it when a new package registers blueprints.
 - `examples/` - runnable app-developer programs, one concept each; every
   example builds with the module.
+- `internal/` - module tooling, never part of the SDK surface: `codecguard`
+  is the codec lint, `cmd/astralvet` its command line.
 
 ## Wire Types
 
@@ -36,6 +38,14 @@
 - Streaming ops end with `ch.Send(&astral.EOS{})`.
 - Send stream errors with `ch.Send(astral.Err(err))`.
 - Every `objects.Writer` must `Commit()` or `Discard()`.
+- A hand-written codec proves a pointer or `reflect.Value` field of the
+  receiver before loading through it. The zero value of a registered type is
+  reachable over the wire, and an astral primitive declares `WriteTo` on the
+  value receiver, so a nil pointer panics instead of erroring.
+- `ReadFrom` takes a pointer receiver. A value receiver decodes into a copy
+  the return discards.
+- `go test ./internal/...` enforces both. `go run ./internal/cmd/astralvet .`
+  runs the lint alone.
 
 ## Project APIs
 
