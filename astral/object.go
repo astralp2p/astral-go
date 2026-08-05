@@ -173,16 +173,23 @@ func DecodeAs[T Object](data []byte, config ...ConfigFunc) (T, error) {
 func ResolveObjectID(obj Object) (objectID *ObjectID, err error) {
 	w := NewWriteResolver(nil)
 
-	// write the astral stamp
-	_, err = Stamp{}.WriteTo(w)
-	if err != nil {
-		return
-	}
+	// why: an Untyped Object has no canonical form — its Size and Hash cover the raw
+	// payload alone (core-definitions/object-id.md). Writing the Stamp and a
+	// zero-length type header for one made Blob("hello") report size 10 where
+	// astral.Resolve over the same five bytes reports 5, so the same bytes had two
+	// addresses depending on which entry point produced them.
+	if obj.ObjectType() != "" {
+		// write the astral stamp
+		_, err = Stamp{}.WriteTo(w)
+		if err != nil {
+			return
+		}
 
-	// write the object type
-	_, err = ObjectType(obj.ObjectType()).WriteTo(w)
-	if err != nil {
-		return
+		// write the object type
+		_, err = ObjectType(obj.ObjectType()).WriteTo(w)
+		if err != nil {
+			return
+		}
 	}
 
 	// write the object payload
