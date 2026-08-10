@@ -25,14 +25,8 @@ func (client *Client) ListSiblings(ctx *astral.Context, zone astral.Zone) ([]*as
 	}
 	defer ch.Close()
 
-	return readSiblings(ch)
-}
-
-// readSiblings collects the identities a sibling stream carries, ending at the
-// eos that terminates it and surfacing an error_message as an error.
-func readSiblings(ch *channel.Channel) ([]*astral.Identity, error) {
 	var siblings []*astral.Identity
-	err := ch.Switch(
+	err = ch.Switch(
 		channel.Collect(&siblings),
 		channel.BreakOnEOS,
 		func(msg *astral.ErrorMessage) error {

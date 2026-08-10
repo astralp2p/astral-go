@@ -20,14 +20,8 @@ func (client *Client) SwarmStatus(ctx *astral.Context) ([]*user.SwarmMember, err
 	}
 	defer ch.Close()
 
-	return readSwarmMembers(ch)
-}
-
-// readSwarmMembers collects the members a swarm-status stream carries, ending
-// at the eos that terminates it and surfacing an error_message as an error.
-func readSwarmMembers(ch *channel.Channel) ([]*user.SwarmMember, error) {
 	var members []*user.SwarmMember
-	err := ch.Switch(
+	err = ch.Switch(
 		channel.Collect(&members),
 		channel.BreakOnEOS,
 		func(msg *astral.ErrorMessage) error {
