@@ -48,12 +48,12 @@ func TestRegisterArgs_NoPermitsSendsNoArgument(t *testing.T) {
 }
 
 func TestRegisterArgs_PermitsAreCommaJoined(t *testing.T) {
-	args, err := registerArgs([]string{"mod.user.info_action", "mod.objects.read_object_action"})
+	args, err := registerArgs([]string{"mod.user.info_action", "mod.auth.see_objects_action"})
 	if err != nil {
 		t.Fatalf("registerArgs: %v", err)
 	}
 
-	if got := args["permits"]; got != "mod.user.info_action,mod.objects.read_object_action" {
+	if got := args["permits"]; got != "mod.user.info_action,mod.auth.see_objects_action" {
 		t.Fatalf("permits: got %q", got)
 	}
 }
