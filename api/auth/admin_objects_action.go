@@ -6,13 +6,8 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// AdminObjectsAction requests permission for Actor to destroy stored objects,
-// or to change which host directories the node keeps a repository on.
-//
-// One action covers every call whose cost is loss or exposure: deleting and
-// purging objects, removing a repository, dropping an index, and the two fs
-// ops that attach a repository to a host directory. Adding an in-memory
-// repository is StoreObjects — it adds, and it never reaches the disk.
+// AdminObjectsAction requests permission for Actor to modify the node's
+// repositories: which repositories it has, and what they hold.
 //
 // ObjectID, Repo and Path declare the nouns a call touches. Nothing evaluates
 // them yet — they are recorded so a constraint can bind to them later without
