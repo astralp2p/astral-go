@@ -12,7 +12,7 @@ import (
 // active user, indexes it, and pushes it to the local swarm.
 //
 // Requires an active contract (code 2 otherwise) and authorization for
-// user.AdoptAction (code 4 otherwise) — the user is always authorized, other
+// user.AdminSwarmAction (code 4 otherwise) — the user is always authorized, other
 // identities via authorizers.
 func (client *Client) Adopt(ctx *astral.Context, target string) (signed *auth.SignedContract, err error) {
 	ch, err := client.queryCh(ctx, user.OpAdopt, query.Args{"target": target})
