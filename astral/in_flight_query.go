@@ -7,6 +7,11 @@ import (
 const OriginNetwork = "network"
 const OriginLocal = "local"
 
+// OriginMCP marks a query that arrived over an MCP listener. The caller is a
+// remote client authenticated by bearer token, so the query is neither local
+// nor an arrival over a link.
+const OriginMCP = "mcp"
+
 type InFlightQuery struct {
 	*Query
 	Extra sig.Map[string, any]
@@ -27,4 +32,10 @@ func (q *InFlightQuery) IsNetwork() bool {
 func (q *InFlightQuery) IsLocal() bool {
 	o, _ := q.Extra.Get("origin")
 	return o == nil || o == "" || o == OriginLocal
+}
+
+// IsMCP reports whether the query arrived over an MCP listener.
+func (q *InFlightQuery) IsMCP() bool {
+	o, ok := q.Extra.Get("origin")
+	return ok && (o == OriginMCP)
 }
