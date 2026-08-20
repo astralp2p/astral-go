@@ -12,8 +12,6 @@ const (
 	MethodRegisterHandler = "apphost.register_handler"
 	MethodCancel          = "apphost.cancel"
 	MethodBind            = "apphost.bind"
-	MethodNewAppContract  = "apphost.new_app_contract"
-	MethodSignAppContract = "apphost.sign_app_contract"
 	MethodHoldObject      = "apphost.hold_object"
 	MethodUnholdObject    = "apphost.unhold_object"
 	MethodListHeldObjects = "apphost.list_held_objects"
