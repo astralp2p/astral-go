@@ -15,13 +15,13 @@ import (
 // An empty alias binds none; the node generates no alias, because an alias is
 // node-global and a name the caller did not choose contends in a namespace it
 // does not own. A zero duration leaves the token's lifetime to the node's
-// configured default. exposed opens the agent to other callers at creation;
-// false leaves it closed until SetExposed opens it.
-func (client *Client) CreateAgent(ctx *astral.Context, alias string, duration astral.Duration, exposed bool) (agent *mcp.Agent, err error) {
+// configured default. visible opens the agent to other callers at creation;
+// false leaves it closed until SetVisible opens it.
+func (client *Client) CreateAgent(ctx *astral.Context, alias string, duration astral.Duration, visible bool) (agent *mcp.Agent, err error) {
 	// why the keys are lower-case: the node snake-cases and lower-cases op
 	// argument names and binds by that name. A capitalised key reaches the wire
 	// verbatim, matches nothing, and is dropped without complaint.
-	args := query.Args{"exposed": exposed}
+	args := query.Args{"visible": visible}
 	if alias != "" {
 		args["alias"] = alias
 	}
@@ -40,6 +40,6 @@ func (client *Client) CreateAgent(ctx *astral.Context, alias string, duration as
 }
 
 // CreateAgent calls the operation on the default client.
-func CreateAgent(ctx *astral.Context, alias string, duration astral.Duration, exposed bool) (*mcp.Agent, error) {
-	return Default().CreateAgent(ctx, alias, duration, exposed)
+func CreateAgent(ctx *astral.Context, alias string, duration astral.Duration, visible bool) (*mcp.Agent, error) {
+	return Default().CreateAgent(ctx, alias, duration, visible)
 }
