@@ -29,7 +29,7 @@ func sampleAgentInfo() *AgentInfo {
 	return &AgentInfo{
 		Identity:  astral.GenerateIdentity(),
 		Alias:     astral.String8("scout"),
-		Exposed:   astral.Bool(true),
+		Visible:   astral.Bool(true),
 		ExpiresAt: astral.Time(timeWithNanos()),
 	}
 }
@@ -88,8 +88,8 @@ func TestAgentInfo_BinaryRoundTrip(t *testing.T) {
 	if dst.Alias != src.Alias {
 		t.Fatalf("alias: want %v, got %v", src.Alias, dst.Alias)
 	}
-	if dst.Exposed != src.Exposed {
-		t.Fatalf("exposed: want %v, got %v", src.Exposed, dst.Exposed)
+	if dst.Visible != src.Visible {
+		t.Fatalf("visible: want %v, got %v", src.Visible, dst.Visible)
 	}
 	if !dst.ExpiresAt.Time().Equal(src.ExpiresAt.Time()) {
 		t.Fatalf("expiry: want %v, got %v", src.ExpiresAt.Time(), dst.ExpiresAt.Time())
