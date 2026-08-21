@@ -28,4 +28,4 @@ func (s *ArraySpec) UnmarshalJSON(b []byte) error { return Objectify(s).Unmarsha
 // empty Type (heterogeneous) declares no dependency.
 func (s *ArraySpec) ReferencedType() string { return s.Type.String() }
 
-func init() { _ = Add(&ArraySpec{}) }
+func init() { MustAdd(&ArraySpec{}) }

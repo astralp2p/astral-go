@@ -37,5 +37,5 @@ func (m *NewObservedEndpointEvent) UnmarshalJSON(b []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&NewObservedEndpointEvent{})
+	astral.MustAdd(&NewObservedEndpointEvent{})
 }

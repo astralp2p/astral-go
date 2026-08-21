@@ -65,5 +65,5 @@ func (s *PublicKey) UnmarshalText(text []byte) (err error) {
 // ...
 
 func init() {
-	_ = astral.Add(&PublicKey{})
+	astral.MustAdd(&PublicKey{})
 }

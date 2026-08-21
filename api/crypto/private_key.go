@@ -71,5 +71,5 @@ func (key PrivateKey) String() string {
 }
 
 func init() {
-	astral.Add(&PrivateKey{})
+	astral.MustAdd(&PrivateKey{})
 }

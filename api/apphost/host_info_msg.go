@@ -24,5 +24,5 @@ func (msg *HostInfoMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&HostInfoMsg{})
+	astral.MustAdd(&HostInfoMsg{})
 }

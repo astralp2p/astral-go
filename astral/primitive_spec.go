@@ -47,4 +47,4 @@ func isAllowedPrimitive(name string) bool {
 // Primitives have no Blueprint even though they are registered under their own names.
 func IsPrimitiveType(name string) bool { return isAllowedPrimitive(name) }
 
-func init() { _ = Add(&PrimitiveSpec{}) }
+func init() { MustAdd(&PrimitiveSpec{}) }

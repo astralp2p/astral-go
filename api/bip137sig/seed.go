@@ -71,5 +71,5 @@ func (s *Seed) UnmarshalText(text []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&Seed{})
+	astral.MustAdd(&Seed{})
 }

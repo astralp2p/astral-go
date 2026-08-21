@@ -48,5 +48,5 @@ func (s *Query) UnmarshalJSON(bytes []byte) error {
 // ...
 
 func init() {
-	_ = Add(&Query{})
+	MustAdd(&Query{})
 }

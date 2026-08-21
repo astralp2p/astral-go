@@ -15,6 +15,7 @@ func (client *Client) Filters(ctx *astral.Context) (filters []string, err error)
 	if err != nil {
 		return nil, err
 	}
+	defer ch.Close()
 
 	// collect the list of filters
 	err = ch.Switch(

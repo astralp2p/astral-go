@@ -98,5 +98,5 @@ func (ip IP) String() string {
 }
 
 func init() {
-	_ = astral.Add(&IP{})
+	astral.MustAdd(&IP{})
 }

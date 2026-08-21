@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"reflect"
+	"runtime/debug"
 	"time"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -80,7 +81,8 @@ func NewOp(fn any) (*Op, error) {
 
 // RouteQuery dispatches the query to the op in a new goroutine with a detached
 // context; the caller blocks until the op calls Accept/Reject or the 5-second
-// deadline expires.
+// deadline expires. A panicking op is contained: it is reported as *ErrPanic on
+// the Report and the query is rejected with astral.CodeInternalError.
 func (op *Op) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, remoteWriter io.WriteCloser) (io.WriteCloser, error) {
 	var origin string
 	if o, found := q.Extra.Get("origin"); found {
@@ -102,6 +104,21 @@ func (op *Op) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, remoteWri
 		report.Err = op.invoke(ctx, inQuery)
 		report.Time = time.Since(start)
 
+		// why: a panicking op is an internal error, not a plain rejection. This runs
+		// before the deferred Reject above, so it wins the resolve; an op that already
+		// accepted or rejected keeps its own outcome.
+		//
+		// The two calls cover the two shapes a panic can take, and exactly one of them
+		// does anything. Panicking before resolving: RejectWithCode wins the CAS and
+		// abandon finds no connection. Panicking after accepting: the CAS fails and the
+		// caller rightly keeps its connection, but the op is gone and nothing else would
+		// ever close it, so abandon does.
+		var errPanic *ErrPanic
+		if errors.As(report.Err, &errPanic) {
+			inQuery.RejectWithCode(astral.CodeInternalError)
+			inQuery.abandon(report.Err)
+		}
+
 		if op.LogFunc != nil {
 			op.LogFunc(&report)
 		}
@@ -110,7 +127,19 @@ func (op *Op) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, remoteWri
 	return inQuery.await(ctx)
 }
 
-func (op *Op) invoke(ctx *astral.Context, q *IncomingQuery) error {
+// invoke calls the op function, binding query arguments first. A panic in the op
+// is recovered and returned as *ErrPanic.
+//
+// why: the goroutine in RouteQuery is the root of its own stack, so no caller can
+// recover for it. Containing the panic here rather than in that goroutine keeps the
+// recovery independent of defer ordering.
+func (op *Op) invoke(ctx *astral.Context, q *IncomingQuery) (err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = &ErrPanic{Value: r, Stack: debug.Stack()}
+		}
+	}()
+
 	var fnArgs = []reflect.Value{
 		reflect.ValueOf(ctx),
 		reflect.ValueOf(q),

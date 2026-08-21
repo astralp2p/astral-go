@@ -146,5 +146,5 @@ func ParseEndpoint(s string) (*Endpoint, error) {
 }
 
 func init() {
-	_ = astral.Add(&Endpoint{})
+	astral.MustAdd(&Endpoint{})
 }

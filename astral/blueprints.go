@@ -69,6 +69,18 @@ func Add(object ...Object) error {
 	return defaultBlueprints.Add(object...)
 }
 
+// MustAdd registers object prototypes with the default Blueprints and panics on
+// failure.
+//
+// why: registration happens in package init, where a failure means the process's wire
+// surface is incomplete and there is no caller left to hand the error to. Every site
+// discarded it, which hid a registration that had never once succeeded.
+func MustAdd(object ...Object) {
+	if err := Add(object...); err != nil {
+		panic("astral: " + err.Error())
+	}
+}
+
 // New returns a zero-value object of the specified type or nil if no blueprint is found.
 //
 // The stored entry under typeName disambiguates: a *Blueprint registered under its own Type
@@ -76,7 +88,7 @@ func Add(object ...Object) error {
 // anything else is a compile-time prototype handed back via reflect.New (giving the
 // originating peer the typed Go value rather than a wire carrier).
 func (bp *Blueprints) New(typeName string) Object {
-	o, _ := newAt(bp, typeName, 0)
+	o, _ := newAt(bp, typeName, 0, newBuildBudget())
 	return o
 }
 
@@ -85,11 +97,11 @@ func (bp *Blueprints) New(typeName string) Object {
 // by MaxBlueprintDepth rather than overflowing the Go stack. Returns the constructor's
 // error when it's ErrDepthExceeded so the outer construction can surface it; other errors
 // are intentionally swallowed to nil to match the documented "treat as unregistered" contract.
-func newAt(bp *Blueprints, typeName string, depth int) (Object, error) {
+func newAt(bp *Blueprints, typeName string, depth int, budget *buildBudget) (Object, error) {
 	p, ok := bp.entries.Get(typeName)
 	if !ok {
 		if bp.Parent != nil {
-			return newAt(bp.Parent, typeName, depth)
+			return newAt(bp.Parent, typeName, depth, budget)
 		}
 		return nil, nil
 	}
@@ -101,7 +113,7 @@ func newAt(bp *Blueprints, typeName string, depth int) (Object, error) {
 	// way as an unregistered type. Depth-exceeded escapes the nil-swallow so the
 	// originating construction surfaces a typed error.
 	if classify(typeName, p) == kindRuntimeBP {
-		ro, err := newRuntimeObjectAt(bp, p.(*Blueprint), depth)
+		ro, err := newRuntimeObjectAt(bp, p.(*Blueprint), depth, budget)
 		if err != nil {
 			if errors.Is(err, ErrDepthExceeded) {
 				return nil, err
@@ -145,10 +157,13 @@ func (bp *Blueprints) Add(object ...Object) error {
 	return nil
 }
 
-// OrderedBlueprints returns all registered type names in dependency order. Walks
-// the parent chain. At each level: non-alias compile-time prototypes first
-// (alpha-sorted), then aliases (alpha-sorted, leaves with no internal refs),
-// then runtime Blueprints topo-sorted by referencedType.
+// OrderedBlueprints returns all registered type names in dependency order. Walks the
+// parent chain. At each level: leaves (registered names with no derivable Blueprint,
+// alpha-sorted), then aliases (alpha-sorted), then struct-kind compile-time prototypes
+// topo-sorted by reference, then runtime Blueprints topo-sorted by reference.
+//
+// The order matches AllBlueprints and the sync order the spec states — aliases first,
+// then structs topologically sorted (topics/blueprints.md).
 //
 // Aliases precede runtime Blueprints so that a Blueprint's RefSpec to an alias
 // resolves on the peer when replayed in this order. An entry classifies as an
@@ -157,6 +172,21 @@ func (bp *Blueprints) Add(object ...Object) error {
 //
 // Names that appear in both the local entries and the parent chain (parent-add-after-child
 // shadow) are emitted once, with the parent occurrence preserved.
+// appendByName appends the blueprints in bps whose type name appears in names, in the
+// order names gives.
+func appendByName(out, bps []*Blueprint, names []string) []*Blueprint {
+	index := make(map[string]*Blueprint, len(bps))
+	for _, b := range bps {
+		index[b.Type.String()] = b
+	}
+	for _, n := range names {
+		if b, ok := index[n]; ok {
+			out = append(out, b)
+		}
+	}
+	return out
+}
+
 func (bp *Blueprints) OrderedBlueprints() []string {
 	var out []string
 	seen := map[string]bool{}
@@ -169,7 +199,7 @@ func (bp *Blueprints) OrderedBlueprints() []string {
 		}
 	}
 
-	var proto []string
+	proto := map[string]Object{}
 	var aliases []string
 	var runtime []*Blueprint
 	for name, obj := range bp.entries.Clone() {
@@ -187,19 +217,49 @@ func (bp *Blueprints) OrderedBlueprints() []string {
 		case kindAliasProto:
 			aliases = append(aliases, name)
 		case kindStructProto:
-			proto = append(proto, name)
+			proto[name] = obj
 		}
 	}
 
-	sort.Strings(proto)
+	// why: the spec orders a sync as aliases first, then structs topologically sorted, so
+	// every RefSpec/PtrSpec/SliceSpec/ArraySpec/MapSpec edge targets an already-replayed
+	// name (topics/blueprints.md). This emitted prototypes before aliases, which put a
+	// struct ahead of an alias it referenced, and alpha-sorted the prototypes, which put
+	// a struct ahead of another struct it referenced.
+	leaves, structs := orderProtoNames(proto)
 	sort.Strings(aliases)
-	out = append(out, proto...)
+	out = append(out, leaves...)
 	out = append(out, aliases...)
+	out = append(out, structs...)
 	// note: cycle error is silenced here so the public []string signature stays unchanged;
 	// AllBlueprints surfaces the same condition via its error return for callers that need it.
 	ordered, _ := orderBlueprintsByReference(runtime)
 	out = append(out, ordered...)
 	return out
+}
+
+// orderProtoNames splits compile-time prototypes into leaves and dependency-ordered
+// structs.
+//
+// why: leaves are the registered names with no derivable Blueprint — the primitives, and
+// prototypes whose Go shape the reflector cannot describe. They reference nothing, so
+// emitting them first can never violate dependency order, and it puts the primitives an
+// alias names as its Underlying ahead of that alias.
+func orderProtoNames(proto map[string]Object) (leaves, structs []string) {
+	var derived []*Blueprint
+
+	for name, obj := range proto {
+		b, err := BlueprintOf(obj)
+		if err != nil {
+			leaves = append(leaves, name)
+			continue
+		}
+		derived = append(derived, b)
+	}
+
+	sort.Strings(leaves)
+	structs, _ = orderBlueprintsByReference(derived)
+	return leaves, structs
 }
 
 // orderBlueprintsByReference returns blueprint names ordered (Kahn-style topological sort)
@@ -397,11 +457,33 @@ func cloneSpec(s Spec) Spec {
 
 // GetBlueprint returns the runtime Blueprint for typeName, or nil. Compile-time prototypes
 // live under "astral.blueprint", never under their own runtime Type, so they return nil.
+// GetBlueprint returns a copy of the runtime Blueprint registered under typeName, or nil.
+//
+// why the copy: RegisterBlueprint clones on the way in, to insulate the registry from a
+// caller that keeps its own copy. Handing the stored pointer back out left the other half
+// of that open — a caller could append a Field and change what every later decode of the
+// type expects, from outside the registry's API. Names are documented as immutable; this
+// makes the descriptors so too.
 func (bp *Blueprints) GetBlueprint(typeName string) *Blueprint {
+	b := bp.getBlueprintRef(typeName)
+	if b == nil {
+		return nil
+	}
+
+	return cloneBlueprint(b)
+}
+
+// getBlueprintRef returns the stored *Blueprint without copying it.
+//
+// why: an internal caller that only tests existence or reads a field must not pay for a
+// deep copy. isRuntimeBlueprintType calls this per element type during construction —
+// the path PR #27 narrowed to fix a DoS — so cloning there would allocate a Blueprint
+// only to discard it. Anything leaving the package goes through GetBlueprint instead.
+func (bp *Blueprints) getBlueprintRef(typeName string) *Blueprint {
 	o, ok := bp.entries.Get(typeName)
 	if !ok {
 		if bp.Parent != nil {
-			return bp.Parent.GetBlueprint(typeName)
+			return bp.Parent.getBlueprintRef(typeName)
 		}
 		return nil
 	}
@@ -413,6 +495,7 @@ func (bp *Blueprints) GetBlueprint(typeName string) *Blueprint {
 	if b.Type.String() != typeName {
 		return nil
 	}
+
 	return b
 }
 
@@ -444,7 +527,8 @@ func (bp *Blueprints) validateReferences(b *Blueprint) error {
 
 // AllBlueprints returns every runtime Blueprint (struct kind + alias kind) ordered for sync
 // replay: aliases first (alpha within each parent level), then struct-kind compile-time
-// prototypes (alpha), then struct-kind runtime Blueprints topo-sorted by reference.
+// prototypes topo-sorted by reference (not alphabetical), then struct-kind runtime
+// Blueprints topo-sorted by reference.
 // Parent-chain entries precede local ones. Per-entry derivation failures (BlueprintOf/AliasOf)
 // are aggregated into err; the returned slice contains the successful entries.
 func (bp *Blueprints) AllBlueprints() ([]*Blueprint, error) {
@@ -496,6 +580,19 @@ func (bp *Blueprints) AllBlueprints() ([]*Blueprint, error) {
 		case kindStructProto:
 			derived, err := BlueprintOf(obj)
 			if err != nil {
+				// why: an allowlisted primitive registered under its own name has no
+				// derivable Blueprint by design — primitive_spec.go says so — and every
+				// peer already knows the type, so there is nothing to sync and nothing
+				// wrong. Seventeen such entries buried the ones that are real, which is
+				// what let a genuinely undescribable type go unnoticed.
+				//
+				// Suppressed on failure rather than before deriving: identity and time
+				// are allowlisted and do derive, so testing the name first drops two
+				// live entries from the sync. The returned slice is unchanged.
+				if IsPrimitiveType(name) {
+					continue
+				}
+
 				errs = append(errs, fmt.Errorf("blueprint %s: %w", name, err))
 				continue
 			}
@@ -508,10 +605,13 @@ func (bp *Blueprints) AllBlueprints() ([]*Blueprint, error) {
 	})
 	out = append(out, aliases...)
 
-	sort.Slice(proto, func(i, j int) bool {
-		return proto[i].Type.String() < proto[j].Type.String()
-	})
-	out = append(out, proto...)
+	// why: same spec clause as OrderedBlueprints — the struct bucket must be dependency
+	// ordered, not alphabetical, or a struct replays before the struct it references.
+	protoOrdered, protoCycleErr := orderBlueprintsByReference(proto)
+	if protoCycleErr != nil {
+		errs = append(errs, protoCycleErr)
+	}
+	out = appendByName(out, proto, protoOrdered)
 
 	ordered, cycleErr := orderBlueprintsByReference(runtime)
 	if cycleErr != nil {

@@ -74,5 +74,5 @@ func (msg ErrorMessage) String() string {
 }
 
 func init() {
-	_ = Add(&ErrorMessage{})
+	MustAdd(&ErrorMessage{})
 }

@@ -21,8 +21,27 @@ func (i interfaceValue) ObjectType() string {
 	return ""
 }
 
+// IsAbsent reports whether the slot carries no value. Three forms mean the same
+// thing — interface-nil, a typed nil pointer, and the *Nil marker the runtime
+// Blueprint codec installs as a polymorphic field's zero — and the spec spells all
+// of them as the zero-length type tag (topics/binary-encoding.md, topics/codec.md).
+func (i interfaceValue) IsAbsent() bool {
+	if !i.IsValid() || i.IsNil() || i.IsElemNilPtr() {
+		return true
+	}
+	_, isNil := i.Interface().(*Nil)
+	return isNil
+}
+
 func (i interfaceValue) WriteTo(w io.Writer) (n int64, err error) {
-	if i.IsNil() || i.IsElemNilPtr() {
+	ow, gerr := enterWriter(w, frameName("interface"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
+	if i.IsAbsent() {
 		err = binary.Write(w, ByteOrder, uint8(0)) // zero-length type means nil
 		if err == nil {
 			return 1, nil
@@ -78,6 +97,13 @@ func (i interfaceValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("interface"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	var objectType string
 	m, err := (*String8)(&objectType).ReadFrom(r)
 	n += m
@@ -85,12 +111,21 @@ func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	if len(objectType) == 0 {
+	// why: the zero-length tag is the spec's spelling of absence. nilTypeName is
+	// accepted alongside it for peers written before that was settled.
+	if len(objectType) == 0 || objectType == nilTypeName {
 		i.Set(reflect.Zero(i.Type()))
 		return
 	}
 
-	o := New(objectType)
+	// why: a polymorphic field is the one slot whose type is not known until the bytes
+	// arrive, so it is precisely where a per-call registry has to be consulted. The
+	// package-level New reads defaultBlueprints, which meant a registry passed with
+	// WithBlueprints reached a struct's own fields and was then dropped at the first
+	// polymorphic one. resolve() falls back to defaultBlueprints when no registry was
+	// threaded, and a child registry walks its parent chain, so nothing that resolved
+	// before stops resolving.
+	o := or.resolve().New(objectType)
 	if o == nil {
 		return n, fmt.Errorf("%w: %w: %s", ErrStreamCorrupted, ErrBlueprintNotFound, objectType)
 	}
@@ -112,7 +147,7 @@ func (i interfaceValue) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func (i interfaceValue) MarshalJSON() ([]byte, error) {
-	if !i.IsValid() || i.IsNil() || i.IsElemNilPtr() {
+	if i.IsAbsent() {
 		return jsonNull, nil
 	}
 
@@ -152,6 +187,12 @@ func (i interfaceValue) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
+	// The JSON twin of the resolution ReadFrom does, and it cannot be fixed the same
+	// way: UnmarshalJSON's signature carries no configuration, so there is nowhere to
+	// thread a per-call registry. Every JSON type-name resolution in this package has
+	// the same ceiling — here, unmarshalFieldJSON, unmarshalRuntimeBlueprintPtr and
+	// Bundle — so WithBlueprints is a binary-path facility today. Widening it needs an
+	// API decision, not a call-site change.
 	o := New(j.Type)
 	if o == nil {
 		return fmt.Errorf("%w: %s", ErrBlueprintNotFound, j.Type)

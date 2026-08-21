@@ -28,4 +28,4 @@ func (c *SignedContract) UnmarshalJSON(b []byte) error { return astral.Objectify
 // IsNil guards against both a nil receiver and an embedded nil *Contract.
 func (c *SignedContract) IsNil() bool { return c == nil || c.Contract == nil }
 
-func init() { _ = astral.Add(&SignedContract{}) }
+func init() { astral.MustAdd(&SignedContract{}) }

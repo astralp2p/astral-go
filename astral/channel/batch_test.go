@@ -239,3 +239,45 @@ func TestBatch_NoReceiveError_SendsNoReport(t *testing.T) {
 		wantTypes(t, decodeTypes(t, &out), []string{"ack", "eos"})
 	})
 }
+
+// TestBatch_ErrorObjectInput_AnsweredInBand: with T = astral.Object an error
+// object on the input stream is an input of an unexpected type — a failed
+// upstream stage reporting in-band — so fn never sees it, the reply is an
+// error_message, and the batch continues.
+func TestBatch_ErrorObjectInput_AnsweredInBand(t *testing.T) {
+	a, b := astral.String8("a"), astral.String8("b")
+	in := encodeObjects(t, &a, astral.NewError("upstream failed"), &b, &astral.EOS{})
+	var out bytes.Buffer
+
+	var seen []string
+	err := Batch(New(Join(in, &out)), func(obj astral.Object) astral.Object {
+		seen = append(seen, obj.ObjectType())
+		return &astral.Ack{}
+	})
+	if err != nil {
+		t.Fatalf("batch: %v", err)
+	}
+
+	wantTypes(t, seen, []string{"string8", "string8"})
+	wantTypes(t, decodeTypes(t, &out), []string{"ack", "error_message", "ack", "eos"})
+}
+
+// TestBatch_ErrorObjectInput_ExactTypeWins: a batch whose T names an error
+// object still receives it. The rejection above must not close the door on an
+// op that legitimately takes error objects as its payload.
+func TestBatch_ErrorObjectInput_ExactTypeWins(t *testing.T) {
+	in := encodeObjects(t, astral.NewError("payload"), &astral.EOS{})
+	var out bytes.Buffer
+
+	var seen []string
+	err := Batch(New(Join(in, &out)), func(msg *astral.ErrorMessage) astral.Object {
+		seen = append(seen, msg.Error())
+		return &astral.Ack{}
+	})
+	if err != nil {
+		t.Fatalf("batch: %v", err)
+	}
+
+	wantTypes(t, seen, []string{"payload"})
+	wantTypes(t, decodeTypes(t, &out), []string{"ack", "eos"})
+}

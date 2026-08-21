@@ -31,6 +31,13 @@ func (val mapValue) ObjectType() string {
 // which naturally produces tag+payload for interface element types and bare payload for
 // concrete Object types — matching StringMap/IntMap heterogeneous and homogeneous modes.
 func (val mapValue) WriteTo(w io.Writer) (n int64, err error) {
+	ow, gerr := enterWriter(w, frameName("map"))
+	defer ow.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	w = ow
+
 	keyWidth, ok := supportedMapKey(val.Type().Key().Kind())
 	if !ok {
 		return 0, fmt.Errorf("map_value: unsupported key kind %s", val.Type().Key().Kind())
@@ -91,6 +98,13 @@ func (val mapValue) WriteTo(w io.Writer) (n int64, err error) {
 }
 
 func (val mapValue) ReadFrom(r io.Reader) (n int64, err error) {
+	or, gerr := enterReader(r, frameName("map"))
+	defer or.exit()
+	if gerr != nil {
+		return 0, gerr
+	}
+	r = or
+
 	keyWidth, ok := supportedMapKey(val.Type().Key().Kind())
 	if !ok {
 		return 0, fmt.Errorf("map_value: unsupported key kind %s", val.Type().Key().Kind())
@@ -108,7 +122,9 @@ func (val mapValue) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	val.Set(reflect.MakeMapWithSize(val.Type(), int(l)))
+	// why: l is the peer's claim. Sizing the map to it let a four-byte count
+	// name an arbitrarily large allocation; the map grows as entries arrive.
+	val.Set(reflect.MakeMapWithSize(val.Type(), elemCap(l)))
 	flagged := elemNeedsPresenceFlag(val.Type().Elem())
 
 	for range l {

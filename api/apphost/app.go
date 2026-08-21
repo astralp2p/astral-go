@@ -25,5 +25,5 @@ func (a *App) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func init() {
-	_ = astral.Add(&App{})
+	astral.MustAdd(&App{})
 }

@@ -134,3 +134,44 @@ func TestSetBatch_EOF_NoTrailingEOS(t *testing.T) {
 		t.Fatalf("replies %v, want [ack]", got)
 	}
 }
+
+// TestSetBatch_UpstreamError_NotStoredAsValue: an error_message reaching the
+// input stream is a failed upstream stage in a composed pipeline, so batch mode
+// answers it in-band and stores nothing. It used to be stored as the node's
+// value and acknowledged, which turned an upstream failure into a silent write
+// of the failure text.
+func TestSetBatch_UpstreamError_NotStoredAsValue(t *testing.T) {
+	in := encodeInputs(t, astral.NewError("upstream failed"), &astral.EOS{})
+	var out bytes.Buffer
+
+	root := &fakeNode{}
+	ops := NewNodeOps(root)
+	ch := channel.New(channel.Join(in, &out))
+
+	err := ops.setBatch(astral.NewContext(nil), ch, SetArgs{Path: "/x"})
+	if err != nil {
+		t.Fatalf("setBatch: %v", err)
+	}
+
+	got := replyTypes(t, &out)
+	want := []string{"error_message", "eos"}
+	if len(got) != len(want) {
+		t.Fatalf("replies %v, want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("replies %v, want %v", got, want)
+		}
+	}
+
+	leaf := root.subs["x"]
+	if leaf == nil {
+		t.Fatal("leaf not created")
+	}
+	if leaf.sets != 0 {
+		t.Fatalf("leaf sets = %d, want 0", leaf.sets)
+	}
+	if leaf.value != nil {
+		t.Fatalf("leaf value = %s, want none stored", leaf.value.ObjectType())
+	}
+}

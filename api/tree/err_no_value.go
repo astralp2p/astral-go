@@ -25,5 +25,5 @@ func (err *ErrNoValue) Is(other error) bool {
 }
 
 func init() {
-	_ = astral.Add(&ErrNoValue{})
+	astral.MustAdd(&ErrNoValue{})
 }

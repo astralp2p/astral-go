@@ -24,5 +24,5 @@ func (msg *RejectIncomingMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&RejectIncomingMsg{})
+	astral.MustAdd(&RejectIncomingMsg{})
 }

@@ -26,4 +26,4 @@ func (s *SliceSpec) UnmarshalJSON(b []byte) error { return Objectify(s).Unmarsha
 // empty Type (heterogeneous) declares no dependency.
 func (s *SliceSpec) ReferencedType() string { return s.Type.String() }
 
-func init() { _ = Add(&SliceSpec{}) }
+func init() { MustAdd(&SliceSpec{}) }

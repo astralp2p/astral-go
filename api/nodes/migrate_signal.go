@@ -32,7 +32,7 @@ func (m *MigrateSignal) ReadFrom(r io.Reader) (int64, error) {
 	return astral.Objectify(m).ReadFrom(r)
 }
 
-func init() { _ = astral.Add(&MigrateSignal{}) }
+func init() { astral.MustAdd(&MigrateSignal{}) }
 
 // ExpectMigrateSignal returns a channel.Switch handler that accepts the given signal type.
 // If buf is non-nil, the peer's buffer size is written to it.

@@ -102,12 +102,19 @@ type ConfigFunc func(*endecConfig)
 func Encode(w io.Writer, obj Object, config ...ConfigFunc) (n int64, err error) {
 	cfg := makeConfig(config...)
 
-	n, err = cfg.Encoder(w, obj.ObjectType())
+	// why: Decode attaches a ledger and bounds what one call may consume; without the
+	// same attachment here the encoder is unbounded, so this module emits objects it
+	// then refuses to read back — measured at 5000 nested frames encoding cleanly and
+	// failing to decode past 32. astral-docs topics/codec.md states the rule: an
+	// implementation that bounds decoding applies the same bound when encoding.
+	ow := attachWriter(w)
+
+	n, err = cfg.Encoder(ow, obj.ObjectType())
 	if err != nil {
 		return
 	}
 
-	m, err := obj.WriteTo(w)
+	m, err := obj.WriteTo(ow)
 	n += m
 
 	return
@@ -130,12 +137,7 @@ func Decode(r io.Reader, config ...ConfigFunc) (object Object, n int64, err erro
 	// why: nested field reads resolve names via dr.resolve(). Wrapping here propagates
 	// cfg.Blueprints into every recursive ReadFrom frame; inner RuntimeObject.ReadFrom
 	// inherits the wrapper rather than rebuilding a defaultBlueprints-bound one.
-	or, ok := r.(*objectReader)
-	if !ok {
-		or = &objectReader{Reader: r, bps: cfg.Blueprints}
-	} else if or.bps == nil {
-		or.bps = cfg.Blueprints
-	}
+	or := attachReader(r, cfg.Blueprints)
 
 	m, err := object.ReadFrom(or)
 	n += m
@@ -178,16 +180,23 @@ func DecodeAs[T Object](data []byte, config ...ConfigFunc) (T, error) {
 func ResolveObjectID(obj Object) (objectID *ObjectID, err error) {
 	w := NewWriteResolver(nil)
 
-	// write the astral stamp
-	_, err = Stamp{}.WriteTo(w)
-	if err != nil {
-		return
-	}
+	// why: an Untyped Object has no canonical form — its Size and Hash cover the raw
+	// payload alone (core-definitions/object-id.md). Writing the Stamp and a
+	// zero-length type header for one made Blob("hello") report size 10 where
+	// astral.Resolve over the same five bytes reports 5, so the same bytes had two
+	// addresses depending on which entry point produced them.
+	if obj.ObjectType() != "" {
+		// write the astral stamp
+		_, err = Stamp{}.WriteTo(w)
+		if err != nil {
+			return
+		}
 
-	// write the object type
-	_, err = ObjectType(obj.ObjectType()).WriteTo(w)
-	if err != nil {
-		return
+		// write the object type
+		_, err = ObjectType(obj.ObjectType()).WriteTo(w)
+		if err != nil {
+			return
+		}
 	}
 
 	// write the object payload

@@ -16,6 +16,7 @@ func (client *Client) AliasMap(ctx *astral.Context) (am *dir.AliasMap, err error
 	if err != nil {
 		return nil, err
 	}
+	defer ch.Close()
 
 	// response
 	err = ch.Switch(channel.Expect(&am), channel.PassErrors)

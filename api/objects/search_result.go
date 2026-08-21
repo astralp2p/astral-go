@@ -54,5 +54,5 @@ func (sr SearchResult) String() string {
 }
 
 func init() {
-	_ = astral.Add(&SearchResult{})
+	astral.MustAdd(&SearchResult{})
 }

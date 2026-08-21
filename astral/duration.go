@@ -67,5 +67,5 @@ func (d Duration) String() string {
 
 func init() {
 	var d Duration
-	_ = Add(&d)
+	MustAdd(&d)
 }

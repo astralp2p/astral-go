@@ -60,7 +60,7 @@ func (a *ChangeAckMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&IndexMsg{})
-	_ = astral.Add(&UnindexMsg{})
-	_ = astral.Add(&ChangeAckMsg{})
+	astral.MustAdd(&IndexMsg{})
+	astral.MustAdd(&UnindexMsg{})
+	astral.MustAdd(&ChangeAckMsg{})
 }

@@ -55,5 +55,5 @@ func (t *Time) UnmarshalText(text []byte) (err error) {
 }
 
 func init() {
-	_ = Add(&Time{})
+	MustAdd(&Time{})
 }

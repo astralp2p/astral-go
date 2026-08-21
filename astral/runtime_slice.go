@@ -63,6 +63,16 @@ func resolveElemType(bps *Blueprints, typeName string) (reflect.Type, error) {
 	if typeName == "" {
 		return reflect.TypeOf((*Object)(nil)).Elem(), nil
 	}
+
+	// why: a runtime Blueprint always materializes as *RuntimeObject, so its reflect.Type
+	// is known without building a prototype. Building one resolved the element's own
+	// spec-zeros — and an element type naming a Blueprint that reaches this container
+	// again recursed without bound, because bps.New restarts the construction depth at
+	// zero. The prototype was discarded either way; only reflect.TypeOf survived it.
+	if isRuntimeBlueprintType(bps, typeName) {
+		return reflect.TypeOf((*RuntimeObject)(nil)), nil
+	}
+
 	proto := bps.New(typeName)
 	if proto == nil {
 		return nil, fmt.Errorf("%w: %s", ErrBlueprintNotFound, typeName)
@@ -71,6 +81,12 @@ func resolveElemType(bps *Blueprints, typeName string) (reflect.Type, error) {
 }
 
 func (s *RuntimeSlice) WriteTo(w io.Writer) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !s.ptr.IsValid() {
+		return 0, nil
+	}
 	return sliceValue{Value: s.ptr.Elem()}.WriteTo(w)
 }
 
@@ -79,6 +95,12 @@ func (s *RuntimeSlice) WriteTo(w io.Writer) (int64, error) {
 // constructs each element via bps.New(elemName) so it carries its schema binding. bps is
 // recovered from r via blueprintsFromReader so WithBlueprints flows through this frame.
 func (s *RuntimeSlice) ReadFrom(r io.Reader) (int64, error) {
+	// why: the zero value reaches the codec through reflect.New on every decode, and
+	// its ptr is an invalid reflect.Value. RuntimeObject already guards this; these
+	// three did not, and dereferencing it panics.
+	if !s.ptr.IsValid() {
+		return 0, nil
+	}
 	bps := blueprintsFromReader(r)
 	if !isRuntimeBlueprintType(bps, s.elemName) {
 		return sliceValue{Value: s.ptr.Elem()}.ReadFrom(r)
@@ -94,13 +116,19 @@ func (s *RuntimeSlice) readRuntimeBlueprintElements(r io.Reader, bps *Blueprints
 	}
 	var n int64 = 4
 
-	sl := reflect.MakeSlice(s.ptr.Elem().Type(), int(l), int(l))
+	// why: l is the peer's claim. Reserving l elements up front let a four-byte
+	// count name an arbitrarily large allocation, so the slice grows as elements
+	// arrive.
+	sliceType := s.ptr.Elem().Type()
+	sl := reflect.MakeSlice(sliceType, 0, elemCap(l))
 	for i := 0; i < int(l); i++ {
-		m, err := readRuntimeBlueprintPtr(r, bps, s.elemName, sl.Index(i))
+		elem := reflect.New(sliceType.Elem()).Elem()
+		m, err := readRuntimeBlueprintPtr(r, bps, s.elemName, elem)
 		n += m
 		if err != nil {
 			return n, err
 		}
+		sl = reflect.Append(sl, elem)
 	}
 	s.ptr.Elem().Set(sl)
 	return n, nil

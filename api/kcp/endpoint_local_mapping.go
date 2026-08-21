@@ -22,7 +22,11 @@ func (e EndpointLocalMapping) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&e).WriteTo(w)
 }
 
-func (e EndpointLocalMapping) ReadFrom(r io.Reader) (n int64, err error) {
+// why: the receiver must be a pointer twice over. Objectify panics on a non-pointer,
+// so every call failed outright, and even objectifying &e on a value receiver would
+// decode into a copy discarded on return. The type is registered, so this was reachable
+// from any decode of mod.kcp.endpoint_local_mapping.
+func (e *EndpointLocalMapping) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(e).ReadFrom(r)
 }
 
@@ -44,5 +48,5 @@ func (p *EndpointLocalMapping) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&EndpointLocalMapping{})
+	astral.MustAdd(&EndpointLocalMapping{})
 }

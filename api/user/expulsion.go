@@ -64,6 +64,6 @@ func (e *SignedExpulsion) UnmarshalJSON(b []byte) error { return astral.Objectif
 func (e *SignedExpulsion) IsNil() bool { return e == nil || e.Expulsion == nil }
 
 func init() {
-	_ = astral.Add(&Expulsion{})
-	_ = astral.Add(&SignedExpulsion{})
+	astral.MustAdd(&Expulsion{})
+	astral.MustAdd(&SignedExpulsion{})
 }

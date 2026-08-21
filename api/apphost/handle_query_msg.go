@@ -26,5 +26,5 @@ func (msg *HandleQueryMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&HandleQueryMsg{})
+	astral.MustAdd(&HandleQueryMsg{})
 }

@@ -155,5 +155,5 @@ func (info *NodeInfo) UnmarshalText(text []byte) (err error) {
 }
 
 func init() {
-	_ = astral.Add(&NodeInfo{})
+	astral.MustAdd(&NodeInfo{})
 }

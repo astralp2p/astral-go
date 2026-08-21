@@ -21,5 +21,5 @@ func (s Socket) WriteTo(w io.Writer) (int64, error)   { return astral.Objectify(
 func (s *Socket) ReadFrom(r io.Reader) (int64, error) { return astral.Objectify(s).ReadFrom(r) }
 
 func init() {
-	astral.Add(&Socket{})
+	astral.MustAdd(&Socket{})
 }

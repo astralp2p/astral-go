@@ -25,4 +25,4 @@ func (s *RefSpec) UnmarshalJSON(b []byte) error { return Objectify(s).UnmarshalJ
 // that name must be registered before this Blueprint for closure validation to pass.
 func (s *RefSpec) ReferencedType() string { return s.Type.String() }
 
-func init() { _ = Add(&RefSpec{}) }
+func init() { MustAdd(&RefSpec{}) }

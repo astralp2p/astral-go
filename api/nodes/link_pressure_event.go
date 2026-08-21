@@ -38,5 +38,5 @@ func (e *LinkPressureEvent) UnmarshalJSON(b []byte) error {
 }
 
 func init() {
-	_ = astral.Add(&LinkPressureEvent{})
+	astral.MustAdd(&LinkPressureEvent{})
 }

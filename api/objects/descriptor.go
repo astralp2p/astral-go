@@ -33,5 +33,5 @@ func (res *Descriptor) UnmarshalJSON(bytes []byte) error {
 }
 
 func init() {
-	astral.Add(&Descriptor{})
+	astral.MustAdd(&Descriptor{})
 }

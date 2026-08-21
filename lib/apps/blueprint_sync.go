@@ -23,11 +23,22 @@ var (
 // with a RefSpec to an alias type passes the remote validateReferences check during replay.
 func SyncBlueprints(ctx *astral.Context) error {
 	blueprintCacheOnce.Do(func() {
-		// why: AllBlueprints aggregates per-entry derivation failures (PrimitiveAlias returning a
-		// non-allowlisted underlying, prototypes with non-Object fields). Every such entry
-		// is either already on the node as a compile-time built-in or part of a module both
-		// sides link, so the skip is harmless and the error is intentionally dropped here.
-		blueprintCache, _ = astral.DefaultBlueprints().AllBlueprints()
+		var err error
+		blueprintCache, err = astral.DefaultBlueprints().AllBlueprints()
+
+		// why: the previous comment here reasoned that every undescribable entry is a
+		// built-in or a shared module type, so dropping the error was harmless. That
+		// holds for astral-go's own types and stops holding the moment an app registers
+		// one — a struct with a bare Go string field derives nothing, is silently left
+		// out of the sync, and surfaces much later as a decode error on the peer. The
+		// error is the only signal that happened, so it is reported rather than dropped.
+		//
+		// Reported, not returned: the undescribable set includes astral-go's own types,
+		// so failing here would break every app for a condition none of them caused.
+		if err != nil {
+			log.Printf("blueprint sync: these types have no derivable blueprint and will "+
+				"not be pushed, so a peer cannot decode them: %v", err)
+		}
 	})
 
 	remote, err := objectsClient.Blueprints(ctx)

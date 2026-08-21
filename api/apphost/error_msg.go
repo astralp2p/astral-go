@@ -39,5 +39,5 @@ func (msg ErrorMsg) Error() string {
 }
 
 func init() {
-	_ = astral.Add(&ErrorMsg{})
+	astral.MustAdd(&ErrorMsg{})
 }

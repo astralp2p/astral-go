@@ -27,5 +27,5 @@ func (msg *RouteQueryMsg) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func init() {
-	_ = astral.Add(&RouteQueryMsg{})
+	astral.MustAdd(&RouteQueryMsg{})
 }

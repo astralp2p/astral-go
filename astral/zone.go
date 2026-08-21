@@ -92,5 +92,5 @@ func (zone Zone) String() (s string) {
 
 func init() {
 	var zone Zone
-	_ = Add(&zone)
+	MustAdd(&zone)
 }

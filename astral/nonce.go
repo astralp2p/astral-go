@@ -103,5 +103,5 @@ func (nonce Nonce) String() string {
 
 func init() {
 	var n Nonce
-	_ = Add(&n)
+	MustAdd(&n)
 }

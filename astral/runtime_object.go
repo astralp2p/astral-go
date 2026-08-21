@@ -69,19 +69,24 @@ func NewRuntimeObject(bp *Blueprint) (*RuntimeObject, error) {
 // Dispatches on bp.Kind(): struct kind populates fields/index from bp.Fields; alias kind
 // allocates the underlying primitive via bps.New(bp.Underlying).
 func newRuntimeObjectWith(bps *Blueprints, bp *Blueprint) (*RuntimeObject, error) {
-	return newRuntimeObjectAt(bps, bp, 0)
+	return newRuntimeObjectAt(bps, bp, 0, newBuildBudget())
 }
 
 // newRuntimeObjectAt threads a construction-time depth counter so a RefSpec/PtrSpec cycle
 // (A.RefSpec→B, B.RefSpec→A) recursing through specZero → bps.New → newRuntimeObjectAt
 // surfaces ErrDepthExceeded instead of overflowing the Go stack. The cap mirrors the
 // runtime depth wrapper at WriteTo/ReadFrom (MaxBlueprintDepth).
-func newRuntimeObjectAt(bps *Blueprints, bp *Blueprint, depth int) (*RuntimeObject, error) {
+func newRuntimeObjectAt(bps *Blueprints, bp *Blueprint, depth int, budget *buildBudget) (*RuntimeObject, error) {
 	if bp == nil {
 		return &RuntimeObject{}, nil
 	}
 	if depth > MaxBlueprintDepth {
 		return nil, fmt.Errorf("%w: %s (construction)", ErrDepthExceeded, bp.Type)
+	}
+	// why: depth bounds the stack, not the work. A Blueprint with several reference
+	// fields per level costs k^depth frames while staying well inside the depth cap.
+	if !budget.take() {
+		return nil, fmt.Errorf("%w: %s (construction budget %d)", ErrDepthExceeded, bp.Type, MaxBlueprintNodes)
 	}
 	if err := validateBlueprint(bp); err != nil {
 		return nil, err
@@ -100,7 +105,7 @@ func newRuntimeObjectAt(bps *Blueprints, bp *Blueprint, depth int) (*RuntimeObje
 	}
 	for i, f := range bp.Fields {
 		name := f.Name.String()
-		v, zerr := specZeroAtErr(bps, f.Spec, depth+1)
+		v, zerr := specZeroAtErr(bps, f.Spec, depth+1, budget)
 		if zerr != nil {
 			return nil, zerr
 		}
@@ -145,10 +150,7 @@ func (ro *RuntimeObject) WriteTo(w io.Writer) (n int64, err error) {
 		return ro.value.WriteTo(w)
 	}
 
-	ow, ok := w.(*objectWriter)
-	if !ok {
-		ow = &objectWriter{Writer: w}
-	}
+	ow := attachWriter(w)
 	err = ow.enter(ro.bp.Type)
 	defer ow.exit()
 	if err != nil {
@@ -176,10 +178,7 @@ func (ro *RuntimeObject) ReadFrom(r io.Reader) (n int64, err error) {
 	// why: inherit the wrapper's *Blueprints (set by Decode from cfg.Blueprints) so nested
 	// PrimitiveSpec/RefSpec/PtrSpec resolutions use the caller's registry. A freshly
 	// constructed wrapper has bps=nil, which or.resolve() maps to defaultBlueprints.
-	or, ok := r.(*objectReader)
-	if !ok {
-		or = &objectReader{Reader: r}
-	}
+	or := attachReader(r, nil)
 	err = or.enter(ro.bp.Type)
 	defer or.exit()
 	if err != nil {
@@ -236,7 +235,7 @@ func (ro *RuntimeObject) find(name string) int {
 // element types through the supplied registry so a custom Blueprints (WithBlueprints) sees its
 // own types, not defaultBlueprints.
 func specZero(bps *Blueprints, spec Spec) Object {
-	return specZeroAt(bps, spec, 0)
+	return specZeroAt(bps, spec, 0, newBuildBudget())
 }
 
 // specZeroAt is the depth-aware variant. RefSpec materialization is the only branch that can
@@ -244,20 +243,20 @@ func specZero(bps *Blueprints, spec Spec) Object {
 // Blueprint); a cycle is bounded by MaxBlueprintDepth. PrimitiveSpec resolves to a compile-time
 // prototype and never recurses; container Specs construct empty carriers; PtrSpec/ObjectSpec
 // return &Nil{}.
-func specZeroAt(bps *Blueprints, spec Spec, depth int) Object {
-	v, _ := specZeroAtErr(bps, spec, depth)
+func specZeroAt(bps *Blueprints, spec Spec, depth int, budget *buildBudget) Object {
+	v, _ := specZeroAtErr(bps, spec, depth, budget)
 	return v
 }
 
 // specZeroAtErr is the error-propagating variant. Only ErrDepthExceeded escapes — other
 // failures (unregistered type, etc.) still resolve to nil to preserve the documented
 // "treat-as-unregistered" contract at the codec layer.
-func specZeroAtErr(bps *Blueprints, spec Spec, depth int) (Object, error) {
+func specZeroAtErr(bps *Blueprints, spec Spec, depth int, budget *buildBudget) (Object, error) {
 	switch s := spec.(type) {
 	case *PrimitiveSpec:
 		return bps.New(s.PrimitiveType.String()), nil
 	case *RefSpec:
-		return newAt(bps, s.Type.String(), depth)
+		return newAt(bps, s.Type.String(), depth, budget)
 	case *SliceSpec:
 		// why: no heterogeneous fallback when the element type is unregistered — would silently
 		// swap wire shape and let encode succeed against bytes decode can't read. Codec layer
@@ -294,6 +293,40 @@ func specZeroAtErr(bps *Blueprints, spec Spec, depth int) (Object, error) {
 }
 
 // writeField serializes a single field value according to its Spec.
+// readPolymorphic reads one polymorphic slot: a string8 type tag followed by the
+// payload. A zero-length tag is the absent value and consumes no payload, resolving to
+// the canonical &Nil{} carrier so Get returns a non-nil zero. Nil's own type name is
+// accepted as a legacy alias of that tag.
+//
+// why: Decode cannot express the absent case — its type decoder hands the empty name to
+// the registry and fails there — so the container reads the tag itself, which is what
+// the spec describes.
+func readPolymorphic(or *objectReader, bps *Blueprints) (Object, int64, error) {
+	var typ ObjectType
+	n, err := (&typ).ReadFrom(or)
+	if err != nil {
+		return nil, n, err
+	}
+
+	if typ == "" || typ.String() == nilTypeName {
+		return &Nil{}, n, nil
+	}
+
+	obj := bps.New(typ.String())
+	if obj == nil {
+		return nil, n, fmt.Errorf("%w: %w: %s", ErrStreamCorrupted, ErrBlueprintNotFound, typ)
+	}
+
+	// why: a nested field read resolves names through the reader's registry; pin it so
+	// the inner frame inherits the per-call Blueprints, exactly as Decode does.
+	if or.bps == nil {
+		or.bps = bps
+	}
+
+	m, err := obj.ReadFrom(or)
+	return obj, n + m, err
+}
+
 func writeField(w io.Writer, spec Spec, value Object) (int64, error) {
 	switch spec.(type) {
 	case *PrimitiveSpec, *RefSpec:
@@ -335,6 +368,13 @@ func writeField(w io.Writer, spec Spec, value Object) (int64, error) {
 	case *ObjectSpec:
 		if value == nil {
 			return 0, fmt.Errorf("nil value for ObjectSpec")
+		}
+		// why: absence in a polymorphic slot is the zero-length type tag, and the spec
+		// puts that tag in the container, emitted before any Type Encoder runs
+		// (topics/codec.md). Letting Encode run on the absent value instead produced
+		// string8("nil"), which no conforming reader accepts.
+		if isPtrNil(value) {
+			return ObjectType("").WriteTo(w)
 		}
 		return Encode(w, value)
 	}
@@ -629,7 +669,7 @@ func readField(or *objectReader, spec Spec) (Object, int64, error) {
 		m, err := obj.ReadFrom(or)
 		return obj, n + m, err
 	case *ObjectSpec:
-		return Decode(or, WithBlueprints(bps))
+		return readPolymorphic(or, bps)
 	}
 	return nil, 0, fmt.Errorf("unknown spec %T", spec)
 }

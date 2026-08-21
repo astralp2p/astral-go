@@ -24,4 +24,4 @@ func (s *ObjectSpec) UnmarshalJSON(b []byte) error { return Objectify(s).Unmarsh
 // payload as a wire tag, so the schema itself depends on no specific name.
 func (*ObjectSpec) ReferencedType() string { return "" }
 
-func init() { _ = Add(&ObjectSpec{}) }
+func init() { MustAdd(&ObjectSpec{}) }

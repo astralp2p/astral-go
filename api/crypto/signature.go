@@ -68,5 +68,5 @@ func (sig *Signature) UnmarshalText(text []byte) error {
 // ...
 
 func init() {
-	_ = astral.Add(&Signature{})
+	astral.MustAdd(&Signature{})
 }

@@ -81,5 +81,5 @@ func (h *Hole) MatchesPeer(peer *astral.Identity) bool {
 }
 
 func init() {
-	_ = astral.Add(&Hole{})
+	astral.MustAdd(&Hole{})
 }

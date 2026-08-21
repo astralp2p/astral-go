@@ -106,6 +106,8 @@ Runnable programs under [`examples/`](examples/), one concept each:
   `query` (query strings), `ipc` (local transport).
 - `sig/`, `streams/` — dependency-free utilities: signal-driven concurrency,
   stream helpers.
+- `internal/` — module tooling, not part of the SDK: `codecguard` (the codec
+  lint) and `cmd/astralvet` (its command line).
 - `pub.go` — the registration aggregator: a blank import of
   `github.com/astralp2p/astral-go` registers the astral primitives and
   every `api/` wire type, so `astral.Decode` materializes them by type name.

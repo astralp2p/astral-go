@@ -414,12 +414,15 @@ func TestNew_CompileTimeStillReturnsPrototype(t *testing.T) {
 	}
 }
 
-func TestOrderedTypes_CompileTimeOnly_AlphaSorted(t *testing.T) {
+// why: renamed from _AlphaSorted. astral.blueprint carries Fields []Field, so it has a
+// SliceSpec edge to astral.blueprint.field and the field type must replay first. The
+// alphabetical order this used to assert is the dependency-invalid one.
+func TestOrderedTypes_CompileTimeOnly_DependencyOrdered(t *testing.T) {
 	bps := NewBlueprints(nil)
 	_ = bps.Add(&Blueprint{}, &Field{}) // ObjectType: astral.blueprint, astral.blueprint.field
 
 	got := bps.OrderedBlueprints()
-	want := []string{"astral.blueprint", "astral.blueprint.field"}
+	want := []string{"astral.blueprint.field", "astral.blueprint"}
 	if !equalStrings(got, want) {
 		t.Fatalf("want %v, got %v", want, got)
 	}
@@ -565,8 +568,11 @@ func TestAllBlueprints_StructsCompileTimeReflected(t *testing.T) {
 	if len(got) != 2 {
 		t.Fatalf("want 2 blueprints, got %d", len(got))
 	}
-	if got[0].Type.String() != "astral.blueprint" || got[1].Type.String() != "astral.blueprint.field" {
-		t.Fatalf("want compile-time alpha order, got %s,%s",
+	// why: astral.blueprint references astral.blueprint.field through a SliceSpec, so the
+	// field type replays first. This asserted the alphabetical order, which is the
+	// dependency-invalid one.
+	if got[0].Type.String() != "astral.blueprint.field" || got[1].Type.String() != "astral.blueprint" {
+		t.Fatalf("want compile-time dependency order, got %s,%s",
 			got[0].Type, got[1].Type)
 	}
 	if len(got[0].Fields) == 0 {
@@ -606,9 +612,13 @@ func TestAllBlueprints_RuntimeTopoAfterCompileTime(t *testing.T) {
 	mustPrecede(t, names, "test.all_leaf", "test.all_top")
 }
 
+// The example is notAStruct rather than Bool: bool is on the primitive allowlist, so its
+// derivation failure is by design and no longer aggregated. The claim under test is
+// unchanged — a prototype that cannot be described is reported and does not reach the
+// returned slice — but it needs a name the allowlist does not hold to still mean it.
 func TestAllBlueprints_BadPrototypeAggregated(t *testing.T) {
 	bps := NewBlueprints(nil)
-	b := Bool(false)
+	b := notAStruct(0)
 	_ = bps.Add(&Blueprint{}, &b)
 
 	all, err := bps.AllBlueprints()
