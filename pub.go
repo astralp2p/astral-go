@@ -14,6 +14,7 @@ import (
 	_ "github.com/astralp2p/astral-go/api/indexing"
 	_ "github.com/astralp2p/astral-go/api/ip"
 	_ "github.com/astralp2p/astral-go/api/kcp"
+	_ "github.com/astralp2p/astral-go/api/mcp"
 	_ "github.com/astralp2p/astral-go/api/nat"
 	_ "github.com/astralp2p/astral-go/api/nodes"
 	_ "github.com/astralp2p/astral-go/api/objects"
