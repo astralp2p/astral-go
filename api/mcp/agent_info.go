@@ -17,7 +17,6 @@ import (
 type AgentInfo struct {
 	Identity  *astral.Identity
 	Alias     astral.String8
-	Visible   astral.Bool
 	ExpiresAt astral.Time
 }
 
