@@ -37,6 +37,21 @@ func (a *AnswerAgentAction) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(a).ReadFrom(r)
 }
 
+// json
+//
+// why declared and not left to the default: an embedded struct marshals inline
+// unless something names it, so without these the action would reach a json
+// peer as a flat object while the spec documents it as an Action beside
+// FromID. Contract and Permit declare the same pair for the same reason.
+
+func (a AnswerAgentAction) MarshalJSON() ([]byte, error) {
+	return astral.Objectify(&a).MarshalJSON()
+}
+
+func (a *AnswerAgentAction) UnmarshalJSON(b []byte) error {
+	return astral.Objectify(a).UnmarshalJSON(b)
+}
+
 // ApplyConstraints refuses a permit that carries any constraint, as
 // CallAgentAction does and for the same reason: nothing evaluates them, so a
 // permit its issuer narrowed would otherwise be honoured in full.

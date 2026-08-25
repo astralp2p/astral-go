@@ -2,6 +2,7 @@ package mcp
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 
 	"github.com/astralp2p/astral-go/api/auth"
@@ -116,5 +117,63 @@ func TestAgentActionsRefuseConstrainedPermits(t *testing.T) {
 				t.Fatal("a permit carrying constraints must be refused: nothing evaluates them")
 			}
 		})
+	}
+}
+
+// TestAgentActionsCarryTheDocumentedJSON pins the shape astral-docs states and a
+// json peer decodes: the embedded base action named rather than inlined.
+func TestAgentActionsCarryTheDocumentedJSON(t *testing.T) {
+	actor, other := astral.GenerateIdentity(), astral.GenerateIdentity()
+
+	for name, tc := range map[string]struct {
+		action astral.Object
+		field  string
+	}{
+		"call":   {&CallAgentAction{Action: auth.NewAction(actor), ToID: other}, "ToID"},
+		"answer": {&AnswerAgentAction{Action: auth.NewAction(actor), FromID: other}, "FromID"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			b, err := json.Marshal(tc.action)
+			if err != nil {
+				t.Fatalf("marshal: %v", err)
+			}
+
+			var got map[string]json.RawMessage
+			if err = json.Unmarshal(b, &got); err != nil {
+				t.Fatalf("unmarshal: %v", err)
+			}
+
+			if _, ok := got["Action"]; !ok {
+				t.Fatalf("no Action member: the base action was inlined (%s)", b)
+			}
+			if _, ok := got[tc.field]; !ok {
+				t.Fatalf("no %v member (%s)", tc.field, b)
+			}
+			if _, ok := got["ActorID"]; ok {
+				t.Fatalf("ActorID sits at the top level: the base action was inlined (%s)", b)
+			}
+		})
+	}
+}
+
+// TestAgentActionsRoundTripThroughJSON: what a json peer sends decodes back.
+func TestAgentActionsRoundTripThroughJSON(t *testing.T) {
+	actor, other := astral.GenerateIdentity(), astral.GenerateIdentity()
+
+	b, err := json.Marshal(&CallAgentAction{Action: auth.NewAction(actor), ToID: other})
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+
+	var got CallAgentAction
+	if err = json.Unmarshal(b, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+
+	if !got.Actor().IsEqual(actor) {
+		t.Fatalf("actor: got %v, want %v", got.Actor(), actor)
+	}
+	if !got.ToID.IsEqual(other) {
+		t.Fatalf("to: got %v, want %v", got.ToID, other)
 	}
 }
