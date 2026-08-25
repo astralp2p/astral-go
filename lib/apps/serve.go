@@ -10,8 +10,9 @@ import (
 type ServeOption func(*serveConfig) error
 
 type serveConfig struct {
-	mounts []func(astral.Router) error
-	hooks  []RegistrationHook
+	mounts  []func(astral.Router) error
+	hooks   []RegistrationHook
+	address string
 }
 
 // Serve creates a handler, registers it with the default session, gates queries until
@@ -27,7 +28,7 @@ func Serve(ctx *astral.Context, router astral.Router, opts ...ServeOption) error
 	}
 
 	reg := NewDefaultAppRegistrar(ctx, WithRegistrarRegistrationHooks(cfg.hooks...))
-	return serveRegistered(ctx, router, reg)
+	return serveRegistered(ctx, router, reg, cfg.address)
 }
 
 // ServeWith is like Serve but with an explicit registrar.
@@ -46,7 +47,7 @@ func ServeWith(ctx *astral.Context, router astral.Router, reg Registrar, opts ..
 		return err
 	}
 
-	return serveRegistered(ctx, router, reg)
+	return serveRegistered(ctx, router, reg, cfg.address)
 }
 
 // serveRegistered starts the IPC route loop before registering the handler with the node so
@@ -55,8 +56,8 @@ func ServeWith(ctx *astral.Context, router astral.Router, reg Registrar, opts ..
 // the node's ipcHandlers list, then runs the hook synchronously — and if the hook's query
 // targets the host identity that equals this guest's identity, the node dials this listener
 // and blocks waiting for an Ack that the not-yet-started Route loop can't provide.
-func serveRegistered(ctx *astral.Context, router astral.Router, reg Registrar) error {
-	h, err := NewHandler()
+func serveRegistered(ctx *astral.Context, router astral.Router, reg Registrar, address string) error {
+	h, err := newServeHandler(address)
 	if err != nil {
 		return err
 	}
@@ -93,6 +94,27 @@ func WithRegistrationHooks(hooks ...RegistrationHook) ServeOption {
 		}
 		return nil
 	}
+}
+
+// WithHandlerAddress names the "proto:addr" address the handler binds. Without it
+// the address is system-assigned and known only to the node that registered it.
+func WithHandlerAddress(ipcAddress string) ServeOption {
+	return func(cfg *serveConfig) error {
+		if ipcAddress == "" {
+			return errors.New("empty handler address")
+		}
+		cfg.address = ipcAddress
+		return nil
+	}
+}
+
+// newServeHandler builds the handler the serve loop reads from. An empty address is
+// a system-assigned one.
+func newServeHandler(address string) (*Handler, error) {
+	if address == "" {
+		return NewHandler()
+	}
+	return NewHandlerOn(address, astral.NewNonce())
 }
 
 func newServeConfig(opts ...ServeOption) (*serveConfig, error) {

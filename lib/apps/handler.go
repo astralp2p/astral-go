@@ -29,17 +29,34 @@ func NewHandler() (*Handler, error) {
 	return NewHandlerAt(libapphost.DefaultRouter().Protocol(), astral.NewNonce())
 }
 
-// NewHandlerAt creates an IPC listener for the given protocol and auth token.
+// NewHandlerAt creates an IPC listener on a system-assigned address for the given
+// protocol and auth token.
 func NewHandlerAt(protocol string, token astral.Nonce) (*Handler, error) {
 	l, err := ipc.ListenAny(protocol)
 	if err != nil {
 		return nil, err
 	}
+	return newHandler(l, token), nil
+}
+
+// NewHandlerOn creates an IPC listener at the given "proto:addr" address and auth
+// token. The node dials the address to deliver a query, so an address both sides
+// name is what lets a node reach a handler across a filesystem or network boundary
+// a system-assigned one does not cross.
+func NewHandlerOn(ipcAddress string, token astral.Nonce) (*Handler, error) {
+	l, err := ipc.Listen(ipcAddress)
+	if err != nil {
+		return nil, err
+	}
+	return newHandler(l, token), nil
+}
+
+func newHandler(l net.Listener, token astral.Nonce) *Handler {
 	return &Handler{
 		listener: l,
 		doneCh:   make(chan struct{}),
 		ipcToken: token,
-	}, nil
+	}
 }
 
 // ReadQuery waits for and returns the next pending query
