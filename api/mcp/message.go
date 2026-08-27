@@ -16,13 +16,11 @@ import (
 // recipient its target. A field would be a second claim about a fact the route
 // already holds, and a sender could make the two disagree.
 //
-// ID is minted by the sender and names the message on both sides: a reply
-// carries it in ReplyTo, and a delivery that arrives twice is stored once.
+// ID is minted by the sender and names the message on both sides: the
+// recipient reads by it, and a delivery that arrives twice is stored once.
 type Message struct {
 	ID      MessageID
-	Topic   astral.String8
 	Content astral.String32
-	ReplyTo MessageID
 }
 
 // astral

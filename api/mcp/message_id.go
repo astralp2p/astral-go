@@ -14,9 +14,8 @@ import (
 var errInvalidMessageID = errors.New("invalid message id")
 
 // MessageID names one message. The sender mints it, and it is the message's
-// name on both sides: the recipient reads by it, a reply carries it in
-// Message.ReplyTo, and a delivery that arrives twice collides on it and is
-// stored once. The zero value names no message.
+// name on both sides: the recipient reads by it, and a delivery that arrives
+// twice collides on it and is stored once. The zero value names no message.
 //
 // why 128 bits: an inbox keeps a message and a reply names it long after
 // delivery, so the identifier competes against every message a node has stored

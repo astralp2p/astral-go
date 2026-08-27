@@ -18,9 +18,7 @@ func mustParseID(s string) MessageID {
 func sampleMessage() *Message {
 	return &Message{
 		ID:      mustParseID("7f3a1c9e5b024d6810af2e7c94b5d3a6"),
-		Topic:   astral.String8("build"),
 		Content: astral.String32("the index is rebuilt"),
-		ReplyTo: mustParseID("0b1d4e8a26c37f905ea1c4b83d76f2e5"),
 	}
 }
 
@@ -51,25 +49,8 @@ func TestMessage_BinaryRoundTrip(t *testing.T) {
 	if dst.ID != src.ID {
 		t.Fatalf("id: want %v, got %v", src.ID, dst.ID)
 	}
-	if dst.Topic != src.Topic {
-		t.Fatalf("topic: want %v, got %v", src.Topic, dst.Topic)
-	}
 	if dst.Content != src.Content {
 		t.Fatalf("content: want %v, got %v", src.Content, dst.Content)
-	}
-	if dst.ReplyTo != src.ReplyTo {
-		t.Fatalf("reply_to: want %v, got %v", src.ReplyTo, dst.ReplyTo)
-	}
-}
-
-// A message that answers nothing carries the zero ReplyTo, and the zero id is
-// the absence — not a field the encoding may drop.
-func TestMessage_ZeroReplyToSurvives(t *testing.T) {
-	src := sampleMessage()
-	src.ReplyTo = MessageID{}
-
-	if dst := roundTrip(t, src); !dst.ReplyTo.IsZero() {
-		t.Fatalf("reply_to: want the zero id, got %v", dst.ReplyTo)
 	}
 }
 
