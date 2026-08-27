@@ -22,11 +22,10 @@ caller reaches over a link.
 package mcp
 
 const (
-	MethodCreateAgent     = "mcp.create_agent"
-	MethodAgent           = "mcp.agent"
-	MethodDisconnectAgent = "mcp.disconnect_agent"
-	MethodDeleteAgent     = "mcp.delete_agent"
-	MethodListAgents      = "mcp.list_agents"
+	MethodCreateAgent = "mcp.create_agent"
+	MethodAgent       = "mcp.agent"
+	MethodDeleteAgent = "mcp.delete_agent"
+	MethodListAgents  = "mcp.list_agents"
 )
 
 // MethodMessage is the query that delivers a Message, addressed to the
