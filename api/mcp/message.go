@@ -19,10 +19,10 @@ import (
 // ID is minted by the sender and names the message on both sides: a reply
 // carries it in ReplyTo, and a delivery that arrives twice is stored once.
 type Message struct {
-	ID      astral.String8
+	ID      MessageID
 	Topic   astral.String8
 	Content astral.String32
-	ReplyTo astral.String8
+	ReplyTo MessageID
 }
 
 // astral

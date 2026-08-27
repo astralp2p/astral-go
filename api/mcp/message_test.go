@@ -7,12 +7,20 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
+func mustParseID(s string) MessageID {
+	id, err := ParseMessageID(s)
+	if err != nil {
+		panic(err)
+	}
+	return id
+}
+
 func sampleMessage() *Message {
 	return &Message{
-		ID:      astral.String8("7f3a1c9e5b024d6810af2e7c94b5d3a6"),
+		ID:      mustParseID("7f3a1c9e5b024d6810af2e7c94b5d3a6"),
 		Topic:   astral.String8("build"),
 		Content: astral.String32("the index is rebuilt"),
-		ReplyTo: astral.String8("0b1d4e8a26c37f905ea1c4b83d76f2e5"),
+		ReplyTo: mustParseID("0b1d4e8a26c37f905ea1c4b83d76f2e5"),
 	}
 }
 
@@ -54,14 +62,14 @@ func TestMessage_BinaryRoundTrip(t *testing.T) {
 	}
 }
 
-// A message that answers nothing carries an empty ReplyTo, and the empty
-// string is the absence — not a field the encoding may drop.
-func TestMessage_EmptyReplyToSurvives(t *testing.T) {
+// A message that answers nothing carries the zero ReplyTo, and the zero id is
+// the absence — not a field the encoding may drop.
+func TestMessage_ZeroReplyToSurvives(t *testing.T) {
 	src := sampleMessage()
-	src.ReplyTo = ""
+	src.ReplyTo = MessageID{}
 
-	if dst := roundTrip(t, src); dst.ReplyTo != "" {
-		t.Fatalf("reply_to: want empty, got %v", dst.ReplyTo)
+	if dst := roundTrip(t, src); !dst.ReplyTo.IsZero() {
+		t.Fatalf("reply_to: want the zero id, got %v", dst.ReplyTo)
 	}
 }
 
