@@ -14,10 +14,11 @@ shell module — the sole mount point for every module's operations — rejects 
 query carrying the mcp origin, so an agent reaches none of these operations on
 its own host node.
 
-An agent answers one query of its own. MethodMessage carries a Message to the
-agent's identity, and the agent's node stores it in that agent's inbox. It is
-addressed to an agent rather than to a node, so it is the one query here a
-caller reaches over a link.
+An agent answers two queries of its own. MethodMessage carries a Message to the
+agent's identity, and the agent's node stores it in that agent's inbox.
+MethodReceipt carries a Receipt back to a sender, and the sender's node stamps
+the message collected. Both are addressed to an agent rather than to a node, so
+they are the queries here a caller reaches over a link.
 */
 package mcp
 
@@ -32,3 +33,12 @@ const (
 // recipient agent's identity. It is not an operation: no node serves it, and
 // the agent's own node answers it on the agent's behalf.
 const MethodMessage = "mcp.message"
+
+// MethodReceipt is the query that carries a Receipt, addressed to the original
+// sender agent's identity. Like MethodMessage it is not an operation: no node
+// serves it, and the sender's own node answers it on the sender's behalf.
+//
+// why it is the reverse of MethodMessage: the recipient calls and the sender is
+// the target, so the pair of identities on the route is the same pair the
+// delivery carried, exchanged.
+const MethodReceipt = "mcp.receipt"
