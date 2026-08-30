@@ -38,6 +38,11 @@ const MethodMessage = "mcp.message"
 // sender agent's identity. Like MethodMessage it is not an operation: no node
 // serves it, and the sender's own node answers it on the sender's behalf.
 //
+// why neither is an operation: an operation is addressed to a node's identity,
+// and both of these are addressed to an agent's. A node mounts its modules'
+// operations behind that check, so an operation carrying a receipt would be
+// unreachable by the only caller that ever sends one.
+//
 // why it is the reverse of MethodMessage: the recipient calls and the sender is
 // the target, so the pair of identities on the route is the same pair the
 // delivery carried, exchanged.
