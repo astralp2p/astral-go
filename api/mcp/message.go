@@ -18,9 +18,26 @@ import (
 //
 // ID is minted by the sender and names the message on both sides: the
 // recipient reads by it, and a delivery that arrives twice is stored once.
+//
+// Thread names the exchange the message belongs to. A first message carries
+// its own id, so every message is in a thread and a thread is the set of
+// messages sharing the label — a query, never a record. A reply copies the
+// value unchanged, so a reply to a reply carries the root's: the label is flat
+// and never a tree.
+//
+// why Thread is last: the binary channel frames a payload with a length
+// prefix and decodes from that bounded buffer, so a reader that predates this
+// field reads ID and Content and leaves the rest. That holds only for a field
+// appended after the ones already there. Never insert one above.
+//
+// why a sender may name any thread: the value is the sender's claim, as the
+// content is, while the sender and recipient are the route's. Joining an
+// exchange means naming a 128-bit identifier nobody published, and a recipient
+// sees on every row who wrote it.
 type Message struct {
 	ID      MessageID
 	Content astral.String32
+	Thread  MessageID
 }
 
 // astral

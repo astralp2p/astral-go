@@ -64,3 +64,28 @@ func TestMessage_ContentHoldsALargeBody(t *testing.T) {
 		t.Fatalf("content: want %v bytes, got %v", len(src.Content), len(dst.Content))
 	}
 }
+
+// Thread survives the wire beside the fields that were there before it.
+func TestMessage_ThreadRoundTrips(t *testing.T) {
+	src := sampleMessage()
+	src.Thread = mustParseID("0102030405060708090a0b0c0d0e0f10")
+
+	if dst := roundTrip(t, src); dst.Thread != src.Thread {
+		t.Fatalf("thread: want %v, got %v", src.Thread, dst.Thread)
+	}
+}
+
+// A message naming no thread carries the zero value on the wire. The
+// recipient's node is what turns that into a thread of its own, so the wire
+// stays honest about what the sender said.
+func TestMessage_ThreadMayBeUnset(t *testing.T) {
+	src := sampleMessage()
+
+	dst := roundTrip(t, src)
+	if !dst.Thread.IsZero() {
+		t.Fatalf("thread %v, want the zero value", dst.Thread)
+	}
+	if dst.ID != src.ID || dst.Content != src.Content {
+		t.Fatalf("the fields beside it did not survive: %+v", dst)
+	}
+}
