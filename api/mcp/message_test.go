@@ -89,3 +89,27 @@ func TestMessage_ThreadMayBeUnset(t *testing.T) {
 		t.Fatalf("the fields beside it did not survive: %+v", dst)
 	}
 }
+
+// ParentID survives the wire beside the fields that were there before it.
+func TestMessage_ParentIDRoundTrips(t *testing.T) {
+	src := sampleMessage()
+	src.ParentID = mustParseID("1112131415161718191a1b1c1d1e1f20")
+
+	if dst := roundTrip(t, src); dst.ParentID != src.ParentID {
+		t.Fatalf("parent: want %v, got %v", src.ParentID, dst.ParentID)
+	}
+}
+
+// A message answering none carries the zero value, and the wire stays honest
+// about what the sender said.
+func TestMessage_ParentIDMayBeUnset(t *testing.T) {
+	src := sampleMessage()
+
+	dst := roundTrip(t, src)
+	if !dst.ParentID.IsZero() {
+		t.Fatalf("parent %v, want the zero value", dst.ParentID)
+	}
+	if dst.ID != src.ID || dst.Content != src.Content {
+		t.Fatalf("the fields beside it did not survive: %+v", dst)
+	}
+}
