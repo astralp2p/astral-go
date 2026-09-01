@@ -31,28 +31,25 @@ import (
 // claim about another message, and a claim about a message nobody has is
 // simply one nothing answers.
 //
-// Thread is dead. It named a flat exchange label before replies named their
-// parent, and it is carried for compatibility alone: no node reads it, a sender
-// may set it, and a recipient ignores it. The slot is never reused, because a
-// MessageID in it and a MessageID in ParentID are the same sixteen bytes and
-// nothing in the frame tells them apart.
+// why ParentID sits where Thread sat: Thread named a flat exchange label before
+// a reply named the message it answers, and retiring it takes its slot rather
+// than leaving a dead sixteen bytes on every message. The frame is positional
+// and carries no version marker, so this is not a compatible change: a peer at
+// the revision before it writes a thread where this reads a parent, and the
+// substitution is type-correct and silent. It is safe here because one node
+// delivers to itself — mcp.message is carried by a query that loops back
+// through the router — so both ends of every frame are the same binary. A
+// second node at a different revision is what makes it unsafe, and the answer
+// then is a version marker or a new object type, never a reader guessing which
+// field a peer meant.
 //
-// why ParentID is last: the binary channel frames a payload with a length
-// prefix and decodes from that bounded buffer, so a reader that predates a
-// field reads the ones before it and leaves the rest. That holds only for a
-// field appended after the ones already there. Never insert one above.
-//
-// The other direction is not covered and never has been: a payload written
-// before a field exists is short, and the read of the missing field answers
-// EOF rather than a zero value. Thread carries the same asymmetry. It costs
-// nothing while both ends of a frame are the same binary — mcp.message is
-// delivered by a query that loops back through the router — and the answer
-// when that stops being true is a version marker or a new object type, not a
-// reader that guesses which fields a peer meant to write.
+// A field is otherwise only ever appended: the channel frames a payload with a
+// length prefix and decodes from that bounded buffer, so a reader that predates
+// a field reads the ones before it and leaves the rest. That holds only for a
+// field added after the ones already there.
 type Message struct {
 	ID       MessageID
 	Content  astral.String32
-	Thread   MessageID
 	ParentID MessageID
 }
 
