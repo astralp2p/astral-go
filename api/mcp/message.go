@@ -16,6 +16,11 @@ import (
 // recipient its target. A field would be a second claim about a fact the route
 // already holds, and a sender could make the two disagree.
 //
+// why it is thin, and what the other type is: this is the frame that crosses a
+// link, never the record. StoredMessage is what a node holds once a delivery
+// lands — the parties the route authenticated, the box the row sits in, and the
+// instants that node stamped, none of which a sender may state.
+//
 // ID is minted by the sender and names the message on both sides: the
 // recipient reads by it, and a delivery that arrives twice is stored once.
 //
@@ -24,12 +29,15 @@ import (
 // exchange is the chain those links make: a query, never a record, and nothing
 // is opened, owned or closed.
 //
-// why a sender may name any parent: the value is the sender's, while the sender
-// and the recipient are the route's. Naming a message means naming a 128-bit
-// identifier nobody published, and a recipient sees on every row who wrote it.
-// A parent the recipient does not hold is stored as it stands — the link is a
-// claim about another message, and a claim about a message nobody has is
-// simply one nothing answers.
+// why the parent is a claim and is still refused when unheld: the value is the
+// sender's, while the sender and the recipient are the route's. The recipient's
+// node refuses a parent it does not hold, and the sending agent's node refuses
+// one that agent does not hold — a message has one of each, so a parent is a
+// message between exactly these two parties, and no agent replies into an
+// exchange it is not part of. That also makes an exchange a forest: every
+// parent names a message stored earlier, so no chain of links returns to where
+// it began, and a message naming itself is refused as the same rule's cheapest
+// case.
 //
 // why ParentID sits where Thread sat: Thread named a flat exchange label before
 // a reply named the message it answers, and retiring it takes its slot rather
