@@ -47,3 +47,17 @@ const MethodMessage = "mcp.message"
 // the target, so the pair of identities on the route is the same pair the
 // delivery carried, exchanged.
 const MethodReceipt = "mcp.receipt"
+
+// RejectNotAdmitted is the reject code an agent's node answers a caller whose
+// message the agent's own side will not take. It is operation-specific and so
+// sits above the reserved generic codes 0-4.
+//
+// why a reject code and not a missing route: a missing route is also the answer
+// for an identity no node holds and for a node that could not be reached, so a
+// caller reading one could not tell a door closed to it from a door that is not
+// there — the first is permanent and the second is worth retrying.
+//
+// The code carries no reason. Which agents an agent answers is held by an
+// authority the node asks and that answers one bit, so every ground for the
+// refusal reaches the caller as this one code.
+const RejectNotAdmitted = 5
