@@ -1,7 +1,6 @@
 package mcp
 
 import (
-	"crypto/rand"
 	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
@@ -9,6 +8,7 @@ import (
 	"io"
 
 	"github.com/astralp2p/astral-go/astral"
+	"github.com/google/uuid"
 )
 
 var errInvalidMessageID = errors.New("invalid message id")
@@ -20,12 +20,25 @@ var errInvalidMessageID = errors.New("invalid message id")
 // why 128 bits: an inbox keeps a message and a reply names it long after
 // delivery, so the identifier competes against every message a node has stored
 // rather than against the ones in flight. 64 bits reaches a one-in-a-million
-// collision at six million messages, which a node outlives.
+// collision at six million messages, which a node outlives. A mint is a uuid
+// v7: 48 of the 128 carry a millisecond timestamp, 4 the version, 2 the
+// variant, and 12 a sequence counting the mints one process makes within one
+// millisecond. The remaining 62 are random, and they are what separates two
+// mints of one millisecond made by different processes.
 type MessageID [16]byte
 
-// NewMessageID mints a random MessageID.
+// NewMessageID mints a MessageID from a uuid v7. The timestamp leads the value,
+// so a process's mints sort in the order it made them, as bytes and as the hex
+// String writes alike. Two processes share no counter, so mints of one
+// millisecond made by different senders order arbitrarily between themselves.
+//
+// A failing random source panics rather than answering, which is what reading
+// crypto/rand did here before: that read never returns an error and crashes the
+// program instead. The zero value names no message, so a mint that answered it
+// on a failure would give a message the name of the absence of one.
 func NewMessageID() (id MessageID) {
-	_, _ = rand.Read(id[:])
+	u := uuid.Must(uuid.NewV7())
+	copy(id[:], u[:])
 	return
 }
 
