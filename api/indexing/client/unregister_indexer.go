@@ -7,8 +7,8 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-func (c *Client) RemoveIndex(ctx *astral.Context, nonce astral.Nonce) error {
-	ch, err := c.queryCh(ctx, indexing.MethodRemoveIndex, query.Args{
+func (c *Client) UnregisterIndexer(ctx *astral.Context, nonce astral.Nonce) error {
+	ch, err := c.queryCh(ctx, indexing.MethodUnregisterIndexer, query.Args{
 		"nonce": nonce,
 	})
 	if err != nil {
@@ -20,6 +20,6 @@ func (c *Client) RemoveIndex(ctx *astral.Context, nonce astral.Nonce) error {
 	return ch.Switch(channel.Expect(&ack), channel.PassErrors)
 }
 
-func RemoveIndex(ctx *astral.Context, nonce astral.Nonce) error {
-	return Default().RemoveIndex(ctx, nonce)
+func UnregisterIndexer(ctx *astral.Context, nonce astral.Nonce) error {
+	return Default().UnregisterIndexer(ctx, nonce)
 }
