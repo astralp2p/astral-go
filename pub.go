@@ -7,6 +7,7 @@ import (
 	_ "github.com/astralp2p/astral-go/api/apphost"
 	_ "github.com/astralp2p/astral-go/api/auth"
 	_ "github.com/astralp2p/astral-go/api/bip137sig"
+	_ "github.com/astralp2p/astral-go/api/coldcard"
 	_ "github.com/astralp2p/astral-go/api/crypto"
 	_ "github.com/astralp2p/astral-go/api/dir"
 	_ "github.com/astralp2p/astral-go/api/exonet"
