@@ -34,7 +34,7 @@ func answer(t *testing.T, objects ...astral.Object) *channel.Channel {
 	return channel.New(channel.Join(&in, &out))
 }
 
-// A caller asking for nothing sends no permits argument: the query is the one
+// A caller asking for nothing sends no permit argument: the query is the one
 // it always was.
 func TestRegisterArgs_NoPermitsSendsNoArgument(t *testing.T) {
 	args, err := registerArgs(nil)
@@ -42,19 +42,44 @@ func TestRegisterArgs_NoPermitsSendsNoArgument(t *testing.T) {
 		t.Fatalf("registerArgs: %v", err)
 	}
 
-	if _, ok := args["permits"]; ok {
-		t.Fatalf("want no permits argument, got %v", args)
+	if len(args) != 0 {
+		t.Fatalf("want no arguments, got %v", args)
 	}
 }
 
 func TestRegisterArgs_PermitsAreCommaJoined(t *testing.T) {
-	args, err := registerArgs([]string{"mod.user.info_action", "mod.auth.see_objects_action"})
+	args, err := registerArgs([]string{"mod.user.see_swarm_action", "mod.auth.see_objects_action"})
 	if err != nil {
 		t.Fatalf("registerArgs: %v", err)
 	}
 
-	if got := args["permits"]; got != "mod.user.info_action,mod.auth.see_objects_action" {
-		t.Fatalf("permits: got %q", got)
+	if got := args[argGrantPermits]; got != "mod.user.see_swarm_action,mod.auth.see_objects_action" {
+		t.Fatalf("%s: got %q", argGrantPermits, got)
+	}
+}
+
+// TestRegisterArgs_NamesTheArgumentTheNodeReads pins the wire name against
+// astrald's opRegisterArgs, which declares GrantPermits and ContractPermits and
+// nothing called "permits".
+//
+// The literal is spelled out rather than taken from argGrantPermits, because a
+// test that reads the same constant as the code cannot catch the constant being
+// wrong. This client sent "permits" from the first release until this one, and
+// nothing reported it: an argument the operation does not declare is skipped
+// during binding, so every app that asked for a permit received a token and
+// held none of what it named.
+func TestRegisterArgs_NamesTheArgumentTheNodeReads(t *testing.T) {
+	args, err := registerArgs([]string{"mod.user.see_swarm_action"})
+	if err != nil {
+		t.Fatalf("registerArgs: %v", err)
+	}
+
+	if _, ok := args["grant_permits"]; !ok {
+		t.Fatalf("apphost.register reads grant_permits; this client sent %v", args)
+	}
+
+	if _, ok := args["permits"]; ok {
+		t.Fatalf("this client still sends permits, which the operation does not declare: %v", args)
 	}
 }
 
