@@ -21,11 +21,16 @@ func Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, err
 // run, so the session issuing the query is normally anonymous — the credential
 // being asked for is the one the caller does not have yet.
 //
-// permits names the actions the new identity asks to hold, e.g.
-// `mod.user.info_action`. Asking is not receiving: the node's register policy
-// decides what it grants, and the answer carries the token alone, so a caller
-// learns what it holds by using it. Asking for nothing sends no permits
-// argument.
+// permits names the actions the new identity asks to hold as node-local
+// grants, e.g. `mod.user.see_swarm_action`. A grant is revocable by deleting
+// its row and is worthless off this node. Asking is not receiving: the node's
+// register policy decides what it grants, and the answer carries the token
+// alone, so a caller learns what it holds by using it. Asking for nothing
+// sends no argument.
+//
+// The operation can also write a permit into a signed node→app contract,
+// which is portable evidence another node verifies, durable until it expires.
+// This client asks for grants alone, so nothing it names becomes portable.
 //
 // The node rejects the query outright when its register policy refuses; a
 // failure past the accept gate arrives instead as an error object, which
@@ -45,7 +50,20 @@ func (client *Client) Register(ctx *astral.Context, permits ...string) (*apphost
 	return readAccessToken(ch)
 }
 
-// registerArgs joins the permits into the op's single argument. A permit
+// argGrantPermits is the argument apphost.register reads for the permits it
+// records as node-local grants. The operation declares GrantPermits and the op
+// router lowers a field name to snake_case, so grant_permits is the name on the
+// wire (astrald `mod/apphost/src/op_register.go`, `opRegisterArgs`).
+//
+// The operation declares ContractPermits beside it, reached as
+// contract_permits. This client asks for grants alone and never sends it.
+//
+// The name is pinned by a test because getting it wrong is silent: an argument
+// the operation does not declare is skipped during binding, so a client naming
+// the wrong one registers successfully and holds nothing it asked for.
+const argGrantPermits = "grant_permits"
+
+// registerArgs joins the permits into the op's grant argument. A permit
 // carrying the separator is refused rather than sent: on the wire it would
 // split into two, so the node would read an action name the caller never
 // asked for.
@@ -60,7 +78,7 @@ func registerArgs(permits []string) (query.Args, error) {
 		}
 	}
 
-	return query.Args{"permits": strings.Join(permits, ",")}, nil
+	return query.Args{argGrantPermits: strings.Join(permits, ",")}, nil
 }
 
 // readAccessToken reads the node's answer: the minted token, or the error
