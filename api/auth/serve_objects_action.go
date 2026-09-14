@@ -11,17 +11,24 @@ const (
 	RoleDescriber = astral.String8("describer")
 	RoleFinder    = astral.String8("finder")
 	RoleSearcher  = astral.String8("searcher")
+	RoleIndexer   = astral.String8("indexer")
 )
 
-// ServeObjectsAction requests permission for Actor to be consulted by the node
-// when it answers object queries, as a describer, a finder, or a searcher.
+// ServeObjectsAction requests permission for Actor to take a registered place
+// in the node's object handling: as a describer, a finder, or a searcher the
+// node consults when it answers object queries, or as an indexer the node feeds
+// repository changes.
 //
-// The authority is not access to data. It is a place in the node's answer path:
-// afterwards the node calls out to Actor on every matching query, whoever
-// asked, and relays what comes back. Registering is the mechanism.
+// A describer, finder or searcher is not granted access to data. Afterwards the
+// node calls out to Actor on every matching query, whoever asked, and relays
+// what comes back.
 //
-// Role names which of the three a call asks for. Unlike the nouns the other
-// actions declare, this one is evaluated — a permit's constraints narrow it.
+// An indexer is granted disclosure: the node sends it the ID of every object
+// added to or removed from every repository with indexing enabled.
+//
+// Registering is the mechanism. Role names which of the four a call asks for.
+// Unlike the nouns the other actions declare, this one is evaluated — a
+// permit's constraints narrow it.
 type ServeObjectsAction struct {
 	Action
 	Role astral.String8

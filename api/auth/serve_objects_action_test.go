@@ -63,6 +63,12 @@ func TestServeObjectsPermitNarrowsByRole(t *testing.T) {
 		{"two roles, neither", roles(RoleDescriber, RoleFinder), RoleSearcher, false},
 
 		{"empty role against a constrained permit", roles(RoleDescriber), "", false},
+
+		{"indexer only, indexer", roles(RoleIndexer), RoleIndexer, true},
+		{"indexer only, describer", roles(RoleIndexer), RoleDescriber, false},
+		{"indexer only, finder", roles(RoleIndexer), RoleFinder, false},
+		{"indexer only, searcher", roles(RoleIndexer), RoleSearcher, false},
+		{"query roles, indexer", roles(RoleDescriber, RoleFinder, RoleSearcher), RoleIndexer, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			action := &ServeObjectsAction{Role: tc.role}
