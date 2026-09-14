@@ -45,7 +45,8 @@ func New(caller *astral.Identity, target *astral.Identity, path string, args any
 	return
 }
 
-// Parse parses a query string (like "method?a=1&a=2") into a path and params
+// Parse parses a query string (like "method?a=1&b=2") into a path and params.
+// A repeated key keeps its first value.
 func Parse(q string) (path string, params map[string]string) {
 	var s string
 	path, s = splitPathParams(q)
