@@ -7,6 +7,7 @@ import (
 )
 
 var ErrIndexNotFound = errors.New("index not found")
+var ErrIndexerNameTaken = errors.New("indexer name registered by another identity")
 var ErrRepositoryNotFound = errors.New("repository not found")
 var ErrAckMismatch = errors.New("ack does not match delivered change")
 var ErrIndexingTemporarilyFailed = astral.NewError("indexing temporarily failed")
