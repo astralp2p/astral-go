@@ -11,7 +11,7 @@ import (
 func (client *Client) ListHoles(ctx *astral.Context, with string) ([]*nat.Hole, error) {
 	args := query.Args{}
 	if with != "" {
-		args["with"] = with
+		args["identity"] = with
 	}
 
 	ch, err := client.queryCh(ctx, nat.MethodListHoles, args)

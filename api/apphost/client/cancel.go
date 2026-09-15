@@ -10,7 +10,7 @@ import (
 // Cancel cancels the en-route query identified by id, optionally reporting
 // cause to whatever is waiting on it.
 func (client *Client) Cancel(ctx *astral.Context, id astral.Nonce, cause string) (err error) {
-	args := query.Args{"id": id}
+	args := query.Args{"query_id": id}
 	if cause != "" {
 		args["cause"] = cause
 	}

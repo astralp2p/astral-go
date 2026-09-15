@@ -13,8 +13,8 @@ func SetAlias(ctx *astral.Context, identity *astral.Identity, alias string) erro
 
 func (client *Client) SetAlias(ctx *astral.Context, identity *astral.Identity, alias string) error {
 	ch, err := client.queryCh(ctx, dir.MethodSetAlias, query.Args{
-		"id":    identity,
-		"alias": alias,
+		"identity": identity,
+		"alias":    alias,
 	})
 	if err != nil {
 		return err

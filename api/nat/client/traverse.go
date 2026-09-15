@@ -9,7 +9,7 @@ import (
 
 func (client *Client) Punch(ctx *astral.Context, target *astral.Identity) (*nat.Hole, error) {
 	ch, err := client.queryCh(ctx, nat.MethodPunch, query.Args{
-		"target": target.String(),
+		"identity": target.String(),
 	})
 	if err != nil {
 		return nil, err

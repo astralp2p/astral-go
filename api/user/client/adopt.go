@@ -15,7 +15,7 @@ import (
 // user.AdminSwarmAction (code 4 otherwise) — the user is always authorized, other
 // identities via authorizers.
 func (client *Client) Adopt(ctx *astral.Context, target string) (signed *auth.SignedContract, err error) {
-	ch, err := client.queryCh(ctx, user.OpAdopt, query.Args{"target": target})
+	ch, err := client.queryCh(ctx, user.OpAdopt, query.Args{"identity": target})
 	if err != nil {
 		return
 	}

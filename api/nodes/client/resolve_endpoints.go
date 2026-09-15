@@ -9,7 +9,7 @@ import (
 
 func (client *Client) ResolveEndpoints(ctx *astral.Context, identity *astral.Identity) ([]*nodes.EndpointWithTTL, error) {
 	ch, err := client.queryCh(ctx, nodes.MethodResolveEndpoints, query.Args{
-		"id": identity,
+		"identity": identity,
 	})
 	if err != nil {
 		return nil, err

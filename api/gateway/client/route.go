@@ -13,5 +13,5 @@ import (
 // primitive nodes use to relay links through a gateway — most callers want
 // Connect instead.
 func (c *Client) Route(ctx *astral.Context, target *astral.Identity) (astral.Conn, error) {
-	return c.query(ctx, gw.MethodNodeRoute, query.Args{"target": target})
+	return c.query(ctx, gw.MethodNodeRoute, query.Args{"identity": target})
 }

@@ -23,7 +23,7 @@ func (client *Client) ResolveIdentity(ctx *astral.Context, name string) (identit
 	}
 
 	// then try using host's resolver
-	ch, err := client.queryCh(ctx, dir.MethodResolve, query.Args{"name": name})
+	ch, err := client.queryCh(ctx, dir.MethodResolve, query.Args{"identity": name})
 	if err != nil {
 		return nil, err
 	}
