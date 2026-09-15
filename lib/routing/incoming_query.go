@@ -133,7 +133,7 @@ func (query *IncomingQuery) Target() *astral.Identity {
 }
 
 // QueryString returns the full query string
-func (query *IncomingQuery) QueryString() string { return query.Query.QueryString }
+func (query *IncomingQuery) QueryString() string { return query.Query.QueryString.String() }
 
 // Nonce returns the query nonce
 func (query *IncomingQuery) Nonce() astral.Nonce {

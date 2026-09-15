@@ -49,7 +49,7 @@ func NewScopeRouter(root astral.Router) *ScopeRouter {
 // to the matched scope's router; falls back to root when no scope matches or
 // the query has no dot-separated prefix.
 func (r *ScopeRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, w io.WriteCloser) (io.WriteCloser, error) {
-	opName, _ := query.Parse(q.QueryString)
+	opName, _ := query.Parse(q.QueryString.String())
 	idx := strings.IndexByte(opName, '.')
 	if idx == -1 {
 		return r.root.RouteQuery(ctx, q, w)

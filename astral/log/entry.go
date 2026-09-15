@@ -11,7 +11,7 @@ var _ astral.Object = &Entry{}
 
 type Entry struct {
 	Origin  *astral.Identity
-	Level   uint8
+	Level   astral.Uint8
 	Time    astral.Time
 	Objects []astral.Object
 }
@@ -19,7 +19,7 @@ type Entry struct {
 func NewEntry(origin *astral.Identity, level uint8, obj ...astral.Object) *Entry {
 	return &Entry{
 		Origin:  origin,
-		Level:   level,
+		Level:   astral.Uint8(level),
 		Time:    astral.Time(time.Now()),
 		Objects: obj,
 	}

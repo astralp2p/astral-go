@@ -23,7 +23,7 @@ const (
 type ConsumeHoleSignal struct {
 	Signal astral.String8
 	Pair   astral.Nonce
-	Ok     bool
+	Ok     astral.Bool
 	Error  astral.String8
 }
 

@@ -8,7 +8,7 @@ type Query struct {
 	Nonce       Nonce
 	Caller      *Identity
 	Target      *Identity
-	QueryString string
+	QueryString String32
 }
 
 var _ Object = &Query{}
@@ -21,7 +21,7 @@ func NewQuery(caller *Identity, target *Identity, query string) *Query {
 		Nonce:       NewNonce(),
 		Caller:      caller,
 		Target:      target,
-		QueryString: query,
+		QueryString: String32(query),
 	}
 }
 
