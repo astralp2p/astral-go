@@ -241,10 +241,8 @@ func Fprintln(w io.Writer, args ...any) (n int, err error) {
 	return NewPrinter(w).Println(args...)
 }
 
-// Fprint ignores any writer and always prints to os.Stdout.
-// note: takes no io.Writer despite its F-prefix, unlike Fprintf and Fprintln.
-func Fprint(args ...any) (n int, err error) {
-	return NewPrinter(os.Stdout).Print(args...)
+func Fprint(w io.Writer, args ...any) (n int, err error) {
+	return NewPrinter(w).Print(args...)
 }
 
 // SetView registers fn as the view builder for objects of type T, keyed by T's ObjectType.
