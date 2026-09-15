@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -164,4 +165,60 @@ func TestShapeRule_MovedTypesDeriveABlueprint(t *testing.T) {
 			}
 		})
 	}
+}
+
+// A peer with no Go type decodes a moved type from its Blueprint alone. The Blueprints sync
+// replays into a registry with no compile-time prototypes, so each moved type materializes as a
+// RuntimeObject there; it must read the recorded bytes and write them back unchanged.
+func TestShapeRule_BlueprintDecodesTheWireBytes(t *testing.T) {
+	synced := syncedRegistry(t)
+
+	for _, v := range wireVectors {
+		name := strings.TrimSuffix(strings.TrimSuffix(v.name, "/zero"), "/no_parameters")
+		if name == "routing.op_spec" {
+			continue // hand-encoded, no Blueprint
+		}
+		t.Run(v.name, func(t *testing.T) {
+			obj := synced.New(name)
+			if _, ok := obj.(*astral.RuntimeObject); !ok {
+				t.Fatalf("want a RuntimeObject from the synced registry, got %T", obj)
+			}
+
+			raw, _ := hex.DecodeString(v.hex)
+			if _, err := obj.ReadFrom(bytes.NewReader(raw)); err != nil {
+				t.Fatalf("read by Blueprint: %v", err)
+			}
+
+			var buf bytes.Buffer
+			if _, err := obj.WriteTo(&buf); err != nil {
+				t.Fatalf("write by Blueprint: %v", err)
+			}
+			if got := hex.EncodeToString(buf.Bytes()); got != v.hex {
+				t.Errorf("Blueprint bytes differ:\n want %s\n  got %s", v.hex, got)
+			}
+		})
+	}
+}
+
+// syncedRegistry holds the wire primitives, which every peer compiles in, and replays every
+// derivable Blueprint on top, the way a peer receives them.
+func syncedRegistry(t *testing.T) *astral.Blueprints {
+	t.Helper()
+
+	synced := astral.NewBlueprints(nil)
+	for _, name := range astral.DefaultBlueprints().OrderedBlueprints() {
+		if astral.IsPrimitiveType(name) {
+			if err := synced.Add(astral.New(name)); err != nil {
+				t.Fatalf("primitive %s: %v", name, err)
+			}
+		}
+	}
+
+	all, _ := astral.DefaultBlueprints().AllBlueprints()
+	for _, bp := range all {
+		if _, err := synced.RegisterBlueprint(bp); err != nil {
+			t.Logf("replay %s: %v", bp.Type, err)
+		}
+	}
+	return synced
 }
