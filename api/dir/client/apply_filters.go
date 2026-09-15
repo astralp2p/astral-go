@@ -18,8 +18,8 @@ func ApplyFilters(ctx *astral.Context, identity *astral.Identity, filters ...str
 // empty filter list returns false. A nil identity tests the caller's own identity.
 func (client *Client) ApplyFilters(ctx *astral.Context, identity *astral.Identity, filters ...string) (bool, error) {
 	ch, err := client.queryCh(ctx, dir.MethodApplyFilters, query.Args{
-		"id":      identity,
-		"filters": strings.Join(filters, ","),
+		"identity": identity,
+		"filters":  strings.Join(filters, ","),
 	})
 	if err != nil {
 		return false, err

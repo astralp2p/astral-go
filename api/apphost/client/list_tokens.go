@@ -15,7 +15,7 @@ func ListTokens(ctx *astral.Context, identity *astral.Identity) ([]*apphost.Acce
 func (client *Client) ListTokens(ctx *astral.Context, identity *astral.Identity) (tokens []*apphost.AccessToken, err error) {
 	args := query.Args{}
 	if !identity.IsZero() {
-		args["id"] = identity
+		args["identity"] = identity
 	}
 
 	ch, err := client.queryCh(ctx, apphost.MethodListTokens, args)

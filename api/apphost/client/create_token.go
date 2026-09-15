@@ -17,7 +17,7 @@ func (client *Client) CreateToken(ctx *astral.Context, identity *astral.Identity
 	// why the keys are lower-case: the node snake-cases and lower-cases op
 	// argument names and binds by that name. A capitalised key reaches the wire
 	// verbatim, matches nothing, and is dropped without complaint.
-	args := query.Args{"id": identity.String()}
+	args := query.Args{"identity": identity.String()}
 	if duration != 0 {
 		args["duration"] = duration
 	}

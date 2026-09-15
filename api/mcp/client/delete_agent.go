@@ -12,7 +12,7 @@ import (
 // sessions closed. The signed relay contract stays indexed until it expires.
 // id takes a hex public key or an alias resolved via the directory.
 func (client *Client) DeleteAgent(ctx *astral.Context, id string) error {
-	ch, err := client.queryCh(ctx, mcp.MethodDeleteAgent, query.Args{"id": id})
+	ch, err := client.queryCh(ctx, mcp.MethodDeleteAgent, query.Args{"identity": id})
 	if err != nil {
 		return err
 	}

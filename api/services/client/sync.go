@@ -11,7 +11,7 @@ import (
 // fetch completes. When follow is true the node keeps the cache updated after
 // the initial fetch.
 func (client *Client) Sync(ctx *astral.Context, id string, follow bool) (err error) {
-	ch, err := client.queryCh(ctx, services.MethodSync, query.Args{"id": id, "follow": follow})
+	ch, err := client.queryCh(ctx, services.MethodSync, query.Args{"identity": id, "follow": follow})
 	if err != nil {
 		return
 	}

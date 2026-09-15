@@ -19,7 +19,7 @@ func (client *Client) GetAlias(ctx *astral.Context, identity *astral.Identity) (
 
 	// query
 	ch, err := client.queryCh(ctx, dir.MethodGetAlias, query.Args{
-		"id": identity,
+		"identity": identity,
 	})
 	if err != nil {
 		return "", err

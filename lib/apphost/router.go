@@ -86,7 +86,7 @@ func (router *Router) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery) (
 		defer cancelHost.Close()
 
 		conn, _ := cancelHost.RouteQuery(
-			astral.Launch(query.New(nil, nil, apphost.MethodCancel, query.Args{"id": q.Nonce})),
+			astral.Launch(query.New(nil, nil, apphost.MethodCancel, query.Args{"query_id": q.Nonce})),
 			astral.ZoneDevice,
 			nil,
 		)

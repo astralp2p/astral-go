@@ -10,8 +10,8 @@ import (
 // root when root is ""), at path on the target node's tree.
 func (client *Client) MountRemote(ctx *astral.Context, path string, target *astral.Identity, root string) error {
 	args := query.Args{
-		"path":   path,
-		"target": target.String(),
+		"path":     path,
+		"identity": target.String(),
 	}
 	if root != "" {
 		args["root"] = root

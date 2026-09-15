@@ -12,7 +12,7 @@ import (
 func (client *Client) NodeConsumeHole(ctx *astral.Context, pair astral.Nonce, target *astral.Identity) error {
 	args := query.Args{"pair": pair}
 	if target != nil {
-		args["target"] = target.String()
+		args["identity"] = target.String()
 	}
 
 	ch, err := client.queryCh(ctx, nat.MethodNodeConsumeHole, args)

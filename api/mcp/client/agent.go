@@ -13,7 +13,7 @@ import (
 // The node answers "unknown identity" when id resolves to no identity, and
 // "agent not found" when it resolves but no agent is registered under it.
 func (client *Client) Agent(ctx *astral.Context, id string) (info *mcp.AgentInfo, err error) {
-	ch, err := client.queryCh(ctx, mcp.MethodAgent, query.Args{"id": id})
+	ch, err := client.queryCh(ctx, mcp.MethodAgent, query.Args{"identity": id})
 	if err != nil {
 		return
 	}

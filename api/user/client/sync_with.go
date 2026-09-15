@@ -10,7 +10,7 @@ import (
 // SyncWith asks the target node to run an outbound asset sync with node,
 // starting from height start, and blocks until it completes.
 func (client *Client) SyncWith(ctx *astral.Context, node *astral.Identity, start uint64) (err error) {
-	ch, err := client.queryCh(ctx, user.OpSyncWith, query.Args{"node": node, "start": start})
+	ch, err := client.queryCh(ctx, user.OpSyncWith, query.Args{"identity": node, "start": start})
 	if err != nil {
 		return
 	}
