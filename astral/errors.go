@@ -35,6 +35,10 @@ var ErrStreamCorrupted = errors.New("stream corrupted")
 // ErrBlueprintInvalid - the Blueprint failed structural or allowlist validation
 var ErrBlueprintInvalid = errors.New("invalid blueprint")
 
+// ErrUndescribableField - a struct field has a shape no Blueprint describes, so the reflection
+// codec refuses the struct. An astral type in place of the plain Go kind resolves it.
+var ErrUndescribableField = errors.New("field has no blueprint description")
+
 // ErrFieldTypeMismatch - RuntimeObject.Set received a value that does not match the field's Spec
 var ErrFieldTypeMismatch = errors.New("field type mismatch")
 

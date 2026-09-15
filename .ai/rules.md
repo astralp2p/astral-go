@@ -32,9 +32,12 @@
 
 - Every type defining `ObjectType() string` registers with `astral.Add(&T{})`
   in its defining file.
-- Use `astral.Objectify` for `WriteTo`/`ReadFrom`. Prefer astral primitives
-  for Objectify fields; platform-width `int`/`uint` are rejected — use sized
-  types.
+- Use `astral.Objectify` for `WriteTo`/`ReadFrom`. An Objectify struct field
+  is an astral type: `Objectify` refuses a field no Blueprint describes with
+  `astral.ErrUndescribableField`. A plain Go kind (`string`, `bool`, `uint8`,
+  `[]byte`, a plain struct) is such a field. `String32`, `Bool`, `Uint8` and
+  `[]Uint8` write the bytes the plain kinds wrote.
+- A hand-written codec is outside that rule and derives no Blueprint.
 - Streaming ops end with `ch.Send(&astral.EOS{})`.
 - Send stream errors with `ch.Send(astral.Err(err))`.
 - Every `objects.Writer` must `Commit()` or `Discard()`.

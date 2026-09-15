@@ -55,6 +55,10 @@ func (s structValue) WriteTo(w io.Writer) (n int64, err error) {
 		}
 	}
 
+	if err = checkFieldShapes(s.Type()); err != nil {
+		return
+	}
+
 	for i := range s.NumField() {
 		var f = s.Field(i)
 		if !f.CanInterface() {
@@ -103,6 +107,10 @@ func (s structValue) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 	}
 
+	if err = checkFieldShapes(s.Type()); err != nil {
+		return
+	}
+
 	for i := range s.NumField() {
 		var f = s.Field(i)
 		if !f.CanInterface() {
@@ -140,6 +148,10 @@ func (s structValue) MarshalJSON() ([]byte, error) {
 				return o.MarshalJSON()
 			}
 		}
+	}
+
+	if err := checkFieldShapes(s.Type()); err != nil {
+		return nil, err
 	}
 
 	var v = map[string]json.RawMessage{}
@@ -183,6 +195,10 @@ func (s structValue) UnmarshalJSON(data []byte) error {
 				return o.UnmarshalJSON(data)
 			}
 		}
+	}
+
+	if err := checkFieldShapes(s.Type()); err != nil {
+		return err
 	}
 
 	var fields map[string]json.RawMessage

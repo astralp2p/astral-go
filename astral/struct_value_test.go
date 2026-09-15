@@ -7,8 +7,8 @@ import (
 )
 
 type testStruct struct {
-	SomeNumber int64
-	SomeList   []string
+	SomeNumber Int64
+	SomeList   []String8
 }
 
 func TestStruct(t *testing.T) {
@@ -16,7 +16,7 @@ func TestStruct(t *testing.T) {
 	var src, dst testStruct
 
 	src.SomeNumber = 123
-	src.SomeList = []string{"hello", "world"}
+	src.SomeList = []String8{"hello", "world"}
 
 	srcObject := Objectify(&src)
 

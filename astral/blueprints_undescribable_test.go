@@ -13,8 +13,8 @@ import (
 // discarded it — which is how an app type that cannot be described came to be dropped
 // from the sync with no signal at all.
 
-// undescribable holds a bare Go string, which the codec cannot assign a width to, so
-// BlueprintOf fails on it. It is the shape an app author writes by accident.
+// undescribable holds a bare Go string, which no Blueprint describes, so BlueprintOf fails
+// on it and the reflection codec refuses it. It is the shape an app author writes by accident.
 type undescribable struct{ Name string }
 
 func (undescribable) ObjectType() string                     { return "test.undescribable" }

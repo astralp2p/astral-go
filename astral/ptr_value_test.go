@@ -107,12 +107,13 @@ func TestPtr_InvalidPresenceByte(t *testing.T) {
 
 // TestPtr_ToInterface_RoundTrip — §10.2. Pointer-to-interface composes the pointer and
 // interface codecs; assert wire and JSON paths both work for a *Object holding a *String16.
+// The pointer is objectified on its own: no Blueprint describes a pointer to an interface,
+// so a struct field of that shape is refused (TestFieldShape_RefusesUndescribableFields).
 func TestPtr_ToInterface_RoundTrip(t *testing.T) {
-	src := struct{ P *Object }{}
 	v := Object(NewString16("hi"))
-	src.P = &v
+	src := &v
 
-	var dst struct{ P *Object }
+	var dst *Object
 
 	var buf bytes.Buffer
 	if _, err := Objectify(&src).WriteTo(&buf); err != nil {
@@ -121,16 +122,16 @@ func TestPtr_ToInterface_RoundTrip(t *testing.T) {
 	if _, err := Objectify(&dst).ReadFrom(&buf); err != nil {
 		t.Fatal(err)
 	}
-	if dst.P == nil || *dst.P == nil {
-		t.Fatal("dst.P is nil")
+	if dst == nil || *dst == nil {
+		t.Fatal("dst is nil")
 	}
-	got, ok := (*dst.P).(*String16)
+	got, ok := (*dst).(*String16)
 	if !ok || *got != "hi" {
-		t.Fatalf("want *String16 \"hi\", got %#v", *dst.P)
+		t.Fatalf("want *String16 \"hi\", got %#v", *dst)
 	}
 
 	// JSON path
-	dst = struct{ P *Object }{}
+	dst = nil
 	j, err := Objectify(&src).MarshalJSON()
 	if err != nil {
 		t.Fatal(err)
@@ -138,11 +139,11 @@ func TestPtr_ToInterface_RoundTrip(t *testing.T) {
 	if err := Objectify(&dst).UnmarshalJSON(j); err != nil {
 		t.Fatal(err)
 	}
-	if dst.P == nil || *dst.P == nil {
-		t.Fatal("JSON: dst.P is nil")
+	if dst == nil || *dst == nil {
+		t.Fatal("JSON: dst is nil")
 	}
-	if got, ok := (*dst.P).(*String16); !ok || *got != "hi" {
-		t.Fatalf("JSON: want *String16 \"hi\", got %#v", *dst.P)
+	if got, ok := (*dst).(*String16); !ok || *got != "hi" {
+		t.Fatalf("JSON: want *String16 \"hi\", got %#v", *dst)
 	}
 }
 

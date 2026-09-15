@@ -184,8 +184,9 @@ func objectify(v reflect.Value) (value, error) {
 	// why: platform-width int/uint are rejected for the same reason supportedMapKey rejects
 	// reflect.Uint — their width is platform-dependent, so silently aliasing them to int64/uint64
 	// would let a struct compiled on a 32-bit host content-hash differently than the 64-bit one
-	// if the codec ever started using the actual platform width. Force callers to declare the
-	// width explicitly (int64/uint64) so Blueprint derivation can describe every encodable struct.
+	// if the codec ever started using the actual platform width. A struct field is held to a
+	// stricter rule before it reaches this switch: checkFieldShapes refuses any field no
+	// Blueprint describes, so plain Go kinds are reachable here only outside a struct.
 	case reflect.Int, reflect.Uint:
 		return nil, fmt.Errorf("unsupported type %s %s: platform-width int/uint not allowed, use int64/uint64", v.Kind(), v.Type())
 

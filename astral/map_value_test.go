@@ -8,7 +8,7 @@ import (
 
 type testMap struct {
 	SomeMap   map[Uint8]String8
-	NativeMap map[uint8]string
+	NativeMap map[uint8]String8
 }
 
 func TestMapWithValues(t *testing.T) {
@@ -17,7 +17,7 @@ func TestMapWithValues(t *testing.T) {
 
 	src.SomeMap = make(map[Uint8]String8)
 	src.SomeMap[1] = "hello world"
-	src.NativeMap = make(map[uint8]string)
+	src.NativeMap = make(map[uint8]String8)
 	src.NativeMap[1] = "hello world"
 
 	srcObject := Objectify(&src)
@@ -124,9 +124,9 @@ func TestMapEmpty(t *testing.T) {
 func TestMap_Empty_RoundTrip(t *testing.T) {
 	t.Run("string_uint32", func(t *testing.T) {
 		var src, dst struct {
-			M map[string]uint32
+			M map[string]Uint32
 		}
-		dst.M = map[string]uint32{"keep": 1}
+		dst.M = map[string]Uint32{"keep": 1}
 
 		var buf bytes.Buffer
 		if _, err := Objectify(&src).WriteTo(&buf); err != nil {
@@ -141,9 +141,9 @@ func TestMap_Empty_RoundTrip(t *testing.T) {
 	})
 	t.Run("uint32_uint32", func(t *testing.T) {
 		var src, dst struct {
-			M map[uint32]uint32
+			M map[uint32]Uint32
 		}
-		dst.M = map[uint32]uint32{1: 2}
+		dst.M = map[uint32]Uint32{1: 2}
 
 		var buf bytes.Buffer
 		if _, err := Objectify(&src).WriteTo(&buf); err != nil {
@@ -163,9 +163,9 @@ func TestMap_Empty_RoundTrip(t *testing.T) {
 // map iteration order.
 func TestMap_Encoding_ByteDeterministic(t *testing.T) {
 	src := struct {
-		M map[string]uint32
+		M map[string]Uint32
 	}{
-		M: map[string]uint32{
+		M: map[string]Uint32{
 			"alpha":   1,
 			"bravo":   2,
 			"charlie": 3,
@@ -302,7 +302,7 @@ func TestMap_CrossCodecParity_ValueVsPtr(t *testing.T) {
 
 func TestMap_UnmarshalJSON_NonNumericKey(t *testing.T) {
 	var dst struct {
-		M map[uint32]uint32
+		M map[uint32]Uint32
 	}
 	dstObj := Objectify(&dst)
 
