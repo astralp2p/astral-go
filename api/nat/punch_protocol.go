@@ -70,13 +70,18 @@ func (t *PunchProtocol) ExpectSignal(signalType astral.String8, on func(*PunchSi
 	}
 }
 
-// SetPunchResult populates the Hole with active/passive role assignments and the
-// remote endpoint observed during punching; must be called before ResultSignal.
+// SetPunchResult populates the Hole with active/passive role assignments, the
+// remote endpoint observed during punching, and the creation timestamp; must be
+// called before ResultSignal.
 func (t *PunchProtocol) SetPunchResult(result *PunchResult) {
 	t.Hole = Hole{
 		ActiveIdentity:  t.LocalIdentity,
 		PassiveIdentity: t.PeerIdentity,
 		PassiveEndpoint: Endpoint{IP: result.RemoteIP, Port: result.RemotePort},
+		// why: the punch result is the moment the hole exists, and it is the one
+		// construction point both the active and the passive path share. A zero
+		// astral.Time encodes as UnixNano out of range and decodes as 1754.
+		CreatedAt: astral.Now(),
 	}
 }
 
