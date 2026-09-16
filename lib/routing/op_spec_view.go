@@ -15,7 +15,7 @@ func (op OpSpecView) Render() (out string) {
 	sep := theme.Normal.Bri(theme.More)
 
 	// name(
-	out += theme.Op.Render(op.Name)
+	out += theme.Op.Render(op.Name.String())
 	out += sep.Render("(")
 
 	var first = true
@@ -27,9 +27,9 @@ func (op OpSpecView) Render() (out string) {
 		if spec.Required {
 			req = "*"
 		}
-		out += arg.Render(spec.Name) + " " +
+		out += arg.Render(spec.Name.String()) + " " +
 			styles.Red.Render(req) +
-			theme.Type.Render(spec.Type)
+			theme.Type.Render(spec.Type.String())
 		first = false
 	}
 

@@ -3,8 +3,6 @@ package routing
 import (
 	"strings"
 	"testing"
-
-	"github.com/astralp2p/astral-go/lib/query"
 )
 
 // OpSpecView renders an OpSpec for a human reader. The output carries theme
@@ -27,7 +25,7 @@ func TestOpSpecView_RendersNameAndParentheses(t *testing.T) {
 func TestOpSpecView_RendersEveryParameter(t *testing.T) {
 	view := OpSpecView{OpSpec: &OpSpec{
 		Name: "objects.read",
-		Parameters: []query.FieldSpec{
+		Parameters: []OpParam{
 			{Name: "id", Type: "object_id", Required: true},
 			{Name: "offset", Type: "uint64"},
 		},
@@ -52,12 +50,12 @@ func TestOpSpecView_RendersEveryParameter(t *testing.T) {
 func TestOpSpecView_MarksRequiredParameters(t *testing.T) {
 	required := OpSpecView{OpSpec: &OpSpec{
 		Name:       "op",
-		Parameters: []query.FieldSpec{{Name: "id", Type: "object_id", Required: true}},
+		Parameters: []OpParam{{Name: "id", Type: "object_id", Required: true}},
 	}}.Render()
 
 	optional := OpSpecView{OpSpec: &OpSpec{
 		Name:       "op",
-		Parameters: []query.FieldSpec{{Name: "id", Type: "object_id"}},
+		Parameters: []OpParam{{Name: "id", Type: "object_id"}},
 	}}.Render()
 
 	if !strings.Contains(required, "*") {

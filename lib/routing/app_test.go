@@ -51,7 +51,7 @@ func TestApp_SpecManifestExcludesTheSpecOp(t *testing.T) {
 
 	names := map[string]bool{}
 	for _, spec := range app.ScopeRouter.Spec() {
-		names[spec.Name] = true
+		names[spec.Name.String()] = true
 	}
 
 	if !names["ping"] || !names["read"] {
@@ -72,7 +72,7 @@ func TestApp_AddMountsAScope(t *testing.T) {
 
 	names := map[string]bool{}
 	for _, spec := range app.ScopeRouter.Spec() {
-		names[spec.Name] = true
+		names[spec.Name.String()] = true
 	}
 	if !names["objects.list"] {
 		t.Fatalf("want the scoped op in the manifest, got %v", names)
@@ -112,7 +112,7 @@ func TestApp_SpecOpStreamsTheManifestThenEOS(t *testing.T) {
 
 			switch o := obj.(type) {
 			case *OpSpec:
-				r.names = append(r.names, o.Name)
+				r.names = append(r.names, o.Name.String())
 			case *astral.EOS:
 				r.eos = true
 				done <- r

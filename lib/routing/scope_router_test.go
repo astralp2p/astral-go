@@ -258,7 +258,7 @@ func TestScopeRouter_Spec(t *testing.T) {
 
 	names := map[string]bool{}
 	for _, spec := range router.Spec() {
-		names[spec.Name] = true
+		names[spec.Name.String()] = true
 	}
 
 	if !names["ping"] {
