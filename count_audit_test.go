@@ -43,6 +43,13 @@ func (c *countingReader) Read(p []byte) (int, error) {
 
 // auditCounts writes o, reads it back into fresh, and compares each side's
 // self-reported count against the bytes that actually moved.
+//
+// A write that succeeds must also be readable. mod.tor.digest wrote its zero value
+// as nothing at all while its reader demanded 35 bytes, so the zero value crossed
+// the wire as a frame no conforming reader could consume -- and inside a larger
+// object it shifted every following field, which decodes to wrong values in
+// silence. Counting alone missed it: 0 reported against 0 written agrees with
+// itself. The read error is the only signal this audit can see.
 func auditCounts(o, fresh astral.Object) (problems []string) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -65,6 +72,7 @@ func auditCounts(o, fresh astral.Object) (problems []string) {
 
 	reread, err := fresh.ReadFrom(cr)
 	if err != nil {
+		problems = append(problems, fmt.Sprintf("WriteTo wrote %d bytes that ReadFrom rejects: %v", cw.n, err))
 		return problems
 	}
 	if reread != cr.n {
