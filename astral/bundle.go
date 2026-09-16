@@ -179,7 +179,7 @@ func appendUnique(objects []Object, index map[string]int, o Object) ([]Object, m
 
 	idstr := objectID.String()
 	if _, found := index[idstr]; found {
-		return objects, index, fmt.Errorf("duplicate object")
+		return objects, index, fmt.Errorf("%w: %s", ErrDuplicateObject, idstr)
 	}
 
 	index[idstr] = len(objects)
@@ -254,10 +254,10 @@ func (b *Bundle) append(object Object) error {
 		return fmt.Errorf("error resolving object id: %w", err)
 	}
 
-	// skip duplicates
+	// reject duplicates
 	idstr := objectID.String()
 	if _, found := b.index[idstr]; found {
-		return fmt.Errorf("duplicate object")
+		return fmt.Errorf("%w: %s", ErrDuplicateObject, idstr)
 	}
 
 	b.objects = append(b.objects, object)

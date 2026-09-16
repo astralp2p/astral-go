@@ -15,6 +15,11 @@ var ErrZoneExcluded = errors.New("zone excluded")
 // ErrTargetNotAllowed - target was blocked by a policy or a filter
 var ErrTargetNotAllowed = errors.New("target not allowed")
 
+// ErrDuplicateObject - a Bundle's members are unique by Object ID; the Object ID offered
+// is already a member. Wrapped with the repeated ID by Bundle.ReadFrom, Bundle.Append and
+// Bundle.UnmarshalJSON.
+var ErrDuplicateObject = errors.New("duplicate object")
+
 // blueprint registration errors
 
 // ErrAlreadyRegistered - a Blueprint with the same Type is already registered (compile-time or runtime)
