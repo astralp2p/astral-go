@@ -24,7 +24,6 @@ const (
 	MethodRegisterBlueprint = "objects.register_blueprint"
 	MethodProbe             = "objects.probe"
 	MethodRead              = "objects.read"
-	MethodGetType           = "objects.get_type"
 	MethodPush              = "objects.push"
 	MethodNewMem            = "objects.new_mem"
 	MethodRepositories      = "objects.repositories"
