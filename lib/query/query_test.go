@@ -183,7 +183,7 @@ func TestNew_AppendsMarshalledArgs(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			q := New(id, id, "op", c.args)
 
-			if q.QueryString != c.want {
+			if q.QueryString.String() != c.want {
 				t.Fatalf("QueryString: want %q, got %q", c.want, q.QueryString)
 			}
 		})

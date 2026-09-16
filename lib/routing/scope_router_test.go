@@ -53,7 +53,7 @@ func TestScopeRouter_PreservesArgumentsAcrossTheRewrite(t *testing.T) {
 	routeTo(t, router, "objects.read?id=abc&offset=2")
 
 	want := "read?id=abc&offset=2"
-	if scope.seen.QueryString != want {
+	if scope.seen.QueryString.String() != want {
 		t.Fatalf("want %q, got %q", want, scope.seen.QueryString)
 	}
 }
@@ -109,7 +109,7 @@ func TestScopeRouter_FallsThroughToRoot(t *testing.T) {
 				t.Fatal("want the root reached, got nothing")
 			}
 			// an unmatched query reaches the root unrewritten
-			if root.seen.QueryString != c.wantAtRoot {
+			if root.seen.QueryString.String() != c.wantAtRoot {
 				t.Fatalf("want %q at the root, got %q", c.wantAtRoot, root.seen.QueryString)
 			}
 		})

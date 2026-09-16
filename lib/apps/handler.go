@@ -147,7 +147,7 @@ func (h *Handler) intake(conn net.Conn) {
 			Nonce:       queryMsg.ID,
 			Caller:      queryMsg.Caller,
 			Target:      queryMsg.Target,
-			QueryString: string(queryMsg.Query),
+			QueryString: astral.String32(queryMsg.Query),
 		},
 	}
 

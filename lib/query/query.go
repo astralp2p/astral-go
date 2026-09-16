@@ -26,7 +26,7 @@ func New(caller *astral.Identity, target *astral.Identity, path string, args any
 		Nonce:       astral.NewNonce(),
 		Caller:      caller,
 		Target:      target,
-		QueryString: path,
+		QueryString: astral.String32(path),
 	}
 
 	if args == nil {
@@ -39,7 +39,7 @@ func New(caller *astral.Identity, target *astral.Identity, path string, args any
 	}
 
 	if len(str) > 0 {
-		query.QueryString += "?" + str
+		query.QueryString += astral.String32("?" + str)
 	}
 
 	return

@@ -61,5 +61,5 @@ func (pending *PendingQuery) Target() *astral.Identity {
 }
 
 func (pending *PendingQuery) Query() string {
-	return pending.query.QueryString
+	return pending.query.QueryString.String()
 }
