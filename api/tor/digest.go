@@ -1,6 +1,7 @@
 package tor
 
 import (
+	"bytes"
 	"encoding/base32"
 	"encoding/json"
 	"errors"
@@ -10,6 +11,12 @@ import (
 )
 
 const DigestSize = 35
+
+// ErrInvalidDigestLength indicates the digest is not DigestSize bytes long.
+var ErrInvalidDigestLength = errors.New("invalid digest length")
+
+// zeroDigest is the wire form of a digest that names no onion service.
+var zeroDigest [DigestSize]byte
 
 // Digest is an astral.Object that holds a Tor digest. Supports JSON and text.
 type Digest []byte
@@ -27,18 +34,47 @@ func DigestFromString(s string) (Digest, error) {
 
 func (d Digest) ObjectType() string { return "mod.tor.digest" }
 
+// WriteTo writes the digest as DigestSize raw bytes, whatever it holds. The zero
+// value writes DigestSize null bytes, which ReadFrom reads back as the zero value;
+// a digest of any other length is not a digest and does not reach the wire.
+//
+// The width cannot depend on the value: ReadFrom demands DigestSize, so a shorter
+// write shifts every field after it in the enclosing object. Where the shift runs
+// off the end that surfaces as a read error; where it does not, the record decodes
+// to different values and nothing reports it.
 func (d Digest) WriteTo(w io.Writer) (n int64, err error) {
-	n2, err := w.Write(d)
+	var v = make([]byte, DigestSize)
+
+	switch len(d) {
+	case 0:
+	case DigestSize:
+		copy(v, d)
+	default:
+		return 0, ErrInvalidDigestLength
+	}
+
+	n2, err := w.Write(v)
 	return int64(n2), err
 }
 
 func (d *Digest) ReadFrom(r io.Reader) (n int64, err error) {
 	var v = make([]byte, DigestSize)
+
 	n2, err := io.ReadFull(r, v)
-	if err == nil {
-		*d = v
+	n = int64(n2)
+	if err != nil {
+		return
 	}
-	return int64(n2), err
+
+	// all null is the zero value's wire form, not an onion service: a v3 address
+	// carries a checksum over its key, and no key checksums to zero.
+	if bytes.Equal(v, zeroDigest[:]) {
+		*d = nil
+		return
+	}
+
+	*d = v
+	return
 }
 
 // text support
@@ -56,7 +92,7 @@ func (d *Digest) UnmarshalText(text []byte) error {
 		return err
 	}
 	if len(b) != DigestSize {
-		return errors.New("invalid length")
+		return ErrInvalidDigestLength
 	}
 	*d = b
 	return nil
