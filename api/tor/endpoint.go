@@ -61,10 +61,12 @@ func (e *Endpoint) UnmarshalText(text []byte) (err error) {
 	return nil
 }
 
+// MarshalText renders the endpoint as Address does, so the zero value emits
+// unknown -- the one text form UnmarshalText accepts for it. Formatting the
+// digest and port unconditionally emits .onion:0, which UnmarshalText then
+// rejects on digest length.
 func (e Endpoint) MarshalText() (text []byte, err error) {
-	s := fmt.Sprintf("%s:%d", e.Digest, e.Port)
-
-	return []byte(s), nil
+	return []byte(e.Address()), nil
 }
 
 // JSON marshaling
