@@ -28,7 +28,7 @@ func NewOpRouter(s ...any) *OpRouter {
 }
 
 func (router *OpRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, w io.WriteCloser) (io.WriteCloser, error) {
-	routeName, _ := query.Parse(q.QueryString)
+	routeName, _ := query.Parse(q.QueryString.String())
 
 	route, found := router.routes.Get(routeName)
 

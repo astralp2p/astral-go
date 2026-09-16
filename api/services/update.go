@@ -9,7 +9,7 @@ import (
 var _ astral.Object = &Update{}
 
 type Update struct {
-	Available  bool
+	Available  astral.Bool
 	Name       astral.String8
 	ProviderID *astral.Identity
 	Info       *astral.Bundle

@@ -19,7 +19,7 @@ type fakeRouter struct {
 }
 
 func (r *fakeRouter) RouteQuery(_ *astral.Context, q *astral.InFlightQuery) (astral.Conn, error) {
-	r.queryString = q.QueryString
+	r.queryString = q.QueryString.String()
 	return query.NewConn(nil, nil, nopWriteCloser{io.Discard}, r.answer, true), nil
 }
 

@@ -97,7 +97,7 @@ func (h *Handler) ReadQuery() (*PendingQuery, error) {
 				Nonce:       queryMsg.ID,
 				Caller:      queryMsg.Caller,
 				Target:      queryMsg.Target,
-				QueryString: string(queryMsg.Query),
+				QueryString: astral.String32(queryMsg.Query),
 			},
 		}, nil
 	}
