@@ -140,14 +140,14 @@ func (r *ScopeRouter) Spec() (list []OpSpec) {
 
 		subList := r.Spec()
 		for _, opSpec := range subList {
-			opSpec.Name = name + "." + opSpec.Name
+			opSpec.Name = astral.String32(name+".") + opSpec.Name
 			list = append(list, opSpec)
 		}
 	}
 
 	if r, ok := r.root.(HasSpec); ok {
 		for _, opSpec := range r.Spec() {
-			if strings.HasPrefix(opSpec.Name, ".") {
+			if strings.HasPrefix(opSpec.Name.String(), ".") {
 				continue
 			}
 			list = append(list, opSpec)

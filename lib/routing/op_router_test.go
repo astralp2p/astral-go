@@ -211,7 +211,7 @@ func TestOpRouter_Spec(t *testing.T) {
 
 	byName := map[string]OpSpec{}
 	for _, spec := range specs {
-		byName[spec.Name] = spec
+		byName[spec.Name.String()] = spec
 	}
 
 	if len(byName) != 3 {

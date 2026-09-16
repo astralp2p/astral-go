@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/astralp2p/astral-go/astral"
-	"github.com/astralp2p/astral-go/lib/query"
 )
 
 // OpSpec is a wire type: it crosses the ".spec" op to describe an operation to
@@ -16,7 +15,7 @@ import (
 func sampleOpSpec() *OpSpec {
 	return &OpSpec{
 		Name: "objects.read",
-		Parameters: []query.FieldSpec{
+		Parameters: []OpParam{
 			{Name: "id", Type: "object_id", Required: true},
 			{Name: "offset", Type: "uint64"},
 		},
