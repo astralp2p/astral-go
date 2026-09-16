@@ -94,6 +94,10 @@ func (value *Value[T]) Set(ctx *astral.Context, v T) (err error) {
 			err = value.node.Set(ctx, v)
 		}
 		if err == nil {
+			// why: the node's change notification is asynchronous, so without this
+			// the caller's own Get or Follow reads the pre-Set cache.
+			// push is false — the notification carries the queue update.
+			value.update(v, false)
 			return nil
 		}
 	}
