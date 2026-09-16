@@ -43,7 +43,11 @@ func WithObjectFinder(finders ...objects.Finder) ServeOption {
 
 			return adder.AddScopedOp(objects.ModuleName, "find", op)
 		})
-		cfg.hooks = append(cfg.hooks, objectsClient.RegisterFinder)
+		// why a keeper rather than the bare client call: the registration the node
+		// grants is a lease, so something has to renew it. The keeper does that on
+		// the app's behalf, leaving app authors no renewal code to write.
+		cfg.hooks = append(cfg.hooks,
+			newLeaseKeeper(objectsClient.RegisterFinder, DefaultRegistrationLease).Hook)
 		return nil
 	}
 }
