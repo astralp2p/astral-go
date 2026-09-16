@@ -24,6 +24,7 @@ func Dial(target string) (conn *Conn, err error) {
 }
 
 // DialContext connects to target using the format "proto:addr", where proto is one of tcp, unix, memu, or memb.
+// For unix sockets it expands "~/", as Listen does, so both ends name the socket the same way.
 func DialContext(ctx context.Context, target string) (conn *Conn, err error) {
 	parts := strings.SplitN(target, ":", 2)
 	if len(parts) < 2 {
@@ -39,6 +40,7 @@ func DialContext(ctx context.Context, target string) (conn *Conn, err error) {
 		c, err = dialer.DialContext(ctx, "tcp", addr)
 
 	case "unix":
+		addr = expandHome(addr)
 		c, err = dialer.DialContext(ctx, "unix", addr)
 
 	case "memu", "memb":
@@ -71,13 +73,7 @@ func Listen(ipcAddress string) (net.Listener, error) {
 		return net.Listen("tcp", address)
 
 	case "unix":
-		var path = address
-
-		if strings.HasPrefix(path, "~/") {
-			if home, err := os.UserHomeDir(); err == nil {
-				path = filepath.Join(home, path[2:])
-			}
-		}
+		var path = expandHome(address)
 
 		listen, err := net.Listen("unix", path)
 		if err != nil {
@@ -123,6 +119,22 @@ func ListenAny(protocol string) (net.Listener, error) {
 	default:
 		return nil, ErrUnsupportedProtocol
 	}
+}
+
+// expandHome replaces a leading "~/" with the current user's home directory.
+// It returns path unchanged when the prefix is absent or the home directory is
+// unknown, so a caller always has an address to pass to the network stack.
+func expandHome(path string) string {
+	if !strings.HasPrefix(path, "~/") {
+		return path
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return path
+	}
+
+	return filepath.Join(home, path[2:])
 }
 
 func tempName(length int) (s string) {
