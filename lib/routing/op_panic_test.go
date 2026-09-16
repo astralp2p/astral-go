@@ -45,7 +45,7 @@ func routerWithReports(t *testing.T) (*OpRouter, chan *Report) {
 	}
 
 	for _, spec := range router.Spec() {
-		op, err := router.GetOp(spec.Name)
+		op, err := router.GetOp(spec.Name.String())
 		if err != nil {
 			t.Fatalf("GetOp(%q): %v", spec.Name, err)
 		}

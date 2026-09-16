@@ -125,10 +125,15 @@ func (router *OpRouter) GetOp(name string) (*Op, error) {
 // Spec returns specs of all operations in the router
 func (router *OpRouter) Spec() (list []OpSpec) {
 	for name, op := range router.routes.Clone() {
-		list = append(list, OpSpec{
-			Name:       name,
-			Parameters: op.ArgumentSpecs(),
-		})
+		spec := OpSpec{Name: astral.String32(name)}
+		for _, arg := range op.ArgumentSpecs() {
+			spec.Parameters = append(spec.Parameters, OpParam{
+				Name:     astral.String32(arg.Name),
+				Type:     astral.String32(arg.Type),
+				Required: astral.Bool(arg.Required),
+			})
+		}
+		list = append(list, spec)
 	}
 	return
 }

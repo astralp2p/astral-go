@@ -6,6 +6,7 @@ import (
 	"net"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/astralp2p/astral-go/api/apphost"
 	"github.com/astralp2p/astral-go/astral"
@@ -14,6 +15,12 @@ import (
 	"github.com/astralp2p/astral-go/lib/ipc"
 )
 
+// IntakeTimeout bounds the wait for a dialer's HandleQueryMsg. It covers the gap
+// between connect and the first message only, never an established session, so a
+// connection that opens and stays silent is dropped rather than held. A Handler
+// takes its value when it is created.
+var IntakeTimeout = 30 * time.Second
+
 // Handler accepts inbound IPC queries from an apphost-registered endpoint.
 // Close or context cancellation terminates all blocking calls.
 type Handler struct {
@@ -21,6 +28,13 @@ type Handler struct {
 	ipcToken astral.Nonce
 	doneCh   chan struct{}
 	done     atomic.Bool
+	queries  chan *PendingQuery
+	// intakeTimeout is fixed at construction so intake never reads the package
+	// default from its own goroutine.
+	intakeTimeout time.Duration
+	// acceptErr is written once by accept before it closes the Handler, so a
+	// reader that has observed doneCh sees it.
+	acceptErr atomic.Pointer[error]
 }
 
 // NewHandler creates an IPC listener with a random auth token.
@@ -52,54 +66,95 @@ func NewHandlerOn(ipcAddress string, token astral.Nonce) (*Handler, error) {
 }
 
 func newHandler(l net.Listener, token astral.Nonce) *Handler {
-	return &Handler{
-		listener: l,
-		doneCh:   make(chan struct{}),
-		ipcToken: token,
+	h := &Handler{
+		listener:      l,
+		doneCh:        make(chan struct{}),
+		ipcToken:      token,
+		queries:       make(chan *PendingQuery),
+		intakeTimeout: IntakeTimeout,
 	}
+
+	go h.accept()
+
+	return h
 }
 
 // ReadQuery waits for and returns the next pending query
 func (h *Handler) ReadQuery() (*PendingQuery, error) {
+	select {
+	case pending := <-h.queries:
+		return pending, nil
+
+	case <-h.doneCh:
+		if err := h.acceptErr.Load(); err != nil {
+			return nil, *err
+		}
+		return nil, net.ErrClosed
+	}
+}
+
+// accept takes connections off the listener and screens each one in its own
+// goroutine. Screening blocks on the dialer, so doing it here would let one
+// silent dialer stall every other inbound query.
+func (h *Handler) accept() {
 	for {
 		conn, err := h.listener.Accept()
 		if err != nil {
+			h.acceptErr.Store(&err)
 			h.Close()
-			return nil, err
-		}
-		ch := channel.New(conn)
-
-		obj, err := ch.Receive()
-		if err != nil {
-			ch.Close()
-			continue
+			return
 		}
 
-		// check message type - must be HandleQueryMsg
-		queryMsg, ok := obj.(*apphost.HandleQueryMsg)
-		if !ok {
-			ch.Send(&apphost.ErrorMsg{Code: apphost.ErrCodeProtocolError})
-			ch.Close()
-			continue
-		}
+		go h.intake(conn)
+	}
+}
 
-		// check auth ipcToken
-		if queryMsg.IPCToken != h.ipcToken {
-			ch.Send(&apphost.ErrorMsg{Code: apphost.ErrCodeDenied})
-			ch.Close()
-			continue
-		}
+// intake reads the dialer's HandleQueryMsg, authenticates it, and hands the query
+// to ReadQuery. A connection that fails any step is answered and closed here.
+func (h *Handler) intake(conn net.Conn) {
+	ch := channel.New(conn)
 
-		// return the pending query
-		return &PendingQuery{
-			conn: conn,
-			query: &astral.Query{
-				Nonce:       queryMsg.ID,
-				Caller:      queryMsg.Caller,
-				Target:      queryMsg.Target,
-				QueryString: astral.String32(queryMsg.Query),
-			},
-		}, nil
+	// bound the wait for the first message; an unsent one must not hold the conn
+	_ = conn.SetReadDeadline(time.Now().Add(h.intakeTimeout))
+
+	obj, err := ch.Receive()
+	if err != nil {
+		ch.Close()
+		return
+	}
+
+	// check message type - must be HandleQueryMsg
+	queryMsg, ok := obj.(*apphost.HandleQueryMsg)
+	if !ok {
+		ch.Send(&apphost.ErrorMsg{Code: apphost.ErrCodeProtocolError})
+		ch.Close()
+		return
+	}
+
+	// check auth ipcToken
+	if queryMsg.IPCToken != h.ipcToken {
+		ch.Send(&apphost.ErrorMsg{Code: apphost.ErrCodeDenied})
+		ch.Close()
+		return
+	}
+
+	// the session that follows is not bounded by the intake deadline
+	_ = conn.SetReadDeadline(time.Time{})
+
+	pending := &PendingQuery{
+		conn: conn,
+		query: &astral.Query{
+			Nonce:       queryMsg.ID,
+			Caller:      queryMsg.Caller,
+			Target:      queryMsg.Target,
+			QueryString: astral.String32(queryMsg.Query),
+		},
+	}
+
+	select {
+	case h.queries <- pending:
+	case <-h.doneCh:
+		conn.Close()
 	}
 }
 
