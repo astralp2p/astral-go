@@ -2,7 +2,9 @@ package tor
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -148,5 +150,98 @@ func TestEndpointRoundTrip_ZeroValue(t *testing.T) {
 	}
 	if want := "unknown"; got.Address() != want {
 		t.Errorf("Address = %q, want %q", got.Address(), want)
+	}
+}
+
+// UnmarshalText accepts exactly one text form for the zero digest, so
+// MarshalText owes that form. Emitting a bare .onion instead made the type's own
+// encoder produce text its own parser refuses.
+func TestDigestText_ZeroValueRoundTrips(t *testing.T) {
+	text, err := Digest(nil).MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText: %v", err)
+	}
+	if want := "unknown"; string(text) != want {
+		t.Errorf("MarshalText = %q, want %q", text, want)
+	}
+
+	var got Digest
+	if err := got.UnmarshalText(text); err != nil {
+		t.Fatalf("UnmarshalText(%q): %v", text, err)
+	}
+	if len(got) != 0 {
+		t.Errorf("Digest = %x, want the zero value", got)
+	}
+}
+
+// The zero value is the only case that changed; a real digest keeps the
+// lowercase base32 .onion form the spec states.
+func TestDigestText_RealValueRoundTrips(t *testing.T) {
+	want := realDigest()
+
+	text, err := want.MarshalText()
+	if err != nil {
+		t.Fatalf("MarshalText: %v", err)
+	}
+	if !strings.HasSuffix(string(text), ".onion") {
+		t.Errorf("MarshalText = %q, want a .onion hostname", text)
+	}
+
+	var got Digest
+	if err := got.UnmarshalText(text); err != nil {
+		t.Fatalf("UnmarshalText(%q): %v", text, err)
+	}
+	if !bytes.Equal(got, want) {
+		t.Errorf("Digest = %x, want %x", got, want)
+	}
+}
+
+// MarshalJSON delegates to MarshalText, so text and JSON agree on every value
+// rather than differing on the zero one alone.
+func TestDigestText_AgreesWithJSON(t *testing.T) {
+	for _, d := range []Digest{nil, realDigest()} {
+		text, err := d.MarshalText()
+		if err != nil {
+			t.Fatalf("MarshalText: %v", err)
+		}
+
+		raw, err := json.Marshal(d)
+		if err != nil {
+			t.Fatalf("MarshalJSON: %v", err)
+		}
+		var asJSON string
+		if err := json.Unmarshal(raw, &asJSON); err != nil {
+			t.Fatalf("Unmarshal: %v", err)
+		}
+
+		if string(text) != asJSON {
+			t.Errorf("MarshalText = %q, JSON = %q", text, asJSON)
+		}
+	}
+}
+
+// The zero digest survives a JSON round trip as the zero value: UnmarshalJSON
+// routes through UnmarshalText, which used to refuse what MarshalJSON emitted.
+func TestDigestJSON_ZeroValueRoundTrips(t *testing.T) {
+	raw, err := json.Marshal(Digest(nil))
+	if err != nil {
+		t.Fatalf("MarshalJSON: %v", err)
+	}
+
+	var got Digest
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatalf("UnmarshalJSON(%s): %v", raw, err)
+	}
+	if len(got) != 0 {
+		t.Errorf("Digest = %x, want the zero value", got)
+	}
+}
+
+// A zero digest inside an endpoint keeps the endpoint's own unknown form: the
+// digest's text form is not spliced into <digest>:<port>, because Address
+// short-circuits on IsZero before formatting.
+func TestDigestText_ZeroValueDoesNotLeakIntoEndpointAddress(t *testing.T) {
+	if got, want := (&Endpoint{}).Address(), "unknown"; got != want {
+		t.Errorf("Address = %q, want %q", got, want)
 	}
 }

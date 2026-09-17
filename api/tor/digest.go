@@ -18,6 +18,10 @@ var ErrInvalidDigestLength = errors.New("invalid digest length")
 // zeroDigest is the wire form of a digest that names no onion service.
 var zeroDigest [DigestSize]byte
 
+// zeroDigestText is the text form of a digest that names no onion service. It is
+// the string mod.tor.endpoint uses for the same absence.
+const zeroDigestText = "unknown"
+
 // Digest is an astral.Object that holds a Tor digest. Supports JSON and text.
 type Digest []byte
 
@@ -79,12 +83,20 @@ func (d *Digest) ReadFrom(r io.Reader) (n int64, err error) {
 
 // text support
 
+// MarshalText renders the digest as String does, so the zero value emits
+// unknown -- the one text form UnmarshalText accepts for it. Encoding the bytes
+// unconditionally emits a bare .onion, which UnmarshalText then rejects on
+// digest length.
 func (d Digest) MarshalText() (text []byte, err error) {
-	txt := strings.ToLower(base32.StdEncoding.EncodeToString(d)) + ".onion"
-	return []byte(txt), nil
+	return []byte(d.String()), nil
 }
 
 func (d *Digest) UnmarshalText(text []byte) error {
+	if string(text) == zeroDigestText {
+		*d = nil
+		return nil
+	}
+
 	var s = strings.ToUpper(string(text))
 	s, _ = strings.CutSuffix(s, ".ONION")
 	b, err := base32.StdEncoding.DecodeString(s)
@@ -121,7 +133,14 @@ func (d *Digest) UnmarshalJSON(bytes []byte) (err error) {
 
 // other
 
+// String renders the digest as its .onion hostname, and the zero value -- which
+// names no onion service -- as unknown, the form mod.tor.endpoint already uses
+// for the same absence.
 func (d Digest) String() string {
+	if len(d) == 0 {
+		return zeroDigestText
+	}
+
 	return strings.ToLower(base32.StdEncoding.EncodeToString(d)) + ".onion"
 }
 
