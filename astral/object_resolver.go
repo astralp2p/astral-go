@@ -33,14 +33,15 @@ func NewWriteResolver(w io.Writer) *WriteResolver {
 func (r *WriteResolver) Write(p []byte) (n int, err error) {
 	if r.w == nil {
 		n, err = r.hash.Write(p)
-		r.size = r.size + uint64(n)
-		return
+	} else {
+		n, err = r.w.Write(p)
+		if n > 0 {
+			r.hash.Write(p[:n])
+		}
 	}
 
-	n, err = r.w.Write(p)
-	if n > 0 {
-		r.hash.Write(p[:n])
-	}
+	// why: Size and Hash cover the same bytes, so both forms name the same ObjectID
+	r.size += uint64(n)
 
 	return
 }
