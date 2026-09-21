@@ -168,8 +168,8 @@ func (ops *NodeOps) Delete(ctx *astral.Context, q *routing.IncomingQuery, args D
 }
 
 // deleteRecursive walks the subtree depth-first via the public Node API and
-// deletes from the leaves up. Remote-mounted subtrees are recursed through —
-// each Sub()/Delete() call there hops to the remote node.
+// deletes from the leaves up. A mounted subtree is recursed through — each
+// Sub()/Delete() call there reaches the mounted implementation.
 func deleteRecursive(ctx *astral.Context, n tree.Node) error {
 	subs, err := n.Sub(ctx)
 	if err != nil {

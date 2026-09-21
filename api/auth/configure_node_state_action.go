@@ -7,8 +7,7 @@ import (
 )
 
 // ConfigureNodeStateAction requests permission for Actor to change the node's
-// state: set and delete tree values, mount and unmount remote trees, and set or
-// clear identity aliases.
+// state: set and delete tree values, and set or clear identity aliases.
 //
 // Reading the same state is SeeNodeStateAction. Neither action implies the
 // other.
