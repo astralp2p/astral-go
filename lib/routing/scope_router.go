@@ -69,7 +69,11 @@ func (r *ScopeRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, w
 		QueryString: q.QueryString[idx+1:],
 	})
 
-	rq.Extra = q.Extra
+	// copy the entries into rq's own map; copying the sig.Map value would
+	// share its inner map under a second mutex
+	for key, value := range q.Extra.Clone() {
+		rq.Extra.Set(key, value)
+	}
 
 	return scope.RouteQuery(ctx, rq, w)
 }
