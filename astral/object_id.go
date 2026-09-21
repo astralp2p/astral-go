@@ -13,7 +13,12 @@ import (
 )
 
 const idPrefix = "data1"
+const partialIDPrefix = "data0"
 const zBase32CharSet = "ybndrfg8ejkmcpqxot1uwisza345h769"
+
+// partialIDBodyLen is the length of a data0 body: the 64-character encoding of
+// Size||Hash without the 12 characters that carry Size bits alone.
+const partialIDBodyLen = 52
 
 var zBase32Encoding = base32.NewEncoding(zBase32CharSet)
 
@@ -22,19 +27,56 @@ type ObjectID struct {
 	Hash [32]byte
 }
 
+// ParseID parses the data1 form, which carries Size and Hash, and the data0 form, which
+// carries the Hash alone and parses with Size 0.
 func ParseID(s string) (id *ObjectID, err error) {
-	// Check and trim the prefix
-	if !strings.HasPrefix(s, idPrefix) {
-		return nil, errors.New("invalid prefix")
+	switch {
+	case strings.HasPrefix(s, idPrefix):
+		return parseFullID(strings.TrimPrefix(s, idPrefix))
+	case strings.HasPrefix(s, partialIDPrefix):
+		return parsePartialID(strings.TrimPrefix(s, partialIDPrefix))
 	}
-	s = strings.TrimPrefix(s, idPrefix)
 
+	return nil, errors.New("invalid prefix")
+}
+
+// parseFullID parses a data1 body, from which the encoder stripped every leading 'y'.
+func parseFullID(body string) (*ObjectID, error) {
 	// Pad with missing leading zeros
-	z := max(64-len(s), 0)
-	padded := strings.Repeat(zBase32CharSet[0:1], z) + s
+	z := max(64-len(body), 0)
+	return decodeID(strings.Repeat(zBase32CharSet[0:1], z) + body)
+}
 
+// parsePartialID parses a data0 body: the last 52 characters of the unstripped encoding
+// of a zero Size and the Hash. Its first character carries the last four Size bits and
+// the first Hash bit, so it is 'y' or 'b'.
+func parsePartialID(body string) (*ObjectID, error) {
+	if len(body) != partialIDBodyLen {
+		return nil, errors.New("invalid partial id length")
+	}
+	if body[0] != zBase32CharSet[0] && body[0] != zBase32CharSet[1] {
+		return nil, errors.New("invalid partial id first character")
+	}
+
+	id, err := decodeID(strings.Repeat(zBase32CharSet[0:1], 64-partialIDBodyLen) + body)
+	if err != nil {
+		return nil, err
+	}
+	if id.Size != 0 {
+		return nil, errors.New("invalid partial id size")
+	}
+
+	return id, nil
+}
+
+// decodeID decodes a zBase32 encoding of Size||Hash.
+//
+// why: the decoder skips '\n' and '\r' and reads a tail of '=' as padding, so a body of
+// the right length can decode without error to fewer than 40 bytes. The length check
+// rejects it for both prefixes.
+func decodeID(encoded string) (*ObjectID, error) {
 	var data [40]byte
-	n, err := zBase32Encoding.Decode(data[:], []byte(padded))
+	n, err := zBase32Encoding.Decode(data[:], []byte(encoded))
 	if err != nil {
 		return nil, err
 	}
@@ -42,11 +84,11 @@ func ParseID(s string) (id *ObjectID, err error) {
 		return nil, errors.New("invalid data length")
 	}
 
-	id = &ObjectID{}
+	id := &ObjectID{}
 	id.Size = ByteOrder.Uint64(data[0:8])
 	copy(id.Hash[:], data[8:40])
 
-	return
+	return id, nil
 }
 
 // astral
@@ -174,6 +216,15 @@ func (id ObjectID) String() string {
 	enc := zBase32Encoding.EncodeToString(b[:])
 	enc = strings.TrimLeft(enc, zBase32CharSet[0:1])
 	return idPrefix + enc
+}
+
+// PartialString encodes the Hash alone as a data0 string. Every serializer emits String
+// instead.
+func (id ObjectID) PartialString() string {
+	var b [40]byte
+	copy(b[8:], id.Hash[0:32])
+	enc := zBase32Encoding.EncodeToString(b[:])
+	return partialIDPrefix + enc[64-partialIDBodyLen:]
 }
 
 // IsEqual compares both components.

@@ -12,6 +12,9 @@ type Probe struct {
 	Repo astral.String8  // Repo the object was found in
 	Mime astral.String8  // Mime type of the object
 	Time astral.Duration // Time it took to probe the object
+	// ObjectID is the resolved full ID of the probed object. It is optional; nil means
+	// the answering node predates the field.
+	ObjectID *astral.ObjectID
 }
 
 var _ astral.Object = &Probe{}
