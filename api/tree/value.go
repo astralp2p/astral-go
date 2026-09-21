@@ -55,7 +55,7 @@ func (value *Value[T]) Bind(ctx *astral.Context, node Node) error {
 	// subscribe to changes
 	go func() {
 		for val := range updates {
-			value.update(val, true)
+			value.apply(val)
 		}
 		// TODO: try to reconnect on recoverable errors?
 	}()
@@ -167,6 +167,17 @@ func (value *Value[T]) Follow(ctx *astral.Context) <-chan T {
 	}()
 
 	return out
+}
+
+// apply holds the mutex while it applies a node notification.
+// why: the notification goroutine is the one caller of update that runs outside
+// Bind, Set and Clear, and update writes both cached and queue, which Get,
+// Set, Clear and Follow read under the mutex.
+func (value *Value[T]) apply(val astral.Object) {
+	value.mu.Lock()
+	defer value.mu.Unlock()
+
+	value.update(val, true)
 }
 
 // update updates the cached value and pushes it to the queue
