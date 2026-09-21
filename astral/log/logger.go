@@ -1,18 +1,32 @@
 package log
 
 import (
+	"bufio"
 	"io"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
+	"time"
 
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/fmt"
 	"github.com/astralp2p/astral-go/sig"
 )
 
+// rootQueueCap bounds the rendered lines waiting for the root writer.
+//
+// note: a console write costs microseconds, so the queue absorbs bursts and
+// transient stalls only; a console nobody reads drops.
+const rootQueueCap = 1024
+
+// rootBufferSize sizes the buffer the pump writes through.
+const rootBufferSize = 64 << 10
+
 // Logger writes log entries. Child loggers created via SetPrefix/Tag share the
-// root's filter and registered EntryLoggers; only the root holds that state.
+// root's filter, registered EntryLoggers and writer; only the root holds that
+// state and only the root runs the writer's pump.
 type Logger struct {
 	id      *astral.Identity
 	w       io.Writer
@@ -21,6 +35,10 @@ type Logger struct {
 	prefix  []astral.Object
 	filter  func(*Entry) bool
 	loggers sig.Set[EntryLogger]
+
+	queue     chan string
+	dropped   atomic.Uint64
+	firstDrop atomic.Int64 // unix nanoseconds of the oldest unreported drop
 }
 
 // SetFilter sets the filter on the root; an entry is emitted only when filter is
@@ -46,11 +64,20 @@ type EntryLogger interface {
 	LogEntry(*Entry)
 }
 
+// New returns a root logger writing to os.Stdout through a pump goroutine.
+//
+// note: New is the only constructor that starts the pump; a Logger built as a
+// struct literal queues nothing and drops every line.
 func New(id *astral.Identity) *Logger {
-	return &Logger{
-		id: id,
-		w:  os.Stdout,
+	var l = &Logger{
+		id:    id,
+		w:     os.Stdout,
+		queue: make(chan string, rootQueueCap),
 	}
+
+	go l.pump()
+
+	return l
 }
 
 func (l *Logger) Log(format string, v ...interface{}) {
@@ -127,17 +154,83 @@ func (l *Logger) logf(level uint8, f string, v ...interface{}) {
 }
 
 func (l *Logger) logEntry(e *Entry) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
+	var root = l.root()
 
-	f := l.root().filter
+	root.mu.Lock()
+	var f = root.filter
+	root.mu.Unlock()
+
+	// why: the filter gates the writer alone. A subscriber receives every entry
+	// regardless of the console's verbosity.
 	if f == nil || f(e) {
-		fmt.Fprintf(l.w, "%v\n", e)
+		// why: a view renders arbitrary code — astrald's mod/log resolves an
+		// identity's display name through a database read — so rendering under
+		// the root mutex serializes every goroutine that logs behind that read,
+		// and lets the render re-enter the non-reentrant mutex.
+		// note: one Write per entry; Printer.Printf writes once per token.
+		root.enqueue(fmt.Sprintf("%v\n", e))
 	}
 
-	for _, l := range l.root().loggers.Clone() {
-		l.LogEntry(e)
+	root.mu.Lock()
+	defer root.mu.Unlock()
+
+	for _, el := range root.loggers.Clone() {
+		el.LogEntry(e)
 	}
+}
+
+// enqueue hands a rendered line to the pump, dropping it when the queue is
+// full.
+//
+// why: the root writer defaults to os.Stdout, and a full pipe blocks write(2).
+// Holding the root mutex across that write stopped every goroutine that logs,
+// which is the whole-node freeze an unread subscriber used to cause.
+func (l *Logger) enqueue(line string) {
+	select {
+	case l.queue <- line:
+	default:
+		if l.dropped.Add(1) == 1 {
+			l.firstDrop.Store(time.Now().UnixNano())
+		}
+	}
+}
+
+// pump drains the queue for the process lifetime and is the writer's sole
+// user.
+//
+// note: entries still queued when the process dies are lost. The queue empties
+// within microseconds unless the writer is already stalled.
+func (l *Logger) pump() {
+	var w = bufio.NewWriterSize(l.w, rootBufferSize)
+
+	for line := range l.queue {
+		l.reportDrops(w)
+
+		w.WriteString(line)
+
+		// why: a burst coalesces into one write, and the console flushes as
+		// soon as the queue drains, so a quiet node never sits on a line.
+		if len(l.queue) == 0 {
+			w.Flush()
+		}
+	}
+}
+
+// reportDrops writes one line naming the entries the queue refused since the
+// last report.
+//
+// note: the line is built without the formatter, which renders views and would
+// re-enter the logger.
+func (l *Logger) reportDrops(w *bufio.Writer) {
+	var n = l.dropped.Swap(0)
+	if n == 0 {
+		return
+	}
+
+	var since = time.Unix(0, l.firstDrop.Swap(0))
+
+	w.WriteString("log: dropped " + strconv.FormatUint(n, 10) +
+		" entries since " + since.Format(time.RFC3339) + "\n")
 }
 
 func (l *Logger) root() *Logger {
