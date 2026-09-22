@@ -207,7 +207,7 @@ func (value *Value[T]) clear() {
 	value.queue = value.queue.Push(zero)
 }
 
-func (value Value[T]) WriteTo(writer io.Writer) (n int64, err error) {
+func (value *Value[T]) WriteTo(writer io.Writer) (n int64, err error) {
 	if any(value.cached) == nil {
 		return 0, errors.New("nil value")
 	}
@@ -225,7 +225,7 @@ func (value *Value[T]) ReadFrom(reader io.Reader) (n int64, err error) {
 	return
 }
 
-func (value Value[T]) MarshalJSON() ([]byte, error) {
+func (value *Value[T]) MarshalJSON() ([]byte, error) {
 	if any(value.cached) == nil {
 		return json.Marshal(nil)
 	}

@@ -87,6 +87,30 @@ func TestScopeRouter_PreservesQueryIdentityAndExtra(t *testing.T) {
 	}
 }
 
+// The rewritten query carries a copy of Extra, not the original's map: a write
+// on either side stays on that side.
+func TestScopeRouter_CopiesExtraIntoItsOwnMap(t *testing.T) {
+	scope := &recordingRouter{}
+	router := NewScopeRouter(&recordingRouter{})
+	router.Add("objects", scope)
+
+	id := astral.GenerateIdentity()
+	original := astral.Launch(query.New(id, id, "objects.read", nil))
+	original.Extra.Set("origin", astral.OriginNetwork)
+
+	router.RouteQuery(astral.NewContext(nil), original, nopWriteCloser{})
+
+	scope.seen.Extra.Set("scoped", true)
+	original.Extra.Set("unscoped", true)
+
+	if _, found := original.Extra.Get("scoped"); found {
+		t.Fatal("original Extra: want no key written by the scoped query")
+	}
+	if _, found := scope.seen.Extra.Get("unscoped"); found {
+		t.Fatal("scoped Extra: want no key written by the original query")
+	}
+}
+
 func TestScopeRouter_FallsThroughToRoot(t *testing.T) {
 	cases := []struct {
 		name        string
