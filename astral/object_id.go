@@ -16,6 +16,10 @@ const idPrefix = "data1"
 const partialIDPrefix = "data0"
 const zBase32CharSet = "ybndrfg8ejkmcpqxot1uwisza345h769"
 
+// fullIDBodyLen is the length of the zBase32 encoding of Size||Hash, the longest
+// data1 body.
+const fullIDBodyLen = 64
+
 // partialIDBodyLen is the length of a data0 body: the 64-character encoding of
 // Size||Hash without the 12 characters that carry Size bits alone.
 const partialIDBodyLen = 52
@@ -41,9 +45,17 @@ func ParseID(s string) (id *ObjectID, err error) {
 }
 
 // parseFullID parses a data1 body, from which the encoder stripped every leading 'y'.
+//
+// why: a body longer than fullIDBodyLen never fits the 40-byte buffer, and from 72
+// characters on the decoder panics instead of returning an error. The bound counts the
+// '\n' and '\r' the decoder skips, as the data0 length check does.
 func parseFullID(body string) (*ObjectID, error) {
+	if len(body) > fullIDBodyLen {
+		return nil, errors.New("invalid id length")
+	}
+
 	// Pad with missing leading zeros
-	z := max(64-len(body), 0)
+	z := fullIDBodyLen - len(body)
 	return decodeID(strings.Repeat(zBase32CharSet[0:1], z) + body)
 }
 
@@ -58,7 +70,7 @@ func parsePartialID(body string) (*ObjectID, error) {
 		return nil, errors.New("invalid partial id first character")
 	}
 
-	id, err := decodeID(strings.Repeat(zBase32CharSet[0:1], 64-partialIDBodyLen) + body)
+	id, err := decodeID(strings.Repeat(zBase32CharSet[0:1], fullIDBodyLen-partialIDBodyLen) + body)
 	if err != nil {
 		return nil, err
 	}
