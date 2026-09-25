@@ -7,10 +7,11 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// DeleteAgent removes an agent: revokes its access token, unsets its alias and
-// deletes its record. The agent's queued queries are dropped and its live
-// sessions closed. The signed relay contract stays indexed until it expires.
-// id takes a hex public key or an alias resolved via the directory.
+// DeleteAgent removes an agent: deletes the messaging participant under it —
+// every access token, its alias and its mail — and then its record. The
+// agent's queued queries are dropped and its live sessions closed. The signed
+// relay contract stays indexed until it expires. id takes a hex public key or
+// an alias resolved via the directory.
 func (client *Client) DeleteAgent(ctx *astral.Context, id string) error {
 	ch, err := client.queryCh(ctx, mcp.MethodDeleteAgent, query.Args{"identity": id})
 	if err != nil {

@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"io"
@@ -24,7 +24,7 @@ type Receipt struct {
 
 var _ astral.Object = &Receipt{}
 
-func (r Receipt) ObjectType() string { return "mcp.receipt" }
+func (r Receipt) ObjectType() string { return "messaging.receipt" }
 
 func (r Receipt) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&r).WriteTo(w)

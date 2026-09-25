@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"io"
@@ -7,26 +7,25 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// CallAgentAction requests permission for Actor to start a query to ToID.
+// SendAction requests permission for Actor to send a message to ToID. The
+// sender's node asks it before the message is sent.
 //
-// The actor is the calling agent, and the action asks what that agent is
-// permitted to reach. The node asks it for every query an agent starts through
-// the astral-query tool or a declared tool.
-//
-// It does not guard mail: sending asks mod.messaging.send_action and taking a
-// delivery asks mod.messaging.receive_action, both in package messaging.
-type CallAgentAction struct {
+// The actor is the sending participant, and the action asks whom that
+// participant may write to. Whether the recipient takes the message is
+// ReceiveAction. A message is delivered only when both are granted, and neither
+// party's permission decides the other's.
+type SendAction struct {
 	auth.Action
 	ToID *astral.Identity
 }
 
-func (CallAgentAction) ObjectType() string { return "mod.mcp.call_agent_action" }
+func (SendAction) ObjectType() string { return "mod.messaging.send_action" }
 
-func (a CallAgentAction) WriteTo(w io.Writer) (n int64, err error) {
+func (a SendAction) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&a).WriteTo(w)
 }
 
-func (a *CallAgentAction) ReadFrom(r io.Reader) (n int64, err error) {
+func (a *SendAction) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(a).ReadFrom(r)
 }
 
@@ -37,11 +36,11 @@ func (a *CallAgentAction) ReadFrom(r io.Reader) (n int64, err error) {
 // peer as a flat object while the spec documents it as an Action beside
 // ToID. Contract and Permit declare the same pair for the same reason.
 
-func (a CallAgentAction) MarshalJSON() ([]byte, error) {
+func (a SendAction) MarshalJSON() ([]byte, error) {
 	return astral.Objectify(&a).MarshalJSON()
 }
 
-func (a *CallAgentAction) UnmarshalJSON(b []byte) error {
+func (a *SendAction) UnmarshalJSON(b []byte) error {
 	return astral.Objectify(a).UnmarshalJSON(b)
 }
 
@@ -50,8 +49,8 @@ func (a *CallAgentAction) UnmarshalJSON(b []byte) error {
 // permitted regardless of them — so a permit narrowed by its issuer would be
 // honoured in full. Refusing is the bar that keeps the deferral safe until
 // constraints are implemented.
-func (a CallAgentAction) ApplyConstraints(cs *astral.Bundle) bool {
+func (a SendAction) ApplyConstraints(cs *astral.Bundle) bool {
 	return cs == nil || len(cs.Objects()) == 0
 }
 
-func init() { astral.MustAdd(&CallAgentAction{}) }
+func init() { astral.MustAdd(&SendAction{}) }

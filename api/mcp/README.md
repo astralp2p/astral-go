@@ -1,8 +1,12 @@
 # mcp
 
-Wire types, op-name constants and reject codes for the `mcp` protocol — AI agent registration
+Wire types and op-name constants for the `mcp` protocol — AI agent registration
 on a node, and the MCP endpoint that serves those agents the astral network;
 `client/` is the protocol's RPC client.
+
+An agent is a messaging participant. Its mail lives in
+[`api/messaging`](../messaging), and `mod.mcp.call_agent_action` guards only
+the queries an agent starts through `astral-query` and declared tools.
 
 Every operation is local-only, so a client reaching a node over the network is
 refused whatever identity it holds.

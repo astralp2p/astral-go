@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"database/sql/driver"
@@ -66,7 +66,7 @@ func (id MessageID) String() string {
 
 var _ astral.Object = &MessageID{}
 
-func (MessageID) ObjectType() string { return "mcp.message_id" }
+func (MessageID) ObjectType() string { return "messaging.message_id" }
 
 func (id MessageID) WriteTo(w io.Writer) (n int64, err error) {
 	m, err := w.Write(id[:])
