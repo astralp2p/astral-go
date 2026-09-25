@@ -34,8 +34,13 @@ A participant answers two queries of its own. MethodMessage carries a Message to
 the participant's identity, and its node stores it in that participant's inbox.
 MethodReceipt carries a Receipt back to a sender, and the sender's node stamps
 the message collected. Both are addressed to a participant rather than to a
-node, so they are the queries here a caller reaches over a link. A node answers
-them only for a mailbox it hosts.
+node, so they are the queries here a caller reaches over a link. The node
+sending either query routes it as itself, with the participant the query comes
+from as its caller — the message's sender for a delivery, its recipient for a
+receipt — so a link carries both as relay queries. A node takes either only when
+it arrived over a link or came from the node's own send path, and rejects any
+other copy whatever its target; it answers them only for a mailbox it hosts,
+and any other path addressed to that mailbox is a missing route.
 */
 package messaging
 
@@ -81,6 +86,12 @@ const MethodReceipt = "messaging.receipt"
 // The code carries no reason. Which senders a participant takes is held by an
 // authority the node asks and that answers one bit, so every ground for the
 // refusal reaches the caller as this one code.
+//
+// note: the sender reads this code only when the recipient's mailbox is on the
+// sender's own node. A sending node reaches a recipient on another node through
+// the recipient's relay contract, and its relay path answers a relay's
+// rejection as a missing route. Across nodes the recipient's node still answers
+// this code over the link, and the sender reads a missing route.
 const RejectNotAdmitted = 5
 
 // The two boxes a stored message sits in. A message is in one of them for its

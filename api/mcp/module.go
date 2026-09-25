@@ -3,10 +3,12 @@ Package mcp describes a module that registers AI agents on a node and serves
 them the astral network over the Model Context Protocol.
 
 An agent is a messaging participant: an identity the messaging module mints,
-with its signed relay contract, optional alias and access token, which the
-agent presents to the node's MCP endpoint as a bearer credential. Its mail
-lives in the messaging module and is described by package messaging; this
-module keeps the agent's record and serves the endpoint.
+with its signed relay contract, its signed hosting contract, an optional alias
+and an access token, which the agent presents to the node's MCP endpoint as a
+bearer credential. The endpoint admits any valid apphost access token and reads
+no agent record. Its mail lives in the messaging module and is described by
+package messaging; this module keeps the agent's record and serves the
+endpoint.
 
 One node holds the agents of many tenants and knows no relation between them,
 so it holds no reachability of its own: a query an agent starts through the

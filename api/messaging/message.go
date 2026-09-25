@@ -44,12 +44,10 @@ import (
 // than leaving a dead sixteen bytes on every message. The frame is positional
 // and carries no version marker, so this is not a compatible change: a peer at
 // the revision before it writes a thread where this reads a parent, and the
-// substitution is type-correct and silent. It is safe here because one node
-// delivers to itself — messaging.message is carried by a query that loops
-// back through the router — so both ends of every frame are the same binary. A
-// second node at a different revision is what makes it unsafe, and the answer
-// then is a version marker or a new object type, never a reader guessing which
-// field a peer meant.
+// substitution is type-correct and silent. Deliveries cross links, and no node
+// at the revision before reaches this frame: that revision carries the older
+// names, below. A later change of layout needs a version marker or a new object
+// type, never a reader guessing which field a peer meant.
 //
 // why the names are part of the frame: a delivery is the messaging.message
 // query carrying this object type, and both names were the mcp module's before

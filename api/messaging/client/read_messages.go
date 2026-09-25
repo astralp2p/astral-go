@@ -7,9 +7,10 @@ import (
 )
 
 // ReadMessages reads whole messages from the caller's own mail, with their
-// direct replies. Reading an inbox message's body stamps it read and owes its
-// sender a receipt. The request is sent after the channel is established, not
-// as query args.
+// direct replies. Reading an inbox message stamps it read and tells its sender
+// the body was collected — directly when the node hosts the sender's mailbox,
+// by one receipt otherwise — even when the answer leaves the body out for room.
+// The request is sent after the channel is established, not as query args.
 func (client *Client) ReadMessages(ctx *astral.Context, req *messaging.ReadMessagesRequest) (*messaging.ReadMessagesResult, error) {
 	ch, err := client.queryCh(ctx, messaging.MethodReadMessages, nil)
 	if err != nil {

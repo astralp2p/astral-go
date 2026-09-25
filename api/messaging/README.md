@@ -27,6 +27,13 @@ Every operation is local-only: a query arriving over the network, or carrying
 the MCP origin, is refused whatever identity it holds. The mail operations act
 on the caller's own boxes, and the node must host the caller's mailbox.
 
+`messaging.message` (a delivery) and `messaging.receipt` are queries addressed
+to a participant, not operations. The node sending either query routes it as
+itself, with the participant the query comes from as its caller: the message's
+sender for a delivery, its recipient for a receipt. A node takes either only
+when it arrived over a link or came from its own send path; any other copy is
+rejected whatever its target.
+
 Protocol spec:
 
 * [astral-docs/protocols/messaging](https://github.com/astralp2p/astral-docs/tree/master/protocols/messaging) — overview and op specs

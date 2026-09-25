@@ -8,10 +8,13 @@ import (
 )
 
 // CreateAgent mints a new agent: a messaging participant — a fresh identity
-// with a signed relay contract, an optional alias and an access token — and
-// the record the MCP endpoint admits it by. The agent presents that token to
-// the endpoint. The returned Agent carries it, and it is the only response
-// that does — ListAgents is the sole way to recover it afterwards.
+// with a signed relay contract, a signed contract letting the node host its
+// mailbox, an optional alias and an access token — and the agent record that
+// keeps the token. The agent presents that token to the MCP endpoint, which
+// admits any valid apphost access token. The returned Agent carries it, and it
+// is the only response that does — ListAgents is the sole way to recover it
+// afterwards. When the record cannot be stored, the node deletes the
+// participant again and answers the record's error.
 //
 // An empty alias binds none; the node generates no alias, because an alias is
 // node-global and a name the caller did not choose contends in a namespace it
