@@ -21,9 +21,10 @@ import (
 // does not own. A zero duration leaves the token's lifetime to the node's
 // configured default.
 //
-// The agent it mints reaches and is reached by nobody until something permits
-// it: the node holds no reachability, so an agent sends mail, takes mail or
-// starts a query where a handler, a contract or an external authority says so.
+// The agent it mints exchanges mail with nobody until something permits it: the
+// node holds no reachability, so an agent sends and takes mail where a handler,
+// a contract or an external authority says so. A query a declared tool sends
+// asks no authorization action; its target service decides whether to answer.
 func (client *Client) CreateAgent(ctx *astral.Context, alias string, duration astral.Duration) (agent *mcp.Agent, err error) {
 	// why the keys are lower-case: the node snake-cases and lower-cases op
 	// argument names and binds by that name. A capitalised key reaches the wire

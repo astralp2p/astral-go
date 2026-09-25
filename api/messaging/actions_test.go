@@ -114,15 +114,14 @@ func TestHostMailboxActionRoundTrip(t *testing.T) {
 
 // TestMessagingActionsAreDistinctTypes is what makes the actions separate
 // decisions: the auth registry dispatches on the object type, and a permit
-// matches by it, so a shared one would put both directions, mail and generic
-// queries, or hosting and relaying under one authority. The mcp and nodes
-// actions are spelled out because this package imports neither.
+// matches by it, so a shared one would put both directions, or hosting and
+// relaying, under one authority. The nodes action is spelled out because this
+// package does not import nodes.
 func TestMessagingActionsAreDistinctTypes(t *testing.T) {
 	names := map[string]string{
 		"send":         SendAction{}.ObjectType(),
 		"receive":      ReceiveAction{}.ObjectType(),
 		"host_mailbox": HostMailboxAction{}.ObjectType(),
-		"mcp call":     "mod.mcp.call_agent_action",
 		"nodes relay":  "mod.nodes.relay_for_action",
 	}
 
