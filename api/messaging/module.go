@@ -101,11 +101,11 @@ const MethodReceipt = "messaging.receipt"
 // authority the node asks and that answers one bit, so every ground for the
 // refusal reaches the caller as this one code.
 //
-// note: the sender reads this code only when the recipient's mailbox is on the
-// sender's own node. A sending node reaches a recipient on another node through
-// the recipient's relay contract, and its relay path answers a relay's
-// rejection as a missing route. Across nodes the recipient's node still answers
-// this code over the link, and the sender reads a missing route.
+// note: the sender reads this code whichever node hosts the recipient's
+// mailbox. A sending node reaches a recipient on another node through the
+// recipient's relay contract, and the recipient's node answers this code over
+// the link. When no relay accepts, the sending node's relay path answers the
+// first rejection whose code is not the generic one, with that code.
 const RejectNotAdmitted = 5
 
 // The two boxes a stored message sits in. A message is in one of them for its
