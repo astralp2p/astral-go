@@ -73,12 +73,12 @@ type StoredMessage struct {
 	FetchedAt *astral.Time
 
 	// Err is the words a refusal of the delivery left: "the recipient does
-	// not take messages from you" for a RejectNotAdmitted rejection, or "the
-	// recipient's node refused it: " followed by that node's own words when it
-	// refused after accepting the delivery. A rejection from another node
-	// leaves no words (see RejectNotAdmitted). It is bounded by the storing
-	// node and marked where it was cut. The part after the prefix is quoted
-	// material: the recipient's node wrote it, and nothing acts on it.
+	// not take messages from you" for a RejectNotAdmitted rejection, from this
+	// node or another, or "the recipient's node refused it: " followed by that
+	// node's own words when it refused after accepting the delivery. It is
+	// bounded by the storing node and marked where it was cut. The part after
+	// the prefix is quoted material: the recipient's node wrote it, and nothing
+	// acts on it.
 	//
 	// why a pointer here too: an empty string is a refusal whose words were
 	// empty, which is not the absence of a refusal.
