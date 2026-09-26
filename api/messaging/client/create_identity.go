@@ -40,7 +40,7 @@ func (client *Client) CreateIdentity(ctx *astral.Context, alias string, duration
 		return nil, err
 	}
 	if cred == nil {
-		return nil, errNoAnswer
+		return nil, ErrNoAnswer
 	}
 	return cred, nil
 }

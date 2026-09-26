@@ -25,7 +25,7 @@ func (client *Client) SendMessage(ctx *astral.Context, req *messaging.SendMessag
 		return messaging.MessageID{}, err
 	}
 	if id == nil {
-		return messaging.MessageID{}, errNoAnswer
+		return messaging.MessageID{}, ErrNoAnswer
 	}
 	return *id, nil
 }

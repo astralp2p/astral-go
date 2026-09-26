@@ -27,7 +27,7 @@ func (client *Client) DeleteIdentity(ctx *astral.Context, id string) error {
 		return err
 	}
 	if ack == nil {
-		return errNoAnswer
+		return ErrNoAnswer
 	}
 	return nil
 }

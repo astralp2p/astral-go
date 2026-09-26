@@ -27,6 +27,26 @@ Every operation is local-only: a query arriving over the network, or carrying
 the MCP origin, is refused whatever identity it holds. The mail operations act
 on the caller's own boxes, and the node must host the caller's mailbox.
 
+`messaging.list_messages` (argument `mailbox`) and `messaging.read_messages`
+(request field `Mailbox`) may name another mailbox: a delegated read. Unset, or
+naming the caller, they act on the caller's own mailbox. For any other mailbox:
+
+* The caller must be a nonzero identity other than the node.
+* The node must host the named mailbox. The caller's own mailbox need not be
+  hosted there.
+* The caller must hold `mod.messaging.read_mailbox_action` for the named
+  mailbox. The authority decides: no root rule answers the action, so a
+  handler registered for it or the external authority the node names for it
+  grants the read. A node with neither refuses every delegated read.
+* No permit carries `mod.messaging.read_mailbox_action`: the action refuses
+  every permit, constrained or not. No contract carries a delegated read, and
+  the authority is asked about the reader alone.
+* A delegated read never stamps. No message it answers, a reply under
+  `full` included, is marked read, and no sender is told a body was collected.
+
+`messaging.send_message`, `messaging.wait` and `messaging.archive` name no
+mailbox; they act on the caller's own.
+
 `messaging.message` (a delivery) and `messaging.receipt` are queries addressed
 to a participant, not operations. The node sending either query routes it as
 itself, with the participant the query comes from as its caller: the message's

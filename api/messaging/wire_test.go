@@ -115,6 +115,7 @@ func wireCases() map[string]astral.Object {
 		"send_message_request":             &SendMessageRequest{To: "scout", Content: "hello", ParentID: NewMessageID()},
 		"send_message_request zero":        &SendMessageRequest{},
 		"read_messages_request":            &ReadMessagesRequest{Refs: []*MessageRef{ref, {Box: BoxOutbox, ID: NewMessageID()}}, Children: ChildrenFull, MaxChildren: 3},
+		"read_messages_request mailbox":    &ReadMessagesRequest{Refs: []*MessageRef{ref}, Children: ChildrenNone, Mailbox: other},
 		"read_messages_request nil refs":   &ReadMessagesRequest{},
 		"read_messages_request empty refs": &ReadMessagesRequest{Refs: []*MessageRef{}},
 		"read_message":                     read,
@@ -135,6 +136,8 @@ func wireCases() map[string]astral.Object {
 		"receive_action zero":              &ReceiveAction{},
 		"host_mailbox_action":              &HostMailboxAction{Action: auth.NewAction(actor), MailboxID: other},
 		"host_mailbox_action zero":         &HostMailboxAction{},
+		"read_mailbox_action":              &ReadMailboxAction{Action: auth.NewAction(actor), MailboxID: other},
+		"read_mailbox_action zero":         &ReadMailboxAction{},
 	}
 }
 
@@ -176,6 +179,7 @@ func TestObjectTypesAreTheMessagingNames(t *testing.T) {
 		"mod.messaging.send_action":         &SendAction{},
 		"mod.messaging.receive_action":      &ReceiveAction{},
 		"mod.messaging.host_mailbox_action": &HostMailboxAction{},
+		"mod.messaging.read_mailbox_action": &ReadMailboxAction{},
 	} {
 		if got := proto.ObjectType(); got != want {
 			t.Errorf("%T: object type %q, want %q", proto, got, want)

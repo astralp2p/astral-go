@@ -26,7 +26,7 @@ func (client *Client) Identity(ctx *astral.Context, id string) (*messaging.Ident
 		return nil, err
 	}
 	if info == nil {
-		return nil, errNoAnswer
+		return nil, ErrNoAnswer
 	}
 	return info, nil
 }

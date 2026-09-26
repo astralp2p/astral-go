@@ -7,7 +7,8 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// MessageRef names one row of the caller's own mail.
+// MessageRef names one row of a mailbox: the caller's own, or the one a
+// delegated read names.
 //
 // why the box is part of the name: an id is the peer's to choose, so one owner
 // may hold a row under it in each box, and the archive spans both. The box is

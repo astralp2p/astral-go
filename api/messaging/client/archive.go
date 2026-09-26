@@ -27,7 +27,7 @@ func (client *Client) Archive(ctx *astral.Context, ref messaging.MessageRef, und
 		return false, err
 	}
 	if res == nil {
-		return false, errNoAnswer
+		return false, ErrNoAnswer
 	}
 	return bool(res.Changed), nil
 }

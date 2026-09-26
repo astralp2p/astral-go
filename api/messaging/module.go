@@ -30,6 +30,20 @@ is a query carrying the mcp origin, so an agent reaches none of these
 operations on its own host node. A caller of the mail operations acts on its own
 boxes, and the node must host the caller's mailbox.
 
+MethodListMessages and MethodReadMessages may name another mailbox: a delegated
+read. The caller must be a nonzero identity other than the node, the node must
+host the named mailbox, and the caller must hold
+mod.messaging.read_mailbox_action (ReadMailboxAction) for it; the caller's own
+mailbox need not be hosted there. The authority decides: no root rule answers
+the action, so a handler registered for it or the external authority the node
+names for it grants the read, and a node with neither refuses every delegated
+read. No permit carries the action: ReadMailboxAction refuses every permit, so
+no contract carries a delegated read and the authority is asked about the
+reader alone. A delegated read never stamps: no message it answers, reply
+included, is marked read, and no sender is told a body was collected.
+MethodSendMessage, MethodWait and MethodArchive name no mailbox and act on the
+caller's own.
+
 A participant answers two queries of its own. MethodMessage carries a Message to
 the participant's identity, and its node stores it in that participant's inbox.
 MethodReceipt carries a Receipt back to a sender, and the sender's node stamps

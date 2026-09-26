@@ -7,11 +7,12 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// ReadMessagesResult is what MethodReadMessages answers. Messages are the rows
-// the request named and the caller holds, in the request's order. Replies are
-// their direct replies the answer carries, as the request's Children mode
-// asked. NotFound names every requested row the caller does not hold; the rest
-// are read regardless.
+// ReadMessagesResult is what MethodReadMessages answers. The mailbox read is
+// the caller's own, or the one the request's Mailbox names. Messages are the
+// rows the request named and the mailbox read holds, in the request's order.
+// Replies are their direct replies the answer carries, as the request's
+// Children mode asked. NotFound names every requested row the mailbox read
+// does not hold; the rest are read regardless.
 //
 // why the replies are a flat set beside the messages: the edge is on the reply,
 // which names its parent in ParentID, and a nested answer refers to its own

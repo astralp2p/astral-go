@@ -44,7 +44,7 @@ func (client *Client) Wait(ctx *astral.Context, req messaging.WaitRequest) (*mes
 	if err != nil {
 		return nil, err
 	}
-	return nil, errNoAnswer
+	return nil, ErrNoAnswer
 }
 
 // Wait calls the operation on the default client.

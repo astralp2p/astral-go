@@ -188,14 +188,64 @@ func TestListMessages_SendsOnlyWhatIsSet(t *testing.T) {
 	c, router = answeringClient(t, &astral.EOS{})
 	_, err = c.ListMessages(ctx(), messaging.ListMessagesRequest{
 		List: "inbox", From: "scout", To: "ranger", Since: 42, UnreadOnly: true, AwaitingPickup: true,
+		Mailbox: "ranger",
 	})
 	if err != nil {
 		t.Fatalf("ListMessages: %v", err)
 	}
 	assertQuery(t, router, "messaging.list_messages", map[string]string{
 		"list": "inbox", "from": "scout", "to": "ranger", "since": "42",
-		"unread_only": "true", "awaiting_pickup": "true",
+		"unread_only": "true", "awaiting_pickup": "true", "mailbox": "ranger",
 	})
+}
+
+// A delegated listing names the mailbox beside the list, and names nothing else
+// the request left unset.
+func TestListMessages_NamesAnotherMailbox(t *testing.T) {
+	mailbox := astral.GenerateIdentity().String()
+
+	c, router := answeringClient(t, &messaging.Envelope{Cursor: 8}, &astral.EOS{})
+	list, err := c.ListMessages(ctx(), messaging.ListMessagesRequest{List: "outbox", Mailbox: mailbox})
+	if err != nil {
+		t.Fatalf("ListMessages: %v", err)
+	}
+	assertQuery(t, router, "messaging.list_messages", map[string]string{"list": "outbox", "mailbox": mailbox})
+	if len(list) != 1 || list[0].Cursor != 8 {
+		t.Fatalf("list: want cursor 8, got %+v", list)
+	}
+}
+
+// A listing the node ends before its eos is an error with no envelopes: the eos
+// is what says the list is whole, and a stream cut short reads like one that
+// ended.
+func TestListMessages_AStreamCutShortIsAnError(t *testing.T) {
+	c, _ := answeringClient(t, &messaging.Envelope{Cursor: 3}, &messaging.Envelope{Cursor: 4})
+	list, err := c.ListMessages(ctx(), messaging.ListMessagesRequest{List: "inbox"})
+	if !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("want io.ErrUnexpectedEOF, got %v", err)
+	}
+	if list != nil {
+		t.Fatalf("list: want none, got %v envelopes", len(list))
+	}
+
+	c, _ = answeringClient(t)
+	if _, err = c.ListMessages(ctx(), messaging.ListMessagesRequest{}); !errors.Is(err, io.ErrUnexpectedEOF) {
+		t.Fatalf("an empty stream: want io.ErrUnexpectedEOF, got %v", err)
+	}
+}
+
+// A listing the node ends with an error object returns that error and no
+// envelopes.
+func TestListMessages_AnErrorObjectIsTheError(t *testing.T) {
+	c, _ := answeringClient(t, &messaging.Envelope{Cursor: 3}, astral.NewError("unknown correspondent: scout"))
+	list, err := c.ListMessages(ctx(), messaging.ListMessagesRequest{From: "scout"})
+	var said *astral.ErrorMessage
+	if !errors.As(err, &said) || said.Error() != "unknown correspondent: scout" {
+		t.Fatalf("want the node's error, got %v", err)
+	}
+	if list != nil {
+		t.Fatalf("list: want none, got %v envelopes", len(list))
+	}
 }
 
 func TestReadMessages_SendsTheRequestAsTheBody(t *testing.T) {
@@ -219,6 +269,33 @@ func TestReadMessages_SendsTheRequestAsTheBody(t *testing.T) {
 	}
 	if len(body.Refs) != 1 || *body.Refs[0] != *ref || body.Children != "full" || body.MaxChildren != 4 {
 		t.Fatalf("body: want %+v, got %+v", req, body)
+	}
+	if body.Mailbox != nil {
+		t.Fatalf("mailbox: want none for the caller's own, got %v", body.Mailbox)
+	}
+}
+
+// A delegated read names the mailbox in the body, never as a query argument.
+func TestReadMessages_CarriesTheNamedMailboxInTheBody(t *testing.T) {
+	mailbox := astral.GenerateIdentity()
+	ref := &messaging.MessageRef{Box: "outbox", ID: messaging.NewMessageID()}
+	req := &messaging.ReadMessagesRequest{Refs: []*messaging.MessageRef{ref}, Mailbox: mailbox}
+
+	c, router := answeringClient(t, &messaging.ReadMessagesResult{})
+	if _, err := c.ReadMessages(ctx(), req); err != nil {
+		t.Fatalf("ReadMessages: %v", err)
+	}
+	assertQuery(t, router, "messaging.read_messages", nil)
+
+	body, ok := sentObject(t, router).(*messaging.ReadMessagesRequest)
+	if !ok {
+		t.Fatal("the body is not a read_messages_request")
+	}
+	if body.Mailbox == nil || !body.Mailbox.IsEqual(mailbox) {
+		t.Fatalf("mailbox: want %v, got %v", mailbox, body.Mailbox)
+	}
+	if len(body.Refs) != 1 || *body.Refs[0] != *ref {
+		t.Fatalf("refs: want %+v, got %+v", req.Refs, body.Refs)
 	}
 }
 
@@ -318,8 +395,8 @@ func TestSingleAnswerOps_NoAnswerIsAnError(t *testing.T) {
 	for name, call := range calls {
 		t.Run(name, func(t *testing.T) {
 			c, _ := answeringClient(t)
-			if err := call(c); !errors.Is(err, errNoAnswer) {
-				t.Fatalf("want errNoAnswer, got %v", err)
+			if err := call(c); !errors.Is(err, ErrNoAnswer) {
+				t.Fatalf("want ErrNoAnswer, got %v", err)
 			}
 		})
 	}
