@@ -12,8 +12,8 @@ import (
 //
 // The node answers "unknown identity" when id resolves to no identity, and
 // "identity not found" when its mailbox index has no entry for the identity.
-// An entry the node does not serve — one still pending, or one whose hosting
-// contract has expired — is answered like any other.
+// An entry the node does not serve — one whose hosting contract has expired
+// or no longer authorizes — is answered like any other.
 func (client *Client) Identity(ctx *astral.Context, id string) (*messaging.IdentityInfo, error) {
 	ch, err := client.queryCh(ctx, messaging.MethodIdentity, query.Args{"identity": id})
 	if err != nil {
