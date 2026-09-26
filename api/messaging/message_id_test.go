@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"encoding/json"
@@ -32,8 +32,8 @@ func TestMessageID_MintedIsDistinct(t *testing.T) {
 	}
 }
 
-// The identifier reaches an agent's model as text it copies back into a tool
-// call, so its JSON form is the hex string and not an array of bytes.
+// The identifier reaches a participant as text it copies back into a request,
+// so its JSON form is the hex string and not an array of bytes.
 func TestMessageID_MarshalsAsHexString(t *testing.T) {
 	data, err := json.Marshal(mustParseID(sampleID))
 	if err != nil {

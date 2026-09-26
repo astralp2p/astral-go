@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"encoding/json"
@@ -7,10 +7,10 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// Message is one message an agent sends to another agent. The recipient's node
-// stores it and answers an Ack, and the recipient reads it on its own schedule,
-// so neither agent has to be present while the other is. Carried by the
-// MethodMessage query.
+// Message is one message a participant sends to another participant. The
+// recipient's node stores it and answers an Ack, and the recipient reads it on
+// its own schedule, so neither participant has to be present while the other
+// is. Carried by the MethodMessage query.
 //
 // why it names neither party: the sender is the query's caller and the
 // recipient its target. A field would be a second claim about a fact the route
@@ -31,9 +31,9 @@ import (
 //
 // why the parent is a claim and is still refused when unheld: the value is the
 // sender's, while the sender and the recipient are the route's. The recipient's
-// node refuses a parent it does not hold, and the sending agent's node refuses
-// one that agent does not hold — a message has one of each, so a parent is a
-// message between exactly these two parties, and no agent replies into an
+// node refuses a parent it does not hold, and the sender's node refuses one the
+// sender does not hold — a message has one of each, so a parent is a message
+// between exactly these two parties, and no participant replies into an
 // exchange it is not part of. That also makes an exchange a forest: every
 // parent names a message stored earlier, so no chain of links returns to where
 // it began, and a message naming itself is refused as the same rule's cheapest
@@ -44,12 +44,16 @@ import (
 // than leaving a dead sixteen bytes on every message. The frame is positional
 // and carries no version marker, so this is not a compatible change: a peer at
 // the revision before it writes a thread where this reads a parent, and the
-// substitution is type-correct and silent. It is safe here because one node
-// delivers to itself — mcp.message is carried by a query that loops back
-// through the router — so both ends of every frame are the same binary. A
-// second node at a different revision is what makes it unsafe, and the answer
-// then is a version marker or a new object type, never a reader guessing which
-// field a peer meant.
+// substitution is type-correct and silent. Deliveries cross links, and no node
+// at the revision before reaches this frame: that revision carries the older
+// names, below. A later change of layout needs a version marker or a new object
+// type, never a reader guessing which field a peer meant.
+//
+// why the names are part of the frame: a delivery is the messaging.message
+// query carrying this object type, and both names were the mcp module's before
+// messaging left it. A node carrying the older names neither reaches nor reads
+// a node carrying these, so nodes of the two revisions do not interoperate and
+// move together.
 //
 // A field is otherwise only ever appended: the channel frames a payload with a
 // length prefix and decodes from that bounded buffer, so a reader that predates
@@ -65,7 +69,7 @@ type Message struct {
 
 var _ astral.Object = &Message{}
 
-func (m Message) ObjectType() string { return "mcp.message" }
+func (m Message) ObjectType() string { return "messaging.message" }
 
 func (m Message) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&m).WriteTo(w)

@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"bytes"
@@ -9,6 +9,12 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
 )
+
+// timeWithNanos is a fixed instant carrying sub-second precision: astral.Time
+// encodes as UnixNano, so a lost nanosecond shows up as a changed stamp.
+func timeWithNanos() time.Time {
+	return time.Unix(1700000000, 123456789).UTC()
+}
 
 func ptrTime(t time.Time) *astral.Time {
 	v := astral.Time(t)
@@ -105,8 +111,8 @@ func TestStoredMessage_AnUnsetInstantSurvivesAsUnset(t *testing.T) {
 	}
 }
 
-// The record travels the same JSON channel the agent records do, which is the
-// path an op under out=json takes.
+// The record travels the JSON channel, which is the path an op under out=json
+// takes.
 func TestStoredMessage_JSONChannelRoundTrip(t *testing.T) {
 	src := sampleStoredMessage()
 

@@ -7,8 +7,8 @@ import (
 )
 
 // SeeNodeStateAction requests permission for Actor to read the node's state:
-// tree values and listings, the directory's alias map and filters, agent
-// metadata, and the node's log stream.
+// tree values and listings, the directory's alias map and filters, messaging
+// identity and agent metadata, and the node's log stream.
 //
 // One action covers configuration reads and the log. A holder therefore reads
 // other callers' logged activity as well as node metadata.

@@ -12,7 +12,7 @@ import (
 // moment it stops being accepted.
 //
 // A zero duration leaves the token's lifetime to the node's configured
-// default, as it does for CreateAgent.
+// default, as it does for messaging's CreateIdentity.
 func (client *Client) CreateToken(ctx *astral.Context, identity *astral.Identity, duration astral.Duration) (token *apphost.AccessToken, err error) {
 	// why the keys are lower-case: the node snake-cases and lower-cases op
 	// argument names and binds by that name. A capitalised key reaches the wire

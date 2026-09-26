@@ -7,8 +7,8 @@ import (
 )
 
 // AdminManageAppsAction requests permission for Actor to administer app and
-// agent credentials on the node: create, list and delete apphost access tokens
-// and MCP agents.
+// participant credentials on the node: create and delete messaging identities,
+// and create, list and delete apphost access tokens and MCP agents.
 //
 // Listing is administration here, not a separate read tier: a list hands out
 // the bearer credentials it enumerates.

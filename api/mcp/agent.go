@@ -7,8 +7,8 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// Agent is an AI agent registered with the mcp module: an identity minted by
-// the node plus the access token the agent presents to the MCP endpoint.
+// Agent is an AI agent registered with the mcp module: a messaging participant
+// plus the access token the agent presents to the MCP endpoint.
 //
 // The token is a credential. AgentInfo is the same record without it, and is
 // what a caller reads about an agent whose credentials it does not hold.

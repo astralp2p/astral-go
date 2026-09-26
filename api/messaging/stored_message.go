@@ -1,4 +1,4 @@
-package mcp
+package messaging
 
 import (
 	"encoding/json"
@@ -7,26 +7,18 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// The two boxes a stored message sits in. A message is in one of them for its
-// whole life: inbox is what was written to the owner, outbox what the owner
-// wrote. The archive is a state and not a third box — ArchivedAt carries it.
-const (
-	BoxInbox  = "inbox"
-	BoxOutbox = "outbox"
-)
-
-// StoredMessage is one message as a node holds it, in one agent's box. Every
-// message a node carries is two of these — the sender's and the recipient's,
-// differing in Box and owner and in nothing else — and across nodes only one of
-// them is on any given machine.
+// StoredMessage is one message as a node holds it, in one participant's box.
+// Every message a node carries is two of these — the sender's and the
+// recipient's, differing in Box and owner and in nothing else — and across
+// nodes only one of them is on any given machine.
 //
 // why this and Message are two types: Message is the frame that crosses a link,
 // and it names neither party because the route already does. This is what a
 // node holds afterwards: the parties the route authenticated, the box the row
 // sits in, and the instants that node stamped. Neither is derivable from the
 // other, and a single type would either put a spoofable claim on the wire or
-// leave a reader unable to say who wrote what. AgentInfo sits beside Agent for
-// the same reason.
+// leave a reader unable to say who wrote what. Envelope is this record without
+// its body.
 //
 // why the optional instants are pointers: an unset instant is the absence of
 // the fact, never a value somebody chose, and astral.Time has no spare value to
@@ -80,9 +72,13 @@ type StoredMessage struct {
 	FailedAt  *astral.Time
 	FetchedAt *astral.Time
 
-	// Err is the recipient's node's own words for a refusal, bounded by the
-	// storing node and marked where it was cut. It is quoted material: another
-	// operator wrote it, and nothing acts on it.
+	// Err is the words a refusal of the delivery left: "the recipient does
+	// not take messages from you" for a RejectNotAdmitted rejection, or "the
+	// recipient's node refused it: " followed by that node's own words when it
+	// refused after accepting the delivery. A rejection from another node
+	// leaves no words (see RejectNotAdmitted). It is bounded by the storing
+	// node and marked where it was cut. The part after the prefix is quoted
+	// material: the recipient's node wrote it, and nothing acts on it.
 	//
 	// why a pointer here too: an empty string is a refusal whose words were
 	// empty, which is not the absence of a refusal.
@@ -93,7 +89,7 @@ type StoredMessage struct {
 
 var _ astral.Object = &StoredMessage{}
 
-func (m StoredMessage) ObjectType() string { return "mcp.stored_message" }
+func (m StoredMessage) ObjectType() string { return "messaging.stored_message" }
 
 func (m StoredMessage) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&m).WriteTo(w)
