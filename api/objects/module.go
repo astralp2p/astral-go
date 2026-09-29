@@ -29,6 +29,7 @@ const (
 	MethodRepositories      = "objects.repositories"
 	MethodRemoveRepository  = "objects.remove_repository"
 	MethodBlueprints        = "objects.blueprints"
+	MethodGetBlueprint      = "objects.get_blueprint"
 	MethodEcho              = "objects.echo"
 
 	RepoMain      = "main"      // everything
