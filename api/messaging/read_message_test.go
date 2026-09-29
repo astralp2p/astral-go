@@ -1,6 +1,7 @@
 package messaging
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -73,5 +74,35 @@ func TestReadMessagesResult_NotFoundNamesTheRow(t *testing.T) {
 	dst := jsonRoundTrip(t, &ReadMessagesResult{NotFound: []*MessageRef{ref}}).(*ReadMessagesResult)
 	if len(dst.NotFound) != 1 || *dst.NotFound[0] != *ref {
 		t.Fatalf("not found: want [%+v], got %+v", *ref, dst.NotFound)
+	}
+}
+
+// astral's slice codec writes an empty slice as [], and a reader in another
+// language may reject null where it expects a list.
+func TestMessaging_AnEmptySliceMarshalsAsAList(t *testing.T) {
+	for name, tc := range map[string]struct {
+		obj    json.Marshaler
+		fields []string
+	}{
+		"read_message":          {ReadMessage{}, []string{"ChildIDs"}},
+		"read_messages_request": {ReadMessagesRequest{}, []string{"Refs"}},
+		"read_messages_result":  {ReadMessagesResult{}, []string{"Messages", "Replies", "NotFound"}},
+		"wait_result":           {WaitResult{}, []string{"Messages"}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw, err := tc.obj.MarshalJSON()
+			if err != nil {
+				t.Fatal(err)
+			}
+			var fields map[string]json.RawMessage
+			if err := json.Unmarshal(raw, &fields); err != nil {
+				t.Fatal(err)
+			}
+			for _, k := range tc.fields {
+				if got := string(fields[k]); got != "[]" {
+					t.Errorf("%s marshals as %s, want []", k, got)
+				}
+			}
+		})
 	}
 }

@@ -39,9 +39,9 @@ func (r *ReadMessagesResult) ReadFrom(rd io.Reader) (n int64, err error) {
 
 // json
 
+// MarshalJSON goes through astral's codec, so an empty slice is [] and never null.
 func (r ReadMessagesResult) MarshalJSON() ([]byte, error) {
-	type alias ReadMessagesResult
-	return json.Marshal(alias(r))
+	return astral.Objectify(&r).MarshalJSON()
 }
 
 func (r *ReadMessagesResult) UnmarshalJSON(bytes []byte) error {
