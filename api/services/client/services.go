@@ -11,6 +11,10 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
+// ErrStreamEnded reports a discovery stream that closed without a terminal
+// error: before the initial boundary, or at any point while following.
+var ErrStreamEnded = errors.New("discovery stream ended")
+
 type Client struct {
 	astral   *astrald.Client
 	targetID *astral.Identity
@@ -32,81 +36,115 @@ func Default() *Client {
 	return defaultClient
 }
 
-// Discover streams service updates from the target node. The channel first delivers the current
-// snapshot; when follow is true a nil sentinel marks the snapshot/live boundary, followed by
-// live updates until ctx is cancelled. When follow is false the channel closes after the snapshot.
-func (client *Client) Discover(ctx *astral.Context, follow bool) (<-chan *services.Update, error) {
-	ch, err := client.queryCh(ctx, services.MethodDiscover, query.Args{
-		"follow": follow,
-	})
+// Event is one item of a discovery stream. Exactly one field is set.
+type Event struct {
+	Update  *services.Update        // one complete offering
+	Removed []*services.OfferingKey // shown offerings whose provider was lost
+	Initial *InitialOutcome         // the end of the initial attempt, sent once
+	Err     error                   // terminal; the channel closes after it
+}
+
+// InitialOutcome reports whether the initial attempt completed. Incomplete
+// names requested services whose initial work did not resolve.
+type InitialOutcome struct {
+	Complete   bool
+	Incomplete []string
+}
+
+// Discover evaluates names for the caller on the target node. Without follow
+// the stream ends after the Initial event; with follow it continues until ctx
+// ends or the node closes it.
+func (client *Client) Discover(ctx *astral.Context, names []string, follow bool) (<-chan Event, error) {
+	list := services.JoinNames(names)
+	if _, err := services.ParseNames(list); err != nil {
+		return nil, err
+	}
+	ch, err := client.queryCh(ctx, services.MethodDiscover, query.Args{"services": list, "follow": follow})
 	if err != nil {
 		return nil, err
 	}
 
-	var out = make(chan *services.Update)
-
-	go func() {
-		defer ch.Close()
-		defer close(out)
-
-		// read the snapshot until EOS
-		err := ch.Collect(func(object astral.Object) error {
-			switch obj := object.(type) {
-			case *services.Update:
-				select {
-				case <-ctx.Done():
-					return ctx.Err()
-				case out <- obj:
-				}
-				return nil
-
-			case *astral.EOS:
-				return io.EOF
-
-			default:
-				return astral.NewErrUnexpectedObject(object)
-			}
-		})
-		switch {
-		case err == nil:
-			return
-		case errors.Is(err, io.EOF):
-		default:
-			return
-		}
-
-		if !follow {
-			return
-		}
-
-		// send the separator
-		select {
-		case <-ctx.Done():
-			return
-		case out <- nil:
-		}
-
-		// handle updates
-		ch.Handle(ctx, func(object astral.Object) {
-			switch obj := object.(type) {
-			case *services.Update:
-				select {
-				case <-ctx.Done():
-					ch.Close()
-				case out <- obj:
-				}
-
-			default:
-				ch.Close()
-			}
-		})
-	}()
-
+	out := make(chan Event)
+	go readDiscovery(ctx, ch, follow, out)
 	return out, nil
 }
 
-func Discover(ctx *astral.Context, follow bool) (<-chan *services.Update, error) {
-	return Default().Discover(ctx, follow)
+// Discover runs Discover on the default client.
+func Discover(ctx *astral.Context, names []string, follow bool) (<-chan Event, error) {
+	return Default().Discover(ctx, names, follow)
+}
+
+func readDiscovery(ctx *astral.Context, ch *channel.Channel, follow bool, out chan<- Event) {
+	defer close(out)
+	defer ch.Close()
+
+	r := discoveryReader{follow: follow}
+	err := ch.Collect(func(o astral.Object) error {
+		ev, stop, err := r.read(o)
+		if err != nil {
+			return err
+		}
+		if ev != nil {
+			select {
+			case out <- *ev:
+			case <-ctx.Done():
+				return ctx.Err()
+			}
+		}
+		if stop {
+			return io.EOF
+		}
+		return nil
+	})
+
+	switch {
+	case errors.Is(err, io.EOF) && r.boundary && !follow:
+		return
+	case err == nil:
+		err = ErrStreamEnded
+	}
+	select {
+	case out <- Event{Err: err}:
+	case <-ctx.Done():
+	}
+}
+
+type discoveryReader struct {
+	follow     bool
+	boundary   bool
+	incomplete *services.Incomplete
+}
+
+// read turns one stream object into an event, and reports whether the stream
+// is done.
+func (r *discoveryReader) read(o astral.Object) (*Event, bool, error) {
+	switch obj := o.(type) {
+	case *services.Update:
+		return &Event{Update: obj}, false, nil
+	case *services.Removed:
+		return &Event{Removed: obj.Offerings}, false, nil
+	case *services.Incomplete:
+		r.incomplete = obj
+		return nil, false, nil
+	case *astral.EOS:
+		r.boundary = true
+		return &Event{Initial: outcome(r.incomplete)}, !r.follow, nil
+	case *astral.ErrorMessage:
+		return nil, false, obj
+	default:
+		return nil, false, astral.NewErrUnexpectedObject(o)
+	}
+}
+
+func outcome(inc *services.Incomplete) *InitialOutcome {
+	if inc == nil {
+		return &InitialOutcome{Complete: true}
+	}
+	o := &InitialOutcome{}
+	for _, s := range inc.Services {
+		o.Incomplete = append(o.Incomplete, string(s))
+	}
+	return o
 }
 
 func (client *Client) queryCh(ctx *astral.Context, method string, args any, cfg ...channel.ConfigFunc) (*channel.Channel, error) {

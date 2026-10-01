@@ -389,3 +389,35 @@ func main() {
 
 `WithRegistrationHooks(h1, h2, ...)` adds several hooks in one call. Nil
 serve options or nil hooks return an error before serving.
+
+## Offering services
+
+`WithServices` advertises a provider's services on every registration and
+reconnect. The node asks the provider what each caller is offered; the
+provider answers with one function per service.
+
+```go
+p := services.NewProvider(map[string]services.OfferingFunc{
+	"player": func(ctx *astral.Context, caller *astral.Identity) (*api.Update, error) {
+		ops := astral.NewBundle()
+		_ = ops.Append(&api.OperationsList{Operations: []astral.String8{"player.play", "player.pause"}})
+		return &api.Update{Available: true, Info: ops}, nil
+	},
+})
+
+err := apps.Serve(ctx, routing.NewApp(&API{}), apps.WithServices(p))
+```
+
+`services` is `api/services/client` and `api` is `api/services`.
+
+* The handler leaves `Name` and `ProviderID` empty; the SDK sets `Name` and the
+  node sets `ProviderID`.
+* A handler error or a nil update is answered as unavailable.
+* `p.Change(callers...)` asks the node to re-evaluate those callers;
+  `p.ChangeAll()` re-evaluates every following caller. Without an open binding
+  both do nothing.
+* An advertise refused because the node still holds the previous binding is
+  retried with backoff for 30 seconds.
+
+A consumer follows offerings with `services.Watch(ctx, names)`, which keeps the
+current set and reports the outcome of the initial attempt on `Initial()`.
