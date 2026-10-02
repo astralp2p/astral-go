@@ -102,8 +102,25 @@ func wireCases() map[string]astral.Object {
 		Truncated: true,
 	}
 	actor, other := astral.GenerateIdentity(), astral.GenerateIdentity()
+	listed := &ListedMessage{Rev: 9, Envelope: full.Envelope()}
+	conv := &Conversation{Peer: other, Latest: full.Envelope(), Unread: 3, Rev: 11}
+	tomb := &Conversation{Peer: other, Rev: 12}
 
 	return map[string]astral.Object{
+		"listed_message":                   listed,
+		"listed_message zero":              &ListedMessage{},
+		"message_page":                     &MessagePage{Messages: []*ListedMessage{listed}, NextBefore: 40, Rev: 90, Generation: 3},
+		"message_page end":                 &MessagePage{Messages: []*ListedMessage{}, Rev: 90},
+		"message_page zero":                &MessagePage{},
+		"message_changes":                  &MessageChanges{Messages: []*ListedMessage{listed}, NextRev: 9, More: true, Generation: 3},
+		"message_changes zero":             &MessageChanges{},
+		"conversation":                     conv,
+		"conversation tombstone":           tomb,
+		"conversation zero":                &Conversation{},
+		"conversation_page":                &ConversationPage{Conversations: []*Conversation{conv}, NextBefore: 5, Rev: 90, Generation: 1},
+		"conversation_page zero":           &ConversationPage{},
+		"conversation_changes":             &ConversationChanges{Conversations: []*Conversation{conv, tomb}, NextRev: 12, More: false},
+		"conversation_changes zero":        &ConversationChanges{},
 		"envelope":                         full.Envelope(),
 		"envelope zero":                    &Envelope{},
 		"message_ref":                      ref,
@@ -176,6 +193,12 @@ func TestObjectTypesAreTheMessagingNames(t *testing.T) {
 		"messaging.read_messages_result":    &ReadMessagesResult{},
 		"messaging.wait_result":             &WaitResult{},
 		"messaging.archive_result":          &ArchiveResult{},
+		"messaging.listed_message":          &ListedMessage{},
+		"messaging.message_page":            &MessagePage{},
+		"messaging.message_changes":         &MessageChanges{},
+		"messaging.conversation":            &Conversation{},
+		"messaging.conversation_page":       &ConversationPage{},
+		"messaging.conversation_changes":    &ConversationChanges{},
 		"mod.messaging.send_action":         &SendAction{},
 		"mod.messaging.receive_action":      &ReceiveAction{},
 		"mod.messaging.host_mailbox_action": &HostMailboxAction{},

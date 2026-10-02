@@ -67,6 +67,11 @@ const (
 	MethodReadMessages   = "messaging.read_messages"
 	MethodWait           = "messaging.wait"
 	MethodArchive        = "messaging.archive"
+
+	MethodPageMessages            = "messaging.page_messages"
+	MethodListMessageChanges      = "messaging.list_message_changes"
+	MethodPageConversations       = "messaging.page_conversations"
+	MethodListConversationChanges = "messaging.list_conversation_changes"
 )
 
 // MethodMessage is the query that delivers a Message, addressed to the
