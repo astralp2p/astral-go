@@ -1,65 +1,117 @@
 package services
 
 import (
+	"log"
+	"sync"
+
 	"github.com/astralp2p/astral-go/api/services"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// Advertisement is a standing service advertisement. It owns the channel the
-// advertisement lives on: the service is available while the Advertisement is
-// open and withdrawn once it is closed.
-type Advertisement struct {
-	ch *channel.Channel
+// Handler evaluates one service for one caller. A nil update or an error is
+// answered as unavailable; an ask is never left unanswered.
+type Handler func(ctx *astral.Context, caller *astral.Identity, service string) (*services.Update, error)
+
+// Binding is an open advertisement: the node asks, the handler answers, and
+// the provider announces changes. The service set is fixed for its lifetime.
+type Binding struct {
+	ch      *channel.Channel
+	handler Handler
+	done    chan struct{}
+	once    sync.Once
 }
 
-// Advertise advertises a named service on the target node. The node takes the
-// provider from the caller's identity. info may be nil; SetInfo replaces it
-// later.
-func (client *Client) Advertise(ctx *astral.Context, name string, info *astral.Bundle) (*Advertisement, error) {
-	ch, err := client.queryCh(ctx, services.MethodAdvertise, query.Args{
-		"name": name,
-	})
-	if err != nil {
+// Advertise opens a binding for names on the target node. It returns once the
+// node acknowledges the binding, or with the node's refusal.
+func (client *Client) Advertise(ctx *astral.Context, names []string, h Handler) (*Binding, error) {
+	list := services.JoinNames(names)
+	if _, err := services.ParseNames(list); err != nil {
 		return nil, err
 	}
 
-	return newAdvertisement(ch, info)
+	// why: answers run on per-ask goroutines while Change runs on the
+	// caller's, so writes must not interleave.
+	ch, err := client.queryCh(ctx, services.MethodAdvertise, query.Args{"services": list}, channel.WithLockedWrites())
+	if err != nil {
+		return nil, err
+	}
+	return startBinding(ctx, ch, h)
 }
 
-// newAdvertisement reads the node's answer: an ack becomes a standing
-// advertisement, an error object is returned.
-func newAdvertisement(ch *channel.Channel, info *astral.Bundle) (*Advertisement, error) {
+// Advertise opens a binding on the default node.
+func Advertise(ctx *astral.Context, names []string, h Handler) (*Binding, error) {
+	return Default().Advertise(ctx, names, h)
+}
+
+func startBinding(ctx *astral.Context, ch *channel.Channel, h Handler) (*Binding, error) {
 	if err := ch.Switch(channel.ExpectAck, channel.PassErrors); err != nil {
 		ch.Close()
 		return nil, err
 	}
 
-	ad := &Advertisement{ch: ch}
+	b := &Binding{ch: ch, handler: h, done: make(chan struct{})}
+	go b.serve(ctx)
+	return b, nil
+}
 
-	if info != nil {
-		if err := ad.SetInfo(info); err != nil {
-			ad.Close()
-			return nil, err
+func (b *Binding) serve(ctx *astral.Context) {
+	defer close(b.done)
+	defer b.closeChannel()
+
+	_ = b.ch.Handle(ctx, func(o astral.Object) {
+		ask, ok := o.(*services.Ask)
+		if !ok {
+			b.ch.Close()
+			return
 		}
+		// why: one goroutine per ask. The node already sends one ask per
+		// caller at a time, so a slow caller never delays another.
+		go b.answer(ctx, ask)
+	})
+}
+
+func (b *Binding) answer(ctx *astral.Context, ask *services.Ask) {
+	u, err := b.handler(ctx, ask.CallerID, string(ask.Service))
+	if err != nil {
+		log.Printf("services: evaluating %v for %v: %v", ask.Service, ask.CallerID, err)
 	}
+	reply := services.Update{}
+	if err == nil && u != nil {
+		reply = *u
+	}
+	reply.Name = ask.Service
+	reply.ProviderID = nil
 
-	return ad, nil
+	_ = b.ch.Send(&services.Answer{RequestID: ask.RequestID, Update: &reply})
 }
 
-// Advertise advertises a named service on the default node.
-func Advertise(ctx *astral.Context, name string, info *astral.Bundle) (*Advertisement, error) {
-	return Default().Advertise(ctx, name, info)
+// Change tells the node that the callers' offerings may have changed. An empty
+// list sends nothing: the node fails a binding on a change selecting no caller.
+func (b *Binding) Change(callers ...*astral.Identity) error {
+	if len(callers) == 0 {
+		return nil
+	}
+	return b.ch.Send(&services.Change{Callers: callers})
 }
 
-// SetInfo replaces the info carried by the advertisement. The service stays
-// available across the change.
-func (ad *Advertisement) SetInfo(info *astral.Bundle) error {
-	return ad.ch.Send(info)
+// ChangeAll tells the node that every following caller's offerings may have
+// changed.
+func (b *Binding) ChangeAll() error {
+	return b.ch.Send(&services.Change{All: true})
 }
 
-// Close withdraws the advertisement.
-func (ad *Advertisement) Close() error {
-	return ad.ch.Close()
+// Close ends the binding; the node releases its services.
+func (b *Binding) Close() error {
+	b.closeChannel()
+	<-b.done
+	return nil
+}
+
+// Done is closed when the binding ends, by Close or by the node.
+func (b *Binding) Done() <-chan struct{} { return b.done }
+
+func (b *Binding) closeChannel() {
+	b.once.Do(func() { b.ch.Close() })
 }
