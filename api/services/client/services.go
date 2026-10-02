@@ -55,11 +55,29 @@ type InitialOutcome struct {
 // the stream ends after the Initial event; with follow it continues until ctx
 // ends or the node closes it.
 func (client *Client) Discover(ctx *astral.Context, names []string, follow bool) (<-chan Event, error) {
+	return client.discover(ctx, names, follow, query.Args{})
+}
+
+// DiscoverIn is Discover with an explicit reach. ReachSwarm makes the target
+// node carry the discovery to its local swarm in the caller's name.
+func (client *Client) DiscoverIn(ctx *astral.Context, reach services.Reach, names []string, follow bool) (<-chan Event, error) {
+	return client.discover(ctx, names, follow, query.Args{"reach": string(reach)})
+}
+
+// DiscoverFor is Discover sent by a node carrying an app's discovery to a
+// swarm member: the member evaluates its providers for app.
+func (client *Client) DiscoverFor(ctx *astral.Context, app *astral.Identity, names []string, follow bool) (<-chan Event, error) {
+	return client.discover(ctx, names, follow, query.Args{"for": app.String()})
+}
+
+func (client *Client) discover(ctx *astral.Context, names []string, follow bool, args query.Args) (<-chan Event, error) {
 	list := services.JoinNames(names)
 	if _, err := services.ParseNames(list); err != nil {
 		return nil, err
 	}
-	ch, err := client.queryCh(ctx, services.MethodDiscover, query.Args{"services": list, "follow": follow})
+	args["services"] = list
+	args["follow"] = follow
+	ch, err := client.queryCh(ctx, services.MethodDiscover, args)
 	if err != nil {
 		return nil, err
 	}
@@ -72,6 +90,11 @@ func (client *Client) Discover(ctx *astral.Context, names []string, follow bool)
 // Discover runs Discover on the default client.
 func Discover(ctx *astral.Context, names []string, follow bool) (<-chan Event, error) {
 	return Default().Discover(ctx, names, follow)
+}
+
+// DiscoverIn runs DiscoverIn on the default client.
+func DiscoverIn(ctx *astral.Context, reach services.Reach, names []string, follow bool) (<-chan Event, error) {
+	return Default().DiscoverIn(ctx, reach, names, follow)
 }
 
 func readDiscovery(ctx *astral.Context, ch *channel.Channel, follow bool, out chan<- Event) {
