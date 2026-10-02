@@ -24,7 +24,12 @@ type watchKey struct{ provider, name string }
 
 // Watch follows names on the target node.
 func (client *Client) Watch(ctx *astral.Context, names []string) (*Watcher, error) {
-	events, err := client.Discover(ctx, names, true)
+	return client.WatchIn(ctx, services.ReachLocal, names)
+}
+
+// WatchIn follows names with an explicit reach.
+func (client *Client) WatchIn(ctx *astral.Context, reach services.Reach, names []string) (*Watcher, error) {
+	events, err := client.DiscoverIn(ctx, reach, names, true)
 	if err != nil {
 		return nil, err
 	}
@@ -41,6 +46,11 @@ func (client *Client) Watch(ctx *astral.Context, names []string) (*Watcher, erro
 // Watch follows names on the default node.
 func Watch(ctx *astral.Context, names []string) (*Watcher, error) {
 	return Default().Watch(ctx, names)
+}
+
+// WatchIn follows names on the default node with an explicit reach.
+func WatchIn(ctx *astral.Context, reach services.Reach, names []string) (*Watcher, error) {
+	return Default().WatchIn(ctx, reach, names)
 }
 
 func (w *Watcher) run(events <-chan Event) {
