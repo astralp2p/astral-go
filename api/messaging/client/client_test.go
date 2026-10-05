@@ -188,7 +188,7 @@ func TestListMessages_SendsOnlyWhatIsSet(t *testing.T) {
 	c, router = answeringClient(t, &astral.EOS{})
 	_, err = c.ListMessages(ctx(), messaging.ListMessagesRequest{
 		List: "inbox", From: "scout", To: "ranger", Since: 42, UnreadOnly: true, AwaitingPickup: true,
-		Mailbox: "ranger",
+		Mailbox: "ranger", Before: 90, Limit: 20,
 	})
 	if err != nil {
 		t.Fatalf("ListMessages: %v", err)
@@ -196,6 +196,7 @@ func TestListMessages_SendsOnlyWhatIsSet(t *testing.T) {
 	assertQuery(t, router, "messaging.list_messages", map[string]string{
 		"list": "inbox", "from": "scout", "to": "ranger", "since": "42",
 		"unread_only": "true", "awaiting_pickup": "true", "mailbox": "ranger",
+		"before": "90", "limit": "20",
 	})
 }
 
@@ -399,5 +400,19 @@ func TestSingleAnswerOps_NoAnswerIsAnError(t *testing.T) {
 				t.Fatalf("want ErrNoAnswer, got %v", err)
 			}
 		})
+	}
+}
+
+// A peek is a read with peek=true on the query, the request unchanged in the body.
+func TestPeekMessages_AsksForAPeek(t *testing.T) {
+	ref := &messaging.MessageRef{Box: "inbox", ID: messaging.NewMessageID()}
+	c, router := answeringClient(t, &messaging.ReadMessagesResult{})
+	if _, err := c.PeekMessages(ctx(), &messaging.ReadMessagesRequest{Refs: []*messaging.MessageRef{ref}}); err != nil {
+		t.Fatalf("PeekMessages: %v", err)
+	}
+	assertQuery(t, router, "messaging.read_messages", map[string]string{"peek": "true"})
+	body, ok := sentObject(t, router).(*messaging.ReadMessagesRequest)
+	if !ok || len(body.Refs) != 1 || *body.Refs[0] != *ref {
+		t.Fatalf("body: %+v", body)
 	}
 }

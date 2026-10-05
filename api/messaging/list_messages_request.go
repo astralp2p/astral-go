@@ -11,6 +11,13 @@ package messaging
 // landed and were never collected. A narrowing a list cannot apply is refused,
 // never ignored.
 //
+// Before and Limit page a list: Limit answers at most that many rows, 1 to
+// PageLimitMax, and Before only rows whose Cursor is below it. Under Before, or
+// under Limit without Since, the inbox is answered newest first as the outbox
+// is; the next older page is asked with the smallest Cursor of the last one as
+// Before — OldestCursor computes it. Since and Before together, and Before on
+// the archive, are refused.
+//
 // Mailbox names the mailbox listed, by hex identity or alias. Empty, or the
 // caller's own identity, lists the caller's own mailbox. Any other identity is
 // a delegated read: the node must host that mailbox, and the caller must hold
@@ -23,6 +30,24 @@ type ListMessagesRequest struct {
 	Since                      uint64
 	UnreadOnly, AwaitingPickup bool
 	Mailbox                    string
+	Before, Limit              uint64
+}
+
+// PageLimitMax is the most rows a listing's Limit asks for.
+const PageLimitMax = 100
+
+// OldestCursor is the Before that asks the page below list: the smallest
+// Cursor in it, or 0 where list holds none.
+func OldestCursor(list []*Envelope) uint64 {
+	var oldest uint64
+	for _, m := range list {
+		// why a nil row is skipped: the list may have crossed the wire, and a
+		// slice element is a pointer a peer may leave unset.
+		if m != nil && (oldest == 0 || uint64(m.Cursor) < oldest) {
+			oldest = uint64(m.Cursor)
+		}
+	}
+	return oldest
 }
 
 // NextSince is the Since that pages past list: the furthest Cursor in it, or
