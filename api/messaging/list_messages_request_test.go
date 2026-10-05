@@ -51,3 +51,18 @@ func TestWaitResult_NextSinceSurvives(t *testing.T) {
 		t.Fatalf("granted: want %v, got %v", src.Granted, dst.Granted)
 	}
 }
+
+func TestOldestCursor(t *testing.T) {
+	for name, tc := range map[string]struct {
+		list []*Envelope
+		want uint64
+	}{
+		"nothing":              {nil, 0},
+		"the smallest":         {[]*Envelope{{Cursor: 9}, {Cursor: 4}, {Cursor: 7}}, 4},
+		"a nil row is skipped": {[]*Envelope{nil, {Cursor: 5}}, 5},
+	} {
+		if got := OldestCursor(tc.list); got != tc.want {
+			t.Errorf("%v: got %v, want %v", name, got, tc.want)
+		}
+	}
+}

@@ -73,5 +73,11 @@ func listArgs(req messaging.ListMessagesRequest) query.Args {
 	if req.Mailbox != "" {
 		args["mailbox"] = req.Mailbox
 	}
+	if req.Before != 0 {
+		args["before"] = req.Before
+	}
+	if req.Limit != 0 {
+		args["limit"] = req.Limit
+	}
 	return args
 }

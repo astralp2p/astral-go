@@ -4,6 +4,7 @@ import (
 	"github.com/astralp2p/astral-go/api/messaging"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 // ReadMessages reads whole messages from one mailbox, with their direct
@@ -27,7 +28,19 @@ import (
 // the zero identity, or the node itself — is rejected and returns
 // *astral.ErrRejected.
 func (client *Client) ReadMessages(ctx *astral.Context, req *messaging.ReadMessagesRequest) (*messaging.ReadMessagesResult, error) {
-	ch, err := client.queryCh(ctx, messaging.MethodReadMessages, nil)
+	return client.read(ctx, req, nil)
+}
+
+// PeekMessages reads as ReadMessages does and stamps nothing: in the caller's
+// own mailbox no message is marked read and no sender is told a body was
+// collected, as a delegated read never does. A later ReadMessages picks the
+// messages up.
+func (client *Client) PeekMessages(ctx *astral.Context, req *messaging.ReadMessagesRequest) (*messaging.ReadMessagesResult, error) {
+	return client.read(ctx, req, query.Args{"peek": true})
+}
+
+func (client *Client) read(ctx *astral.Context, req *messaging.ReadMessagesRequest, args query.Args) (*messaging.ReadMessagesResult, error) {
+	ch, err := client.queryCh(ctx, messaging.MethodReadMessages, args)
 	if err != nil {
 		return nil, err
 	}
@@ -50,4 +63,9 @@ func (client *Client) ReadMessages(ctx *astral.Context, req *messaging.ReadMessa
 // ReadMessages calls the operation on the default client.
 func ReadMessages(ctx *astral.Context, req *messaging.ReadMessagesRequest) (*messaging.ReadMessagesResult, error) {
 	return Default().ReadMessages(ctx, req)
+}
+
+// PeekMessages calls the operation on the default client.
+func PeekMessages(ctx *astral.Context, req *messaging.ReadMessagesRequest) (*messaging.ReadMessagesResult, error) {
+	return Default().PeekMessages(ctx, req)
 }
