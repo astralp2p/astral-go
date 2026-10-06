@@ -64,10 +64,12 @@ func (r *ContextReader) ReadContext(ctx context.Context, p []byte) (n int, err e
 			}()
 		}
 
+		// copy the channel while holding the lock; the reader goroutine sets r.ch to nil when it finishes
+		ch := r.ch
 		r.mu.Unlock()
 
 		select {
-		case <-r.ch:
+		case <-ch:
 			continue
 
 		case <-ctx.Done():
