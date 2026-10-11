@@ -11,7 +11,7 @@ import (
 // keeping one binding open while the app is registered.
 //
 // why the hook retries itself: a hook error on the first registration stops the
-// registrar, and on reconnect the registrar retries without delay. The node may
+// registrar, and a failed reconnect costs a registrar backoff. The node may
 // still hold the previous binding for a moment after a reconnect, so
 // Provider.Serve backs off on that one refusal.
 func WithServices(p *servicesclient.Provider) ServeOption {

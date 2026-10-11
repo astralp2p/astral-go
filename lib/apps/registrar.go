@@ -1,6 +1,8 @@
 package apps
 
 import (
+	"time"
+
 	"github.com/astralp2p/astral-go/api/apphost"
 	apphostclient "github.com/astralp2p/astral-go/api/apphost/client"
 	"github.com/astralp2p/astral-go/astral"
@@ -52,7 +54,17 @@ type AppRegistrar struct {
 	handlers      []handler
 	hooks         []RegistrationHook
 	regCh         chan *regRequest
+	minBackoff    time.Duration
+	maxBackoff    time.Duration
+	delay         time.Duration // next backoff; owned by run
 }
+
+// Backoff bounds between failed attempts to bind to the node and re-attach the
+// handlers. The first attempt after a disconnect is immediate.
+const (
+	defaultMinBackoff = 1 * time.Second
+	defaultMaxBackoff = 30 * time.Second
+)
 
 var _ Registrar = &AppRegistrar{}
 var _ libastrald.ReadyGate = &AppRegistrar{}
@@ -86,9 +98,11 @@ func WithRegistrarRegistrationHooks(hooks ...RegistrationHook) AppRegistrarOptio
 func NewAppRegistrar(ctx *astral.Context, opts ...AppRegistrarOption) *AppRegistrar {
 	c := apphostclient.Default()
 	s := &AppRegistrar{
-		client: c,
-		dial:   NodeBind(c.Bind),
-		regCh:  make(chan *regRequest),
+		client:     c,
+		dial:       NodeBind(c.Bind),
+		regCh:      make(chan *regRequest),
+		minBackoff: defaultMinBackoff,
+		maxBackoff: defaultMaxBackoff,
 	}
 	s.attachHandler = s.attach
 	s.ready.Set(make(chan struct{}))
@@ -121,11 +135,18 @@ func (s *AppRegistrar) Register(ctx *astral.Context, endpoint string, token astr
 	return sig.RecvErr(ctx, req.done)
 }
 
+// run keeps the app bound to the node until ctx ends. A node that is down, or
+// refuses the handlers, is retried with exponential backoff: an app outlives a
+// node restart instead of staying unregistered until it restarts itself.
 func (s *AppRegistrar) run(ctx *astral.Context) {
+	s.delay = s.minBackoff
 	for {
 		bindCh, err := s.dial(ctx)
 		if err != nil {
-			return
+			if ctx.Err() != nil || !s.backoff(ctx) {
+				return
+			}
+			continue
 		}
 
 		if err = s.attachAll(ctx, bindCh); err != nil {
@@ -136,9 +157,13 @@ func (s *AppRegistrar) run(ctx *astral.Context) {
 			if s.events.OnDisconnect != nil {
 				s.events.OnDisconnect(err)
 			}
+			if !s.backoff(ctx) {
+				return
+			}
 			continue
 		}
 
+		s.delay = s.minBackoff
 		close(s.ready.Get())
 		if s.events.OnConnect != nil {
 			s.events.OnConnect()
@@ -155,6 +180,21 @@ func (s *AppRegistrar) run(ctx *astral.Context) {
 		if s.events.OnDisconnect != nil {
 			s.events.OnDisconnect(disconnectErr)
 		}
+	}
+}
+
+// backoff waits out the current delay and doubles it up to maxBackoff. It
+// reports false when ctx ends first.
+func (s *AppRegistrar) backoff(ctx *astral.Context) bool {
+	t := time.NewTimer(s.delay)
+	defer t.Stop()
+	s.delay = min(s.delay*2, s.maxBackoff)
+
+	select {
+	case <-t.C:
+		return true
+	case <-ctx.Done():
+		return false
 	}
 }
 
