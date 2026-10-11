@@ -27,7 +27,8 @@ type Node interface {
 }
 
 // Query walks the provided path from the provided root and returns the final node. If create
-// is true, it will try to create missing nodes along the way.
+// is true, it creates missing nodes along the way and descends into a node a concurrent caller
+// created first.
 func Query(ctx *astral.Context, root Node, path string, create bool) (Node, error) {
 	seg := strings.Split(
 		strings.TrimPrefix(path, "/"),
@@ -42,33 +43,46 @@ func Query(ctx *astral.Context, root Node, path string, create bool) (Node, erro
 			continue
 		}
 
-		subs, err := node.Sub(ctx)
+		next, err := querySub(ctx, node, s, create)
 		if err != nil {
 			return nil, err
 		}
-
-		if n, ok := subs[s]; ok {
-			pwd = append(pwd, s)
-			node = n
-			continue
-		}
-
-		if !create {
+		if next == nil {
 			return nil, errors.New("node " + s + " not found in /" + strings.Join(pwd, "/"))
 		}
 
-		subnode, err := node.Create(ctx, s)
-		switch {
-		case err == nil:
-			node = subnode
-		case errors.Is(err, ErrAlreadyExists):
-			continue
-		default:
-			return nil, err
-		}
+		pwd = append(pwd, s)
+		node = next
 	}
 
 	return node, nil
+}
+
+// querySub returns the subnode name of node, and creates it if create is true. A missing subnode
+// without create is nil.
+func querySub(ctx *astral.Context, node Node, name string, create bool) (Node, error) {
+	subs, err := node.Sub(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if sub, ok := subs[name]; ok || !create {
+		return sub, nil
+	}
+
+	sub, err := node.Create(ctx, name)
+	if !errors.Is(err, ErrAlreadyExists) {
+		return sub, err
+	}
+
+	// note: a concurrent caller created the subnode between Sub and Create.
+	subs, err = node.Sub(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if sub, ok := subs[name]; ok {
+		return sub, nil
+	}
+	return nil, ErrAlreadyExists
 }
 
 // Get returns the current value of the node
