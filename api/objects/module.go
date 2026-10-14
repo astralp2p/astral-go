@@ -45,3 +45,11 @@ const (
 type Describer interface {
 	DescribeObject(*astral.Context, *astral.ObjectID) (<-chan *Descriptor, error)
 }
+
+// Describe is one describe run: the caller, the object, and the nodes the caller names as sources.
+type Describe struct {
+	CallerID    *astral.Identity
+	ObjectID    *astral.ObjectID
+	Sources     []*astral.Identity
+	SourcesOnly bool // ask only Sources, not the registered describers
+}
