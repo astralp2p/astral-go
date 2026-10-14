@@ -9,13 +9,10 @@ type Searcher interface {
 	SearchObject(ctx *astral.Context, query SearchQuery) (<-chan *SearchResult, error)
 }
 
-// SearchPreprocessor is a hook that mutates a Search in place before it runs.
-type SearchPreprocessor interface {
-	PreprocessSearch(*Search)
-}
-
+// Search is one search run: the caller, the query, and the nodes the caller names as sources.
 type Search struct {
-	CallerID *astral.Identity
-	Query    SearchQuery
-	Sources  []*astral.Identity
+	CallerID    *astral.Identity
+	Query       SearchQuery
+	Sources     []*astral.Identity
+	SourcesOnly bool // ask only Sources, not the registered searchers
 }
