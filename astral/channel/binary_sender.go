@@ -18,22 +18,30 @@ func NewBinarySender(w io.Writer) *BinarySender {
 	return &BinarySender{w: w}
 }
 
+// Send writes object as one frame: its type, then its payload with a 32-bit
+// length prefix.
+//
+// why the frame is built before anything is written: a payload that fails to
+// encode would otherwise follow a type already on the stream, and every later
+// object on the channel would decode from the wrong offset.
 func (w BinarySender) Send(object astral.Object) (err error) {
-	// write the object type
-	_, err = astral.String8(object.ObjectType()).WriteTo(w.w)
+	var payload = bytes.NewBuffer(nil)
+	_, err = object.WriteTo(payload)
 	if err != nil {
 		return
 	}
 
-	// buffer the payload
-	var buf = bytes.NewBuffer(nil)
-	_, err = object.WriteTo(buf)
+	var frame = bytes.NewBuffer(nil)
+	_, err = astral.String8(object.ObjectType()).WriteTo(frame)
+	if err != nil {
+		return
+	}
+	_, err = astral.Bytes32(payload.Bytes()).WriteTo(frame)
 	if err != nil {
 		return
 	}
 
-	// write the buffer with 32-bit length prefix
-	_, err = astral.Bytes32(buf.Bytes()).WriteTo(w.w)
+	_, err = w.w.Write(frame.Bytes())
 
 	return
 }
