@@ -32,9 +32,9 @@ func Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, err
 // which is portable evidence another node verifies, durable until it expires.
 // This client asks for grants alone, so nothing it names becomes portable.
 //
-// The node rejects the query outright when its register policy refuses; a
-// failure past the accept gate arrives instead as an error object, which
-// surfaces here as an error. Both mean refused.
+// The node accepts the query before its register policy decides, so a refusal
+// arrives as the error object apphost.ErrRegistrationDeclined, which surfaces
+// here as an error, as does any failure past the accept gate.
 func (client *Client) Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, error) {
 	args, err := registerArgs(permits)
 	if err != nil {

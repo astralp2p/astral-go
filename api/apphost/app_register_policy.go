@@ -1,6 +1,8 @@
 package apphost
 
 import (
+	"errors"
+	"fmt"
 	"io"
 
 	"github.com/astralp2p/astral-go/api/auth"
@@ -35,11 +37,33 @@ func (r *AppRegisterRequest) ReadFrom(rd io.Reader) (n int64, err error) {
 
 // AppRegisterDecision is the app registration policy's answer. Allow false
 // refuses the registration and the other fields are ignored. Otherwise the node
-// writes exactly the permits listed, on the rail each list names.
+// writes exactly the permits listed, on the rail each list names, and records
+// the authorizer assignments for the new identity.
 type AppRegisterDecision struct {
 	Allow           astral.Bool
 	GrantPermits    []*auth.Permit
 	ContractPermits []*auth.Permit
+	// Authorizers are recorded for the new identity. The delegate names the
+	// authorizer; the node names the actor, so an entry naming one fails
+	// Validate.
+	Authorizers []*auth.AuthorizerAssignment
+}
+
+// Validate reports a decision the node cannot apply: an authorizer assignment
+// that is nil, invalid, or names an actor.
+func (d *AppRegisterDecision) Validate() error {
+	for _, a := range d.Authorizers {
+		switch {
+		case a == nil:
+			return errors.New("app register decision: nil authorizer assignment")
+		case a.Actor != nil && !a.Actor.IsZero():
+			return errors.New("app register decision: an assignment names an actor")
+		}
+		if err := a.Validate(); err != nil {
+			return fmt.Errorf("app register decision: %w", err)
+		}
+	}
+	return nil
 }
 
 func (AppRegisterDecision) ObjectType() string { return "mod.apphost.app_register_decision" }
