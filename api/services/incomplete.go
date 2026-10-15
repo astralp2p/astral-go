@@ -23,4 +23,7 @@ func (i *Incomplete) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(i).ReadFrom(r)
 }
 
+func (i Incomplete) MarshalJSON() ([]byte, error)  { return astral.Objectify(&i).MarshalJSON() }
+func (i *Incomplete) UnmarshalJSON(b []byte) error { return astral.Objectify(i).UnmarshalJSON(b) }
+
 func init() { astral.MustAdd(&Incomplete{}) }

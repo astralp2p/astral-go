@@ -42,6 +42,9 @@ func (r *Removed) ReadFrom(rd io.Reader) (n int64, err error) {
 	return astral.Objectify(r).ReadFrom(rd)
 }
 
+func (r Removed) MarshalJSON() ([]byte, error)  { return astral.Objectify(&r).MarshalJSON() }
+func (r *Removed) UnmarshalJSON(b []byte) error { return astral.Objectify(r).UnmarshalJSON(b) }
+
 func init() {
 	astral.MustAdd(&OfferingKey{})
 	astral.MustAdd(&Removed{})

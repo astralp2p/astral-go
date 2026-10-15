@@ -35,6 +35,14 @@ func (r *AppRegisterRequest) ReadFrom(rd io.Reader) (n int64, err error) {
 	return astral.Objectify(r).ReadFrom(rd)
 }
 
+func (r AppRegisterRequest) MarshalJSON() ([]byte, error) {
+	return astral.Objectify(&r).MarshalJSON()
+}
+
+func (r *AppRegisterRequest) UnmarshalJSON(b []byte) error {
+	return astral.Objectify(r).UnmarshalJSON(b)
+}
+
 // AppRegisterDecision is the app registration policy's answer. Allow false
 // refuses the registration and the other fields are ignored. Otherwise the node
 // writes exactly the permits listed, on the rail each list names, and records
@@ -74,6 +82,14 @@ func (d AppRegisterDecision) WriteTo(w io.Writer) (n int64, err error) {
 
 func (d *AppRegisterDecision) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(d).ReadFrom(r)
+}
+
+func (d AppRegisterDecision) MarshalJSON() ([]byte, error) {
+	return astral.Objectify(&d).MarshalJSON()
+}
+
+func (d *AppRegisterDecision) UnmarshalJSON(b []byte) error {
+	return astral.Objectify(d).UnmarshalJSON(b)
 }
 
 func init() {

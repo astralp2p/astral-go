@@ -25,6 +25,9 @@ func (c *Change) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(c).ReadFrom(r)
 }
 
+func (c Change) MarshalJSON() ([]byte, error)  { return astral.Objectify(&c).MarshalJSON() }
+func (c *Change) UnmarshalJSON(b []byte) error { return astral.Objectify(c).UnmarshalJSON(b) }
+
 // Valid reports whether the node accepts c. A Change selecting no caller fails
 // the binding.
 func (c Change) Valid() bool {

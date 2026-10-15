@@ -22,4 +22,7 @@ func (l *OperationsList) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(l).ReadFrom(r)
 }
 
+func (l OperationsList) MarshalJSON() ([]byte, error)  { return astral.Objectify(&l).MarshalJSON() }
+func (l *OperationsList) UnmarshalJSON(b []byte) error { return astral.Objectify(l).UnmarshalJSON(b) }
+
 func init() { astral.MustAdd(&OperationsList{}) }

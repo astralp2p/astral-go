@@ -26,6 +26,14 @@ func (msg *RouteQueryMsg) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(msg).ReadFrom(r)
 }
 
+func (msg RouteQueryMsg) MarshalJSON() ([]byte, error) {
+	return astral.Objectify(&msg).MarshalJSON()
+}
+
+func (msg *RouteQueryMsg) UnmarshalJSON(b []byte) error {
+	return astral.Objectify(msg).UnmarshalJSON(b)
+}
+
 func init() {
 	astral.MustAdd(&RouteQueryMsg{})
 }
