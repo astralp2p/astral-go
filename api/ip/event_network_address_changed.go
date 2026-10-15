@@ -26,6 +26,14 @@ func (e *EventNetworkAddressChanged) ReadFrom(r io.Reader) (n int64, err error) 
 	return astral.Objectify(e).ReadFrom(r)
 }
 
+func (e EventNetworkAddressChanged) MarshalJSON() ([]byte, error) {
+	return astral.Objectify(&e).MarshalJSON()
+}
+
+func (e *EventNetworkAddressChanged) UnmarshalJSON(b []byte) error {
+	return astral.Objectify(e).UnmarshalJSON(b)
+}
+
 // ...
 
 func init() {
