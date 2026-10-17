@@ -4,6 +4,10 @@ import (
 	"github.com/astralp2p/astral-go/api/nearby"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
+
+	// why: a Status bundle carries attachments of any type (mod.dir.alias,
+	// mod.nodes.endpoint_with_ttl, ...), and decoding one needs its blueprint.
+	_ "github.com/astralp2p/astral-go"
 )
 
 // List lists the nearby nodes the target node holds a status of, one Status
