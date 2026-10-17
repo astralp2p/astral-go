@@ -18,6 +18,7 @@ import (
 	_ "github.com/astralp2p/astral-go/api/mcp"
 	_ "github.com/astralp2p/astral-go/api/messaging"
 	_ "github.com/astralp2p/astral-go/api/nat"
+	_ "github.com/astralp2p/astral-go/api/nearby"
 	_ "github.com/astralp2p/astral-go/api/nodes"
 	_ "github.com/astralp2p/astral-go/api/objects"
 	_ "github.com/astralp2p/astral-go/api/policy"
