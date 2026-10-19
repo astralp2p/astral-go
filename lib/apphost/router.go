@@ -182,5 +182,10 @@ func (router *Router) connect(ctx *astral.Context) (*Host, error) {
 
 func newDefaultRouter() *Router {
 	// TODO: find an optimal endpoint (unix, then tcp)
-	return NewRouter(DefaultEndpoint, os.Getenv(AuthTokenEnv))
+	endpoint := os.Getenv(EndpointEnv)
+	if endpoint == "" {
+		endpoint = DefaultEndpoint
+	}
+
+	return NewRouter(endpoint, os.Getenv(AuthTokenEnv))
 }

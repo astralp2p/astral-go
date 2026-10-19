@@ -10,9 +10,9 @@ go get github.com/astralp2p/astral-go
 ```
 
 Requires Go 1.25. Talking to the network requires a running
-[astrald](https://github.com/astralp2p/astrald) node: the SDK dials
-`tcp:127.0.0.1:8625` and reads the access token from
-`ASTRALD_APPHOST_TOKEN`.
+[astrald](https://github.com/astralp2p/astrald) node: the SDK dials the
+endpoint in `ASTRALD_APPHOST_ENDPOINT` (default `tcp:127.0.0.1:8625`) and
+reads the access token from `ASTRALD_APPHOST_TOKEN`.
 
 ## Send a query
 
