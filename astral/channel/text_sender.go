@@ -1,6 +1,7 @@
 package channel
 
 import (
+	"bytes"
 	"encoding"
 	"encoding/base64"
 	"fmt"
@@ -22,9 +23,15 @@ func NewTextSender(w io.Writer) *TextSender {
 
 // Send writes the object as one line: a #[type] header followed by a text-marshaled body,
 // or a base64-encoded body when Base64 is set or the object is not a TextMarshaler.
+//
+// why the line is built before anything is written: a body that fails to encode would
+// otherwise follow a header already on the stream, and the next object's line would merge
+// into it.
 func (sender TextSender) Send(obj astral.Object) (err error) {
+	var line = bytes.NewBuffer(nil)
+
 	// write the type
-	_, err = fmt.Fprintf(sender.w, "#[%s]", obj.ObjectType())
+	_, err = fmt.Fprintf(line, "#[%s]", obj.ObjectType())
 	if err != nil {
 		return
 	}
@@ -40,22 +47,32 @@ func (sender TextSender) Send(obj astral.Object) (err error) {
 			return err
 		}
 
-		_, err = sender.w.Write([]byte(" " + string(text) + "\n"))
+		_, err = line.Write([]byte(" " + string(text) + "\n"))
+		if err != nil {
+			return
+		}
+
+		_, err = sender.w.Write(line.Bytes())
 		return
 	}
 
-	_, err = sender.w.Write([]byte(":"))
+	_, err = line.Write([]byte(":"))
 	if err != nil {
 		return
 	}
 
-	enc := base64.NewEncoder(base64.StdEncoding, sender.w)
+	enc := base64.NewEncoder(base64.StdEncoding, line)
 	_, err = obj.WriteTo(enc)
 	enc.Close()
 	if err != nil {
 		return
 	}
 
-	_, err = sender.w.Write([]byte("\n"))
+	_, err = line.Write([]byte("\n"))
+	if err != nil {
+		return
+	}
+
+	_, err = sender.w.Write(line.Bytes())
 	return err
 }
