@@ -1,0 +1,34 @@
+package log
+
+import (
+	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/astrald"
+)
+
+// Client is an RPC client for the log module. A nil targetID routes calls to
+// the local node's log service.
+type Client struct {
+	astral   *astrald.Client
+	targetID *astral.Identity
+}
+
+var defaultClient *Client
+
+func New(targetID *astral.Identity, a *astrald.Client) *Client {
+	if a == nil {
+		a = astrald.Default()
+	}
+	return &Client{astral: a, targetID: targetID}
+}
+
+func Default() *Client {
+	if defaultClient == nil {
+		defaultClient = New(nil, astrald.Default())
+	}
+	return defaultClient
+}
+
+func (c *Client) queryCh(ctx *astral.Context, method string, args any, cfg ...channel.ConfigFunc) (*channel.Channel, error) {
+	return c.astral.WithTarget(c.targetID).QueryChannel(ctx, method, args, cfg...)
+}
