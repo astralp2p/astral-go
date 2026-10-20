@@ -9,7 +9,8 @@ import (
 var _ astral.Object = &Ping{}
 
 // Ping is the keepalive message for idle connections; Pong==false is a request,
-// Pong==true is the reply. A Ping without a timely response causes the conn to close.
+// Pong==true is the reply. A side closes an idle conn when no frame of any kind
+// arrives within its timeout; a request without a reply does not close it by itself.
 type Ping struct {
 	Pong astral.Bool
 }
