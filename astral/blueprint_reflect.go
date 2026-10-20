@@ -28,6 +28,10 @@ func BlueprintFromType(t reflect.Type) (*Blueprint, error) {
 
 	typeName, typeNameErr := concreteObjectTypeOf(t)
 
+	if bp, ok, err := declaredBlueprint(t, typeName); ok {
+		return bp, err
+	}
+
 	// why: PrimitiveAlias is the Go-side declaration of an alias-kind Blueprint and the
 	// underlying Go type may be a primitive newtype (e.g. `type Mode astral.Uint8`),
 	// not a struct. Probe before the struct check so non-struct PrimitiveAlias prototypes
@@ -79,6 +83,27 @@ func BlueprintFromType(t reflect.Type) (*Blueprint, error) {
 	}
 
 	return bp, nil
+}
+
+// declaredBlueprint returns the Blueprint a BlueprintDeclarer prototype of t declares for
+// typeName. ok is false when t declares none for typeName.
+//
+// why: a struct embedding a declarer (SignedBroadcast embeds Broadcast) inherits its
+// DeclareBlueprint method. The promoted declaration names the embedded type, so a Type that
+// differs from typeName selects reflection instead of describing the outer type as the inner.
+func declaredBlueprint(t reflect.Type, typeName string) (bp *Blueprint, ok bool, err error) {
+	d, isDeclarer := reflect.New(t).Interface().(BlueprintDeclarer)
+	if !isDeclarer || typeName == "" {
+		return nil, false, nil
+	}
+	declared := d.DeclareBlueprint()
+	if declared == nil || declared.Type.String() != typeName {
+		return nil, false, nil
+	}
+	if err := validateBlueprint(declared); err != nil {
+		return nil, true, fmt.Errorf("BlueprintFromType: declared: %w", err)
+	}
+	return cloneBlueprint(declared), true, nil
 }
 
 // BlueprintOf is a convenience wrapper around BlueprintFromType that uses the runtime type of v.

@@ -23,6 +23,17 @@ var _ astral.Object = &Broadcast{}
 
 func (Broadcast) ObjectType() string { return "mod.ether.broadcast" }
 
+// DeclareBlueprint describes the bytes WriteTo writes. Source is the bare 33-byte identity,
+// with no presence flag. Object is a bytes16 container holding the payload's type tag and
+// bytes.
+func (Broadcast) DeclareBlueprint() *astral.Blueprint {
+	return astral.NewBlueprint(Broadcast{}.ObjectType(),
+		astral.Field{Name: "Timestamp", Spec: &astral.PrimitiveSpec{PrimitiveType: "time"}},
+		astral.Field{Name: "Source", Spec: &astral.PrimitiveSpec{PrimitiveType: "identity"}},
+		astral.Field{Name: "Object", Spec: &astral.PrimitiveSpec{PrimitiveType: "bytes16"}},
+	)
+}
+
 func (b Broadcast) WriteTo(w io.Writer) (n int64, err error) {
 	if b.Source == nil {
 		return 0, errors.New("nil source")
