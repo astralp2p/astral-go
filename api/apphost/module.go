@@ -5,16 +5,21 @@ import (
 )
 
 const (
-	MethodRegister        = "apphost.register"
-	MethodCreateToken     = "apphost.create_token"
-	MethodDeleteToken     = "apphost.delete_token"
-	MethodListTokens      = "apphost.list_tokens"
-	MethodRegisterHandler = "apphost.register_handler"
-	MethodCancel          = "apphost.cancel"
-	MethodBind            = "apphost.bind"
-	MethodHoldObject      = "apphost.hold_object"
-	MethodUnholdObject    = "apphost.unhold_object"
-	MethodListHeldObjects = "apphost.list_held_objects"
+	MethodRegister             = "apphost.register"
+	MethodCreateToken          = "apphost.create_token"
+	MethodDeleteToken          = "apphost.delete_token"
+	MethodListTokens           = "apphost.list_tokens"
+	MethodRegisterHandler      = "apphost.register_handler"
+	MethodCancel               = "apphost.cancel"
+	MethodBind                 = "apphost.bind"
+	MethodHoldObject           = "apphost.hold_object"
+	MethodUnholdObject         = "apphost.unhold_object"
+	MethodListHeldObjects      = "apphost.list_held_objects"
+	MethodGrant                = "apphost.grant"
+	MethodListGrants           = "apphost.list_grants"
+	MethodRevoke               = "apphost.revoke"
+	MethodSetAppRegisterPolicy = "apphost.set_app_register_policy"
+	MethodWhoami               = "apphost.whoami"
 )
 
 var ErrProtocolError = errors.New("protocol error")
