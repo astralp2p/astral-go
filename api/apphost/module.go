@@ -20,6 +20,7 @@ const (
 	MethodRevoke               = "apphost.revoke"
 	MethodSetAppRegisterPolicy = "apphost.set_app_register_policy"
 	MethodWhoami               = "apphost.whoami"
+	MethodHosts                = "apphost.hosts"
 )
 
 var ErrProtocolError = errors.New("protocol error")
