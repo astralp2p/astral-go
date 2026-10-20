@@ -239,6 +239,20 @@ type PrimitiveAlias interface {
 	UnderlyingPrimitive() string
 }
 
+// BlueprintDeclarer lets a compile-time prototype with a hand-written codec declare the
+// Blueprint of the bytes that codec writes. BlueprintFromType returns the declaration in place
+// of a reflective derivation, which reads Go field types, not the wire:
+//
+//	func (Broadcast) DeclareBlueprint() *astral.Blueprint {
+//		return astral.NewBlueprint("mod.ether.broadcast", ...)
+//	}
+//
+// A declaration whose Type differs from the prototype's ObjectType is not the prototype's own;
+// it is the promoted method of an embedded type, and BlueprintFromType ignores it.
+type BlueprintDeclarer interface {
+	DeclareBlueprint() *Blueprint
+}
+
 func init() {
 	MustAdd(&Blueprint{})
 	MustAdd(&Field{})
