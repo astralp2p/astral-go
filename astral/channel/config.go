@@ -11,6 +11,7 @@ type Config struct {
 	fmtIn, fmtOut string
 	allowUnparsed bool
 	lockWrites    bool
+	failOnEOF     bool
 	cancelCh      <-chan struct{}
 	// cancelStop releases resources backing cancelCh (e.g. WithTimeout's
 	// timer). Consumers of cancelCh call it once when they're done reading.
@@ -49,6 +50,15 @@ func AllowUnparsed(b bool) func(*Config) {
 func WithContext(ctx context.Context) func(*Config) {
 	return func(config *Config) {
 		config.cancelCh = ctx.Done()
+	}
+}
+
+// FailOnEOF makes Switch return io.ErrUnexpectedEOF when the channel reaches EOF before a
+// handler stops it. Without it, Switch returns nil on EOF, so a Switch(Expect(&v)) that meets a
+// closed channel returns nil and leaves v unset. Only Switch honors it.
+func FailOnEOF() func(*Config) {
+	return func(config *Config) {
+		config.failOnEOF = true
 	}
 }
 

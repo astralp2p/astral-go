@@ -27,7 +27,13 @@ var configType = reflect.TypeOf((*Config)(nil)).Elem()
 //			channel.BreakOnEOS,
 //		)
 //
-// Switch supports config functions WithTimeout() and WithContext().
+// Switch returns nil on EOF unless FailOnEOF() is passed; with it, EOF returns io.ErrUnexpectedEOF.
+// Pass FailOnEOF() when the Switch must end on a handler, such as Expect or ExpectAck:
+//
+//	var id *astral.ObjectID
+//	err := ch.Switch(channel.Expect(&id), channel.PassErrors, channel.FailOnEOF())
+//
+// Switch supports config functions WithTimeout(), WithContext() and FailOnEOF().
 func (ch Channel) Switch(args ...any) error {
 	if len(args) == 0 {
 		return errors.New("no arguments provided")
@@ -82,6 +88,9 @@ func (ch Channel) Switch(args ...any) error {
 		switch {
 		case err == nil:
 		case errors.Is(err, io.EOF):
+			if cfg.failOnEOF {
+				return io.ErrUnexpectedEOF
+			}
 			return nil
 		default:
 			return err
