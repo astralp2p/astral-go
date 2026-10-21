@@ -3,7 +3,7 @@ Package messaging describes a module that keeps mail for the identities whose
 mailboxes a node hosts.
 
 A participant is an identity with a mailbox: an inbox and an outbox. The node
-mints it with MethodCreateIdentity and knows no role beside it: an MCP agent and
+mints it with MethodCreateMailbox and knows no role beside it: an MCP agent and
 an account owner are both participants, and what makes them either is the
 product holding their credentials.
 
@@ -14,9 +14,9 @@ constraints. The mailbox identity holds that action itself: the root rule
 allows it exactly when the action's MailboxID is nonzero and equals its actor.
 The node's request therefore reaches the root only through a contract the
 mailbox identity issued; a contract from another identity, or one the node
-issues to itself, grants no hosting. MethodCreateIdentity signs the hosting
+issues to itself, grants no hosting. MethodCreateMailbox signs the hosting
 contract with the key it mints, beside the identity's relay contract, and
-neither contract grants what the other does. MethodDeleteIdentity withdraws
+neither contract grants what the other does. MethodDeleteMailbox withdraws
 hosting on the node alone: it revokes no contract, and the hosting contract
 stays valid until it expires.
 
@@ -59,14 +59,14 @@ and any other path addressed to that mailbox is a missing route.
 package messaging
 
 const (
-	MethodCreateIdentity = "messaging.create_identity"
-	MethodIdentity       = "messaging.identity"
-	MethodDeleteIdentity = "messaging.delete_identity"
-	MethodSendMessage    = "messaging.send_message"
-	MethodListMessages   = "messaging.list_messages"
-	MethodReadMessages   = "messaging.read_messages"
-	MethodWait           = "messaging.wait"
-	MethodArchive        = "messaging.archive"
+	MethodCreateMailbox = "messaging.create_mailbox"
+	MethodMailbox       = "messaging.mailbox"
+	MethodDeleteMailbox = "messaging.delete_mailbox"
+	MethodSendMessage   = "messaging.send_message"
+	MethodListMessages  = "messaging.list_messages"
+	MethodReadMessages  = "messaging.read_messages"
+	MethodWait          = "messaging.wait"
+	MethodArchive       = "messaging.archive"
 )
 
 // MethodMessage is the query that delivers a Message, addressed to the

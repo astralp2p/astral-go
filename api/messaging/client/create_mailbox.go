@@ -7,7 +7,7 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// CreateIdentity mints a new participant: a fresh identity with a signed relay
+// CreateMailbox mints a new participant: a fresh identity with a signed relay
 // contract, a signed contract letting the node host its mailbox, an optional
 // alias, and an access token that authenticates it. The returned credential
 // carries that token, and it is the only messaging response that does;
@@ -17,7 +17,7 @@ import (
 // node-global and a name the caller did not choose contends in a namespace it
 // does not own. A zero duration leaves the token's lifetime to the node's
 // configured default.
-func (client *Client) CreateIdentity(ctx *astral.Context, alias string, duration astral.Duration) (*messaging.IdentityCredential, error) {
+func (client *Client) CreateMailbox(ctx *astral.Context, alias string, duration astral.Duration) (*messaging.MailboxCredential, error) {
 	// why the keys are lower-case: the node snake-cases and lower-cases op
 	// argument names and binds by that name. A capitalised key reaches the wire
 	// verbatim, matches nothing, and is dropped without complaint.
@@ -29,13 +29,13 @@ func (client *Client) CreateIdentity(ctx *astral.Context, alias string, duration
 		args["duration"] = duration
 	}
 
-	ch, err := client.queryCh(ctx, messaging.MethodCreateIdentity, args)
+	ch, err := client.queryCh(ctx, messaging.MethodCreateMailbox, args)
 	if err != nil {
 		return nil, err
 	}
 	defer ch.Close()
 
-	var cred *messaging.IdentityCredential
+	var cred *messaging.MailboxCredential
 	if err = ch.Switch(channel.Expect(&cred), channel.PassErrors); err != nil {
 		return nil, err
 	}
@@ -45,7 +45,7 @@ func (client *Client) CreateIdentity(ctx *astral.Context, alias string, duration
 	return cred, nil
 }
 
-// CreateIdentity calls the operation on the default client.
-func CreateIdentity(ctx *astral.Context, alias string, duration astral.Duration) (*messaging.IdentityCredential, error) {
-	return Default().CreateIdentity(ctx, alias, duration)
+// CreateMailbox calls the operation on the default client.
+func CreateMailbox(ctx *astral.Context, alias string, duration astral.Duration) (*messaging.MailboxCredential, error) {
+	return Default().CreateMailbox(ctx, alias, duration)
 }

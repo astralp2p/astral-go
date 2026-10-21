@@ -7,14 +7,14 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// DeleteIdentity removes a participant: revokes every access token of it, its
+// DeleteMailbox removes a participant: revokes every access token of it, its
 // grants and its alias, and stops hosting its mailbox, deleting the mail it
 // owns. It revokes no contract: the signed relay and hosting contracts stay
 // valid until they expire, and the withdrawal holds on this node alone. id
 // takes a hex public key or an alias resolved via the directory, and the errors
 // are Identity's.
-func (client *Client) DeleteIdentity(ctx *astral.Context, id string) error {
-	ch, err := client.queryCh(ctx, messaging.MethodDeleteIdentity, query.Args{"identity": id})
+func (client *Client) DeleteMailbox(ctx *astral.Context, id string) error {
+	ch, err := client.queryCh(ctx, messaging.MethodDeleteMailbox, query.Args{"identity": id})
 	if err != nil {
 		return err
 	}
@@ -32,7 +32,7 @@ func (client *Client) DeleteIdentity(ctx *astral.Context, id string) error {
 	return nil
 }
 
-// DeleteIdentity calls the operation on the default client.
-func DeleteIdentity(ctx *astral.Context, id string) error {
-	return Default().DeleteIdentity(ctx, id)
+// DeleteMailbox calls the operation on the default client.
+func DeleteMailbox(ctx *astral.Context, id string) error {
+	return Default().DeleteMailbox(ctx, id)
 }

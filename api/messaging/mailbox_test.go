@@ -6,8 +6,8 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-func sampleCredential() *IdentityCredential {
-	return &IdentityCredential{
+func sampleCredential() *MailboxCredential {
+	return &MailboxCredential{
 		Identity:  astral.GenerateIdentity(),
 		Alias:     astral.String8("scout"),
 		Token:     astral.String8("h4d8s2w6y1b9t3n7"),
@@ -15,17 +15,17 @@ func sampleCredential() *IdentityCredential {
 	}
 }
 
-func sampleIdentityInfo() *IdentityInfo {
-	return &IdentityInfo{
+func sampleMailboxInfo() *MailboxInfo {
+	return &MailboxInfo{
 		Identity: astral.GenerateIdentity(),
 		Alias:    astral.String8("scout"),
 	}
 }
 
-func TestIdentityCredential_BinaryRoundTrip(t *testing.T) {
+func TestMailboxCredential_BinaryRoundTrip(t *testing.T) {
 	src := sampleCredential()
 
-	dst, ok := binaryRoundTrip(t, src).(*IdentityCredential)
+	dst, ok := binaryRoundTrip(t, src).(*MailboxCredential)
 	if !ok {
 		t.Fatal("decoded as another type")
 	}
@@ -40,12 +40,12 @@ func TestIdentityCredential_BinaryRoundTrip(t *testing.T) {
 	}
 }
 
-// The credential is what MethodCreateIdentity answers under out=json, and the
+// The credential is what MethodCreateMailbox answers under out=json, and the
 // token must survive that path or the participant is minted unusable.
-func TestIdentityCredential_JSONChannelRoundTrip(t *testing.T) {
+func TestMailboxCredential_JSONChannelRoundTrip(t *testing.T) {
 	src := sampleCredential()
 
-	dst, ok := jsonRoundTrip(t, src).(*IdentityCredential)
+	dst, ok := jsonRoundTrip(t, src).(*MailboxCredential)
 	if !ok {
 		t.Fatal("received as another type")
 	}
@@ -58,19 +58,19 @@ func TestIdentityCredential_JSONChannelRoundTrip(t *testing.T) {
 }
 
 // The type split exists so a caller cannot read a withheld token as a
-// participant that has none. IdentityInfo must therefore carry no token field
+// participant that has none. MailboxInfo must therefore carry no token field
 // at all — not an empty one — and no expiry, which belongs to a token.
-func TestIdentityInfo_CarriesNoTokenField(t *testing.T) {
-	fields := jsonFields(t, sampleIdentityInfo())
+func TestMailboxInfo_CarriesNoTokenField(t *testing.T) {
+	fields := jsonFields(t, sampleMailboxInfo())
 
 	for _, name := range []string{"Token", "ExpiresAt"} {
 		if _, found := fields[name]; found {
-			t.Fatalf("IdentityInfo carries a %v field: %v", name, fields)
+			t.Fatalf("MailboxInfo carries a %v field: %v", name, fields)
 		}
 	}
 	for _, name := range []string{"Identity", "Alias"} {
 		if _, found := fields[name]; !found {
-			t.Fatalf("IdentityInfo carries no %v field: %v", name, fields)
+			t.Fatalf("MailboxInfo carries no %v field: %v", name, fields)
 		}
 	}
 }
