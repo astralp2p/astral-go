@@ -97,53 +97,53 @@ func ctx() *astral.Context { return astral.NewContext(nil) }
 // because a test that reads the same constant as the code cannot catch the
 // constant being wrong.
 
-func TestCreateIdentity_SendsOnlyWhatIsSet(t *testing.T) {
-	want := &messaging.IdentityCredential{Identity: astral.GenerateIdentity(), Token: "t0k3n"}
+func TestCreateMailbox_SendsOnlyWhatIsSet(t *testing.T) {
+	want := &messaging.MailboxCredential{Identity: astral.GenerateIdentity(), Token: "t0k3n"}
 
 	c, router := answeringClient(t, want)
-	got, err := c.CreateIdentity(ctx(), "", 0)
+	got, err := c.CreateMailbox(ctx(), "", 0)
 	if err != nil {
-		t.Fatalf("CreateIdentity: %v", err)
+		t.Fatalf("CreateMailbox: %v", err)
 	}
-	assertQuery(t, router, "messaging.create_identity", nil)
+	assertQuery(t, router, "messaging.create_mailbox", nil)
 	if got.Token != want.Token || !got.Identity.IsEqual(want.Identity) {
 		t.Fatalf("credential: want %+v, got %+v", want, got)
 	}
 
 	c, router = answeringClient(t, want)
-	if _, err = c.CreateIdentity(ctx(), "scout", astral.Duration(time.Hour)); err != nil {
-		t.Fatalf("CreateIdentity: %v", err)
+	if _, err = c.CreateMailbox(ctx(), "scout", astral.Duration(time.Hour)); err != nil {
+		t.Fatalf("CreateMailbox: %v", err)
 	}
-	assertQuery(t, router, "messaging.create_identity", map[string]string{"alias": "scout", "duration": "1h0m0s"})
+	assertQuery(t, router, "messaging.create_mailbox", map[string]string{"alias": "scout", "duration": "1h0m0s"})
 }
 
-func TestIdentity_NamesTheIdentity(t *testing.T) {
-	want := &messaging.IdentityInfo{Identity: astral.GenerateIdentity(), Alias: "scout"}
+func TestMailbox_NamesTheIdentity(t *testing.T) {
+	want := &messaging.MailboxInfo{Identity: astral.GenerateIdentity(), Alias: "scout"}
 
 	c, router := answeringClient(t, want)
-	got, err := c.Identity(ctx(), "scout")
+	got, err := c.Mailbox(ctx(), "scout")
 	if err != nil {
-		t.Fatalf("Identity: %v", err)
+		t.Fatalf("Mailbox: %v", err)
 	}
-	assertQuery(t, router, "messaging.identity", map[string]string{"identity": "scout"})
+	assertQuery(t, router, "messaging.mailbox", map[string]string{"identity": "scout"})
 	if got.Alias != want.Alias {
 		t.Fatalf("alias: want %v, got %v", want.Alias, got.Alias)
 	}
 }
 
-func TestDeleteIdentity_NamesTheIdentityAndExpectsAnAck(t *testing.T) {
+func TestDeleteMailbox_NamesTheIdentityAndExpectsAnAck(t *testing.T) {
 	c, router := answeringClient(t, &astral.Ack{})
-	if err := c.DeleteIdentity(ctx(), "scout"); err != nil {
-		t.Fatalf("DeleteIdentity: %v", err)
+	if err := c.DeleteMailbox(ctx(), "scout"); err != nil {
+		t.Fatalf("DeleteMailbox: %v", err)
 	}
-	assertQuery(t, router, "messaging.delete_identity", map[string]string{"identity": "scout"})
+	assertQuery(t, router, "messaging.delete_mailbox", map[string]string{"identity": "scout"})
 }
 
 // An unknown participant arrives as an error object, not as an ack.
-func TestDeleteIdentity_NodeErrorIsReturned(t *testing.T) {
+func TestDeleteMailbox_NodeErrorIsReturned(t *testing.T) {
 	c, _ := answeringClient(t, astral.NewError("identity not found"))
 
-	err := c.DeleteIdentity(ctx(), "scout")
+	err := c.DeleteMailbox(ctx(), "scout")
 	if err == nil || err.Error() != "identity not found" {
 		t.Fatalf("want the node's error, got %v", err)
 	}
@@ -380,9 +380,9 @@ func errOf[T any](_ T, err error) error { return err }
 func TestSingleAnswerOps_NoAnswerIsAnError(t *testing.T) {
 	ref := messaging.MessageRef{Box: "inbox", ID: messaging.NewMessageID()}
 	calls := map[string]func(c *Client) error{
-		"CreateIdentity": func(c *Client) error { return errOf(c.CreateIdentity(ctx(), "", 0)) },
-		"Identity":       func(c *Client) error { return errOf(c.Identity(ctx(), "scout")) },
-		"DeleteIdentity": func(c *Client) error { return c.DeleteIdentity(ctx(), "scout") },
+		"CreateMailbox": func(c *Client) error { return errOf(c.CreateMailbox(ctx(), "", 0)) },
+		"Identity":      func(c *Client) error { return errOf(c.Mailbox(ctx(), "scout")) },
+		"DeleteMailbox": func(c *Client) error { return c.DeleteMailbox(ctx(), "scout") },
 		"SendMessage": func(c *Client) error {
 			return errOf(c.SendMessage(ctx(), &messaging.SendMessageRequest{To: "scout"}))
 		},

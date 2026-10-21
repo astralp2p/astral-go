@@ -15,8 +15,8 @@ The mailbox identity holds `mod.messaging.host_mailbox_action` itself: the root
 rule allows it exactly when the action's `MailboxID` is nonzero and equals its
 actor. A contract from another identity, or one the node issues to itself,
 grants no hosting. A permit carrying any constraint is refused.
-`messaging.create_identity` provisions the hosting contract beside the relay
-contract. `messaging.delete_identity` withdraws hosting on the node alone; the
+`messaging.create_mailbox` provisions the hosting contract beside the relay
+contract. `messaging.delete_mailbox` withdraws hosting on the node alone; the
 contract stays valid until it expires.
 
 Hosting is separate from mail admission (`mod.messaging.send_action`,
