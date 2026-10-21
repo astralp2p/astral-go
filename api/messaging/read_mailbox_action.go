@@ -42,21 +42,6 @@ func (a *ReadMailboxAction) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(a).ReadFrom(r)
 }
 
-// json
-//
-// why declared and not left to the default: an embedded struct marshals inline
-// unless something names it, so without these the action would reach a json
-// peer as a flat object while the spec documents it as an Action beside
-// MailboxID. Contract and Permit declare the same pair for the same reason.
-
-func (a ReadMailboxAction) MarshalJSON() ([]byte, error) {
-	return astral.Objectify(&a).MarshalJSON()
-}
-
-func (a *ReadMailboxAction) UnmarshalJSON(b []byte) error {
-	return astral.Objectify(a).UnmarshalJSON(b)
-}
-
 // ApplyConstraints refuses every permit, constrained or not, so Permit.Allows
 // answers false for the action and no contract carries it: an auth chain walk
 // passes no contract link for a delegated read, and the authority is asked
