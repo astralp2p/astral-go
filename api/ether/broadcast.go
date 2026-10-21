@@ -71,6 +71,13 @@ func (b *Broadcast) ReadFrom(r io.Reader) (n int64, err error) {
 	return
 }
 
+// json
+
+// MarshalJSON writes Object as a nested Type/Object container, the form of an
+// interface-typed slot (.ai/system/topics/json-encoding.md).
+func (b Broadcast) MarshalJSON() ([]byte, error)     { return astral.Objectify(&b).MarshalJSON() }
+func (b *Broadcast) UnmarshalJSON(data []byte) error { return astral.Objectify(b).UnmarshalJSON(data) }
+
 func init() {
 	_ = astral.Add(&Broadcast{})
 }
