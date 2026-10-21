@@ -42,21 +42,6 @@ func (a *HostMailboxAction) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(a).ReadFrom(r)
 }
 
-// json
-//
-// why declared and not left to the default: an embedded struct marshals inline
-// unless something names it, so without these the action would reach a json
-// peer as a flat object while the spec documents it as an Action beside
-// MailboxID. Contract and Permit declare the same pair for the same reason.
-
-func (a HostMailboxAction) MarshalJSON() ([]byte, error) {
-	return astral.Objectify(&a).MarshalJSON()
-}
-
-func (a *HostMailboxAction) UnmarshalJSON(b []byte) error {
-	return astral.Objectify(a).UnmarshalJSON(b)
-}
-
 // ApplyConstraints refuses a permit that carries any constraint, as SendAction
 // does. The hosting permit carries none: the root rule binds MailboxID to the
 // contract's issuer, so no constraint names the mailbox. Every constraint is

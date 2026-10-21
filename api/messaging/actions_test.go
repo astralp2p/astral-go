@@ -7,6 +7,7 @@ import (
 
 	"github.com/astralp2p/astral-go/api/auth"
 	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 )
 
 // TestSendActionRoundTrip covers the two shapes the action reaches the wire in:
@@ -228,13 +229,15 @@ func TestReadMailboxActionRefusesAnUnconstrainedPermit(t *testing.T) {
 	}
 }
 
-// TestMessagingActionsCarryTheDocumentedJSON pins the shape astral-docs states
-// and a json peer decodes: the embedded base action named rather than inlined.
-func TestMessagingActionsCarryTheDocumentedJSON(t *testing.T) {
+// TestMessagingActionsTravelFlatThroughJSONChannels pins the shape astral-docs
+// states for every action type: the embedded base action's fields sit beside
+// the action's own fields in the Object value, not under an Action member. Each
+// action passes a JSON channel and arrives with its base action intact.
+func TestMessagingActionsTravelFlatThroughJSONChannels(t *testing.T) {
 	actor, other := astral.GenerateIdentity(), astral.GenerateIdentity()
 
 	for name, tc := range map[string]struct {
-		action astral.Object
+		action auth.ActionObject
 		field  string
 	}{
 		"send":         {&SendAction{Action: auth.NewAction(actor), ToID: other}, "ToID"},
@@ -243,16 +246,44 @@ func TestMessagingActionsCarryTheDocumentedJSON(t *testing.T) {
 		"read_mailbox": {&ReadMailboxAction{Action: auth.NewAction(actor), MailboxID: other}, "MailboxID"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			got := jsonFields(t, tc.action)
+			var buf bytes.Buffer
+			if err := channel.NewJSONSender(&buf).Send(tc.action); err != nil {
+				t.Fatalf("send: %v", err)
+			}
 
-			if _, ok := got["Action"]; !ok {
-				t.Fatalf("no Action member: the base action was inlined (%v)", got)
+			var line struct {
+				Type   string
+				Object map[string]json.RawMessage
 			}
-			if _, ok := got[tc.field]; !ok {
-				t.Fatalf("no %v member (%v)", tc.field, got)
+			if err := json.Unmarshal(buf.Bytes(), &line); err != nil {
+				t.Fatalf("parse %s: %v", buf.Bytes(), err)
 			}
-			if _, ok := got["ActorID"]; ok {
-				t.Fatalf("ActorID sits at the top level: the base action was inlined (%v)", got)
+			if _, ok := line.Object["Action"]; ok {
+				t.Fatalf("Action member present: the base action is nested (%s)", buf.Bytes())
+			}
+			for _, f := range []string{"Nonce", "ActorID", tc.field} {
+				if _, ok := line.Object[f]; !ok {
+					t.Fatalf("no %v member in the Object value (%s)", f, buf.Bytes())
+				}
+			}
+
+			obj, err := channel.NewJSONReceiver(&buf).Receive()
+			if err != nil {
+				t.Fatalf("receive: %v", err)
+			}
+			got, ok := obj.(auth.ActionObject)
+			if !ok {
+				t.Fatalf("received %T, not an action", obj)
+			}
+			if got.ObjectType() != tc.action.ObjectType() {
+				t.Fatalf("type: got %v, want %v", got.ObjectType(), tc.action.ObjectType())
+			}
+			if got.Actor().IsZero() || got.Id() == 0 {
+				t.Fatalf("base action is zero: actor %v nonce %v", got.Actor(), got.Id())
+			}
+			if !got.Actor().IsEqual(actor) || got.Id() != tc.action.Id() {
+				t.Fatalf("base action: got actor %v nonce %v, want actor %v nonce %v",
+					got.Actor(), got.Id(), actor, tc.action.Id())
 			}
 		})
 	}
