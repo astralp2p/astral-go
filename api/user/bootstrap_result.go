@@ -7,12 +7,14 @@ import (
 )
 
 // BootstrapResult is the reply of user.bootstrap: the user that now owns the
-// node and, when the node generated them, the words that derive that user.
+// node, the words that derive that user when the node generated them, and an
+// access token issued for that user.
 //
 // Mnemonic is empty when the caller sent the words.
 type BootstrapResult struct {
 	Identity *astral.Identity
 	Mnemonic astral.String16
+	Token    astral.String8
 }
 
 func (BootstrapResult) ObjectType() string { return "mod.user.bootstrap_result" }

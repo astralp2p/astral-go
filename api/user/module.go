@@ -8,6 +8,8 @@ const (
 	OpAcceptMembership     = "user.accept_membership"
 	OpAcceptContract       = "user.accept_contract"
 	OpBootstrap            = "user.bootstrap"
+	OpDeriveIdentity       = "user.derive_identity"
+	OpJoin                 = "user.join"
 	OpAdopt                = "user.adopt"
 	OpRequestMembership    = "user.request_membership"
 	OpSwarmStatus          = "user.swarm_status"
