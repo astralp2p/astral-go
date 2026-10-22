@@ -7,6 +7,7 @@ const (
 	OpRemoveAsset          = "user.remove_asset"
 	OpAcceptMembership     = "user.accept_membership"
 	OpAcceptContract       = "user.accept_contract"
+	OpBootstrap            = "user.bootstrap"
 	OpAdopt                = "user.adopt"
 	OpRequestMembership    = "user.request_membership"
 	OpSwarmStatus          = "user.swarm_status"
