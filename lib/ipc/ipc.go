@@ -3,11 +3,15 @@ package ipc
 import (
 	"context"
 	"errors"
+	"fmt"
+	"io/fs"
 	"math/rand/v2"
 	"net"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/akutz/memconn"
 	"github.com/astralp2p/astral-go/astral"
@@ -17,7 +21,12 @@ import (
 var (
 	ErrUnsupportedProtocol = errors.New("unsupported protocol")
 	ErrInvalidIPCAddress   = errors.New("invalid ipc address")
+	ErrNotSocket           = errors.New("file exists and is not a unix socket")
+	ErrSocketInUse         = errors.New("unix socket is in use by another process")
 )
+
+// staleProbeTimeout bounds the dial that tells a stale socket file from a live one.
+const staleProbeTimeout = time.Second
 
 func Dial(target string) (conn *Conn, err error) {
 	return DialContext(context.Background(), target)
@@ -58,7 +67,9 @@ func DialContext(ctx context.Context, target string) (conn *Conn, err error) {
 	return
 }
 
-// Listen binds to the given "proto:addr" IPC address; for unix sockets it expands "~/" and removes a stale socket file before retrying.
+// Listen binds to the given "proto:addr" IPC address. For unix sockets it expands "~/" and
+// replaces a stale socket file, one that no process accepts on. Any other file at the path, and a
+// socket a process still serves, make Listen fail.
 func Listen(ipcAddress string) (net.Listener, error) {
 	var protocol, address string
 
@@ -73,22 +84,7 @@ func Listen(ipcAddress string) (net.Listener, error) {
 		return net.Listen("tcp", address)
 
 	case "unix":
-		var path = expandHome(address)
-
-		listen, err := net.Listen("unix", path)
-		if err != nil {
-			// if the socket already exists, remove it if it's stale and listen again
-			if strings.Contains(err.Error(), "already in use") {
-				rerr := os.Remove(path)
-				if rerr != nil {
-					return nil, err
-				}
-
-				listen, err = net.Listen("unix", path)
-			}
-		}
-
-		return listen, err
+		return listenUnix(expandHome(address))
 
 	case "memu", "memb":
 		return memconn.Listen(protocol, address)
@@ -96,6 +92,46 @@ func Listen(ipcAddress string) (net.Listener, error) {
 	default:
 		return nil, ErrUnsupportedProtocol
 	}
+}
+
+// listenUnix listens on the unix socket at path, replacing a stale socket file.
+func listenUnix(path string) (net.Listener, error) {
+	listen, err := net.Listen("unix", path)
+	if err == nil || !errors.Is(err, syscall.EADDRINUSE) {
+		return listen, err
+	}
+
+	if err = removeStaleSocket(path); err != nil {
+		return nil, err
+	}
+
+	return net.Listen("unix", path)
+}
+
+// removeStaleSocket removes the socket file at path when no process accepts on it.
+//
+// why: a bind fails with EADDRINUSE for any existing file, so the error alone does not tell a
+// crashed node's socket from a live one or from a file that is not a socket.
+func removeStaleSocket(path string) error {
+	info, err := os.Lstat(path)
+	if err != nil {
+		return err
+	}
+	if info.Mode()&fs.ModeSocket == 0 {
+		return fmt.Errorf("%v: %w", path, ErrNotSocket)
+	}
+
+	conn, err := net.DialTimeout("unix", path, staleProbeTimeout)
+	switch {
+	case err == nil:
+		conn.Close()
+		return fmt.Errorf("%v: %w", path, ErrSocketInUse)
+	case !errors.Is(err, syscall.ECONNREFUSED):
+		// note: a socket that cannot be probed, e.g. without permission, is kept
+		return fmt.Errorf("%v: probe: %w", path, err)
+	}
+
+	return os.Remove(path)
 }
 
 // ListenAny opens a listener on a system-assigned ephemeral address for the given protocol, useful when the caller does not care which address is used.
