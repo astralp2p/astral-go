@@ -55,7 +55,10 @@ type RegisterOptions struct {
 //
 // The node accepts the query before its register policy decides, so a refusal
 // arrives as the error object apphost.ErrRegistrationDeclined, which surfaces
-// here as an error, as does any failure past the accept gate.
+// here as an error, as does any failure past the accept gate. A delegated
+// policy may wait on a person. The wait ends with ctx: Register closes the
+// query, which tells the policy that nobody waits for its answer, and returns
+// ctx's error.
 func (client *Client) Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, error) {
 	return client.RegisterWith(ctx, RegisterOptions{GrantPermits: permits})
 }
@@ -78,7 +81,7 @@ func (client *Client) RegisterWith(ctx *astral.Context, opts RegisterOptions) (*
 	}
 	defer ch.Close()
 
-	return readAccessToken(ch)
+	return readAccessToken(ctx, ch)
 }
 
 // The arguments apphost.register reads. The operation declares GrantPermits,
@@ -134,8 +137,16 @@ func addPermits(args query.Args, key string, permits []string) error {
 // object a failed step streams. An answer carrying neither is a protocol
 // error — registration has no empty success, and a nil token returned with a
 // nil error would strand the caller at the one call it cannot retry blind.
-func readAccessToken(ch *channel.Channel) (token *apphost.AccessToken, err error) {
-	if err = ch.Switch(channel.Expect(&token), channel.PassErrors); err != nil {
+// The read ends with ctx, and a token that arrived stands however ctx ends.
+func readAccessToken(ctx *astral.Context, ch *channel.Channel) (token *apphost.AccessToken, err error) {
+	err = ch.Switch(channel.Expect(&token), channel.PassErrors, channel.WithContext(ctx))
+
+	// why: WithContext ends the read by closing the channel, which reads as an
+	// answer without a token or as a transport error, not as the end of ctx.
+	if token == nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err != nil {
 		return nil, err
 	}
 

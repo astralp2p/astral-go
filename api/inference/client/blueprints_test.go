@@ -89,6 +89,12 @@ func TestPushBlueprintsFails(t *testing.T) {
 	}
 }
 
+// A node that accepts a push and stalls holds the caller only until ctx ends.
+func TestPushBlueprintsEndsWithCtx(t *testing.T) {
+	c, _ := clientFor(t, map[string]any{objects.MethodRegisterBlueprint: stalled})
+	endsWithCtx(t, c.PushBlueprints)
+}
+
 // A node that loaded the v1 inference.chunk since it started answers the push
 // of v2 with "already registered", and only the check finds it out.
 func TestCheckBlueprintsFindsAnOlderShape(t *testing.T) {

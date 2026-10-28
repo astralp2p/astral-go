@@ -24,16 +24,16 @@ func (r *localRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery) (
 func (r *localRouter) GuestID() *astral.Identity { return r.id }
 func (r *localRouter) HostID() *astral.Identity  { return r.id }
 
-// clientFor routes the real client to op standing in for the node's
-// objects.get_blueprint, so the wire argument name is pinned.
-func clientFor(t *testing.T, op any) *Client {
+// clientFor routes the real client to op standing in for the node's method,
+// so the wire argument names are pinned.
+func clientFor(t *testing.T, method string, op any) *Client {
 	t.Helper()
 	router := routing.NewOpRouter()
 	o, err := routing.NewOp(op)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := router.AddOp(objects.MethodGetBlueprint, o); err != nil {
+	if err := router.AddOp(method, o); err != nil {
 		t.Fatal(err)
 	}
 	id := astral.GenerateIdentity()
@@ -49,7 +49,7 @@ type getBlueprintArgs struct {
 func TestGetBlueprint(t *testing.T) {
 	want := astral.NewBlueprint("test.get_blueprint",
 		astral.Field{Name: "N", Spec: &astral.PrimitiveSpec{PrimitiveType: "uint32"}})
-	c := clientFor(t, func(_ *astral.Context, q *routing.IncomingQuery, args getBlueprintArgs) error {
+	c := clientFor(t, objects.MethodGetBlueprint, func(_ *astral.Context, q *routing.IncomingQuery, args getBlueprintArgs) error {
 		ch := q.Accept()
 		defer ch.Close()
 		if args.Type != want.Type.String() {
@@ -78,7 +78,7 @@ func TestGetBlueprint(t *testing.T) {
 // A node that closes the channel without an answer is an error, not a nil
 // blueprint.
 func TestGetBlueprintEmptyAnswer(t *testing.T) {
-	c := clientFor(t, func(_ *astral.Context, q *routing.IncomingQuery, _ getBlueprintArgs) error {
+	c := clientFor(t, objects.MethodGetBlueprint, func(_ *astral.Context, q *routing.IncomingQuery, _ getBlueprintArgs) error {
 		return q.Accept().Close()
 	})
 

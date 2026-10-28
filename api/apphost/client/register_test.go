@@ -145,7 +145,7 @@ func TestRegisterArgs_ContractPermitWithACommaIsRefused(t *testing.T) {
 func TestReadAccessToken_ReturnsTheMintedToken(t *testing.T) {
 	src := sampleToken()
 
-	token, err := readAccessToken(answer(t, src))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t, src))
 	if err != nil {
 		t.Fatalf("readAccessToken: %v", err)
 	}
@@ -160,7 +160,7 @@ func TestReadAccessToken_ReturnsTheMintedToken(t *testing.T) {
 
 // A failure past the accept gate arrives as an error object, not as a token.
 func TestReadAccessToken_NodeRefusalIsReturnedNotSwallowed(t *testing.T) {
-	token, err := readAccessToken(answer(t, astral.NewError("register policy refused")))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t, astral.NewError("register policy refused")))
 	if err == nil {
 		t.Fatal("expected the node's refusal to surface")
 	}
@@ -172,7 +172,7 @@ func TestReadAccessToken_NodeRefusalIsReturnedNotSwallowed(t *testing.T) {
 // Registration has no empty success: an answer carrying nothing must not read
 // as a token the caller can use.
 func TestReadAccessToken_EmptyAnswerIsAProtocolError(t *testing.T) {
-	token, err := readAccessToken(answer(t))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t))
 	if err == nil {
 		t.Fatal("expected an empty answer to be an error")
 	}
