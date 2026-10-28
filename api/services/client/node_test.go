@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -186,5 +188,67 @@ func TestConcurrentAnswersAndChanges(t *testing.T) {
 			t.Fatalf("decoded %d answers and %d changes; want %d and %d", answers, changed, asks, changes)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// followOp stands in for a node's follow discovery: it sends the initial
+// boundary, then sends nothing while nothing changes, until the caller closes.
+func followOp(_ *astral.Context, q *routing.IncomingQuery, _ discoverArgs) error {
+	ch := q.Accept()
+	defer ch.Close()
+	if err := ch.Send(&astral.EOS{}); err != nil {
+		return err
+	}
+	for {
+		if _, err := ch.Receive(); err != nil {
+			return nil
+		}
+	}
+}
+
+// drained reports whether events closes within d, and the terminal errors it
+// delivered on the way.
+func drained(events <-chan Event, d time.Duration) (bool, []error) {
+	var errs []error
+	deadline := time.After(d)
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				return true, errs
+			}
+			if ev.Err != nil {
+				errs = append(errs, ev.Err)
+			}
+		case <-deadline:
+			return false, errs
+		}
+	}
+}
+
+// Evaluation check 13: a follow discovery ends when its context ends, also
+// while no event arrives.
+func TestIdleFollowEndsWithItsContext(t *testing.T) {
+	c := clientFor(t, map[string]any{services.MethodDiscover: followOp})
+	ctx, cancel := astral.NewContext(nil).WithCancel()
+	defer cancel()
+
+	events, err := c.Discover(ctx, []string{"player"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev := <-events; ev.Initial == nil {
+		t.Fatalf("first event %+v; want the initial outcome", ev)
+	}
+
+	cancel()
+	ok, errs := drained(events, time.Second)
+	if !ok {
+		t.Fatal("the idle follow did not end within 1s of its context")
+	}
+	for _, err := range errs {
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("terminal error %v; want the context's", err)
+		}
 	}
 }
