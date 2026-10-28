@@ -149,11 +149,16 @@ func TestCompleteRejectsBrokenOrder(t *testing.T) {
 		"gap":          {&inference.Chunk{Index: 0}, &inference.Chunk{Index: 2}},
 		"late start":   {&inference.Chunk{Index: 1}},
 		"after finish": {&inference.Chunk{Index: 0, FinishReason: inference.FinishStop}, &inference.Chunk{Index: 1}},
+		"usage first":  {&inference.Usage{TotalTokens: 1}, &inference.Chunk{Index: 0, FinishReason: inference.FinishStop}},
+		"usage before finish": {&inference.Chunk{Index: 0}, &inference.Usage{TotalTokens: 1},
+			&inference.Chunk{Index: 1, FinishReason: inference.FinishStop}},
+		"usage twice": {&inference.Chunk{Index: 0, FinishReason: inference.FinishStop},
+			&inference.Usage{TotalTokens: 1}, &inference.Usage{TotalTokens: 1}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			c := provider(t, nil, append(answer, &astral.EOS{})...)
 			if _, err := collect(c.Complete(astral.NewContext(nil), &inference.Request{})); err == nil {
-				t.Fatal("a broken chunk order passed")
+				t.Fatal("a broken order passed")
 			}
 		})
 	}

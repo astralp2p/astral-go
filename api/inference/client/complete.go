@@ -27,6 +27,8 @@ type Event struct {
 //
 //   - *inference.Error when the provider failed, before or after chunks;
 //   - ErrUnfinished when the answer ended without a finishing chunk;
+//   - a broken order: a chunk out of Index order or after the finishing
+//     chunk, or usage before it or twice;
 //   - the end of ctx;
 //   - any other error of the query or the stream.
 //
@@ -78,6 +80,7 @@ func (client *Client) Complete(ctx *astral.Context, req *inference.Request) iter
 type answer struct {
 	next     uint32
 	finished bool
+	usage    bool
 }
 
 // read turns one stream object into an event, and reports whether the answer
@@ -90,6 +93,9 @@ func (a *answer) read(o astral.Object) (Event, bool, error) {
 		}
 		return Event{Chunk: obj}, false, nil
 	case *inference.Usage:
+		if err := a.reported(); err != nil {
+			return Event{}, false, err
+		}
 		return Event{Usage: obj}, false, nil
 	case *astral.EOS:
 		if !a.finished {
@@ -111,6 +117,22 @@ func (a *answer) chunk(c *inference.Chunk) error {
 	}
 	a.next++
 	a.finished = c.FinishReason != ""
+	return nil
+}
+
+// reported checks that usage follows the finishing chunk, once.
+//
+// why: a provider sends usage only for an answer that finished, and never
+// after an inference.error, so usage that comes earlier belongs to an answer
+// that broke off, and a caller would bill or show it as a whole one.
+func (a *answer) reported() error {
+	switch {
+	case !a.finished:
+		return errors.New("inference: usage before the finishing chunk")
+	case a.usage:
+		return errors.New("inference: usage reported twice")
+	}
+	a.usage = true
 	return nil
 }
 
