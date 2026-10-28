@@ -1,54 +1,17 @@
 package apphost
 
 import (
-	"bytes"
 	"errors"
-	"io"
 	"testing"
 
 	"github.com/astralp2p/astral-go/api/apphost"
 	"github.com/astralp2p/astral-go/astral"
-	"github.com/astralp2p/astral-go/astral/channel"
-	"github.com/astralp2p/astral-go/lib/astrald"
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// hostsRouter records the query it routes and answers with pre-encoded objects.
-type hostsRouter struct {
-	queryString string
-	answer      io.Reader
-}
-
-func (r *hostsRouter) RouteQuery(_ *astral.Context, q *astral.InFlightQuery) (astral.Conn, error) {
-	r.queryString = q.QueryString.String()
-	return query.NewConn(nil, nil, nopWriteCloser{io.Discard}, r.answer, true), nil
-}
-
-func (r *hostsRouter) GuestID() *astral.Identity { return nil }
-func (r *hostsRouter) HostID() *astral.Identity  { return nil }
-
-type nopWriteCloser struct{ io.Writer }
-
-func (nopWriteCloser) Close() error { return nil }
-
-func hostsClient(t *testing.T, objects ...astral.Object) (*Client, *hostsRouter) {
-	t.Helper()
-
-	var buf bytes.Buffer
-	s := channel.NewSender(&buf)
-	for _, o := range objects {
-		if err := s.Send(o); err != nil {
-			t.Fatalf("encode %s: %v", o.ObjectType(), err)
-		}
-	}
-
-	router := &hostsRouter{answer: &buf}
-	return New(nil, astrald.New(router)), router
-}
-
 func TestHosts_StreamsIdentitiesUntilEOS(t *testing.T) {
 	a, b := astral.GenerateIdentity(), astral.GenerateIdentity()
-	client, router := hostsClient(t, a, b, &astral.EOS{})
+	client, router := recordingClient(t, a, b, &astral.EOS{})
 
 	out, errPtr := client.Hosts(astral.NewContext(nil), "chat")
 
@@ -75,7 +38,7 @@ func TestHosts_StreamsIdentitiesUntilEOS(t *testing.T) {
 }
 
 func TestHosts_EOSAloneIsNoHosts(t *testing.T) {
-	client, _ := hostsClient(t, &astral.EOS{})
+	client, _ := recordingClient(t, &astral.EOS{})
 
 	out, errPtr := client.Hosts(astral.NewContext(nil), "nobody")
 
@@ -88,7 +51,7 @@ func TestHosts_EOSAloneIsNoHosts(t *testing.T) {
 }
 
 func TestHosts_ErrorMessageIsReturned(t *testing.T) {
-	client, _ := hostsClient(t, astral.Err(errors.New("db down")))
+	client, _ := recordingClient(t, astral.Err(errors.New("db down")))
 
 	out, errPtr := client.Hosts(astral.NewContext(nil), "chat")
 
