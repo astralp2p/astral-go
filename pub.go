@@ -16,6 +16,7 @@ import (
 	_ "github.com/astralp2p/astral-go/api/fs"
 	_ "github.com/astralp2p/astral-go/api/gateway"
 	_ "github.com/astralp2p/astral-go/api/indexing"
+	_ "github.com/astralp2p/astral-go/api/inference"
 	_ "github.com/astralp2p/astral-go/api/ip"
 	_ "github.com/astralp2p/astral-go/api/kcp"
 	_ "github.com/astralp2p/astral-go/api/mcp"
