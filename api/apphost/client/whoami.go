@@ -18,6 +18,12 @@ import (
 // anonymous allowlist a session without a token is denied
 // (apphost.ErrCodeDenied). A node that does not answer before ctx ends fails
 // Whoami with ctx's error.
+//
+// astrald answers auth_failed also when its lookup of the token fails, on a
+// database error say, not only for a token it does not hold or that expired.
+// A caller that drops its identity on auth_failed and registers a new one asks
+// Whoami again first, so a passing fault on the node does not cost it the
+// identity its grants name.
 func (client *Client) Whoami(ctx *astral.Context) (*astral.Identity, error) {
 	ch, err := client.queryCh(ctx, apphost.MethodWhoami, nil)
 	if err != nil {
