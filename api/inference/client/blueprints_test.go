@@ -95,6 +95,12 @@ func TestPushBlueprintsEndsWithCtx(t *testing.T) {
 	endsWithCtx(t, c.PushBlueprints)
 }
 
+// The check names the end of ctx, not a broken answer, when the node stalls.
+func TestCheckBlueprintsEndsWithCtx(t *testing.T) {
+	c, _ := clientFor(t, map[string]any{objects.MethodGetBlueprint: stalled})
+	endsWithCtx(t, c.CheckBlueprints)
+}
+
 // A node that loaded the v1 inference.chunk since it started answers the push
 // of v2 with "already registered", and only the check finds it out.
 func TestCheckBlueprintsFindsAnOlderShape(t *testing.T) {

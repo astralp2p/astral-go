@@ -27,7 +27,9 @@ type GrantOptions struct {
 // The caller must hold mod.auth.admin_manage_apps_action. The node rejects
 // any other caller, and any query that arrived over a link, before it answers.
 // A failure past the accept gate, such as an identity that does not resolve,
-// arrives as an error, and so does an answer that ends without an ack.
+// arrives as an error, and so does an answer that ends without an ack. A node
+// that does not ack before ctx ends fails Grant with ctx's error; the grant
+// may still be written.
 func (client *Client) Grant(ctx *astral.Context, identity *astral.Identity, action string, opts GrantOptions) error {
 	args := query.Args{"identity": identity.String(), "action": action}
 	if opts.Duration != 0 {
@@ -53,7 +55,14 @@ func (client *Client) Grant(ctx *astral.Context, identity *astral.Identity, acti
 
 	// why FailOnEOF: the node acks only once the grant is written, so an
 	// answer that ends without an ack recorded nothing.
-	return ch.Switch(channel.ExpectAck, channel.PassErrors, channel.FailOnEOF(), channel.WithContext(ctx))
+	err = ch.Switch(channel.ExpectAck, channel.PassErrors, channel.FailOnEOF(), channel.WithContext(ctx))
+
+	// why: WithContext ends the read by closing the channel, which reads as an
+	// answer cut short, not as the end of ctx.
+	if err != nil && ctx.Err() != nil {
+		return ctx.Err()
+	}
+	return err
 }
 
 // Grant calls the operation on the default client.

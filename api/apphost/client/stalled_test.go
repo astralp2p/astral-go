@@ -141,3 +141,27 @@ func TestRegisterWith_EndsWithCtx(t *testing.T) {
 		})
 	}
 }
+
+// A caller tells the end of its own ctx from a node that answered wrong.
+func TestWhoami_EndsWithCtx(t *testing.T) {
+	for name, router := range stalledRouters(t, apphost.MethodWhoami) {
+		t.Run(name, func(t *testing.T) {
+			client := New(nil, astrald.New(router))
+			endsWithCtx(t, func(ctx *astral.Context) error {
+				_, err := client.Whoami(ctx)
+				return err
+			})
+		})
+	}
+}
+
+func TestGrant_EndsWithCtx(t *testing.T) {
+	for name, router := range stalledRouters(t, apphost.MethodGrant) {
+		t.Run(name, func(t *testing.T) {
+			client := New(nil, astrald.New(router))
+			endsWithCtx(t, func(ctx *astral.Context) error {
+				return client.Grant(ctx, astral.GenerateIdentity(), "mod.user.see_swarm_action", GrantOptions{})
+			})
+		})
+	}
+}

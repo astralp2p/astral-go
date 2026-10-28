@@ -87,3 +87,12 @@ func TestGetBlueprintEmptyAnswer(t *testing.T) {
 		t.Fatalf("got %v, %v; want io.ErrUnexpectedEOF", bp, err)
 	}
 }
+
+// A caller tells the end of its own ctx from a node that answered wrong.
+func TestGetBlueprintEndsWithCtx(t *testing.T) {
+	c := clientFor(t, objects.MethodGetBlueprint, stalled)
+	endsWithCtx(t, func(ctx *astral.Context) error {
+		_, err := c.GetBlueprint(ctx, "test.get_blueprint")
+		return err
+	})
+}

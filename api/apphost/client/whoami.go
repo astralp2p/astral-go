@@ -16,7 +16,8 @@ import (
 // it does not accept fails Whoami with the *apphost.ErrorMsg the session
 // received, whose Code is apphost.ErrCodeAuthFailed. Under the node's default
 // anonymous allowlist a session without a token is denied
-// (apphost.ErrCodeDenied).
+// (apphost.ErrCodeDenied). A node that does not answer before ctx ends fails
+// Whoami with ctx's error.
 func (client *Client) Whoami(ctx *astral.Context) (*astral.Identity, error) {
 	ch, err := client.queryCh(ctx, apphost.MethodWhoami, nil)
 	if err != nil {
@@ -25,7 +26,14 @@ func (client *Client) Whoami(ctx *astral.Context) (*astral.Identity, error) {
 	defer ch.Close()
 
 	var id *astral.Identity
-	if err = ch.Switch(channel.Expect(&id), channel.PassErrors, channel.WithContext(ctx)); err != nil {
+	err = ch.Switch(channel.Expect(&id), channel.PassErrors, channel.WithContext(ctx))
+
+	// why: WithContext ends the read by closing the channel, which reads as an
+	// answer naming nobody or as a transport error, not as the end of ctx.
+	if id == nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err != nil {
 		return nil, err
 	}
 
