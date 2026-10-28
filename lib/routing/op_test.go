@@ -3,7 +3,9 @@ package routing
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -518,5 +520,68 @@ func TestOp_ArgumentSpecsWithoutArguments(t *testing.T) {
 
 	if specs := op.ArgumentSpecs(); len(specs) != 0 {
 		t.Fatalf("want no specs, got %v", specs)
+	}
+}
+
+// A missing required argument names every missing argument and every key no
+// argument declares, so a renamed argument shows both its names.
+func TestOp_RequiredArgumentNamesUnknownKeys(t *testing.T) {
+	type requiredArgs struct {
+		Identity string `query:"required"`
+		Alias    string `query:"required"`
+		Out      string
+	}
+
+	op, err := NewOp(func(_ *astral.Context, q *IncomingQuery, args requiredArgs) error {
+		return q.Reject()
+	})
+	if err != nil {
+		t.Fatalf("NewOp: %v", err)
+	}
+
+	w := &answerWriter{}
+	id := astral.GenerateIdentity()
+	q := query.New(id, id, "op?target=x&id=y", nil)
+	if _, err := op.RouteQuery(astral.NewContext(nil), astral.Launch(q), w); err != nil {
+		t.Fatalf("route: %v; want the query accepted to carry the error", err)
+	}
+
+	msg := w.onlyError(t)
+	want := "argument required: identity, alias; unknown argument: id, target"
+	if msg.Error() != want {
+		t.Fatalf("answer %q; want %q", msg.Error(), want)
+	}
+	if !errors.Is(msg, query.ErrArgumentRequired) {
+		t.Fatalf("answer %q does not match ErrArgumentRequired", msg.Error())
+	}
+}
+
+type identityArgs struct {
+	Identity string `query:"required"`
+}
+
+func checkIdentityArgs(params map[string]string) error {
+	arg := query.EditValue(reflect.New(reflect.TypeOf(identityArgs{})))
+	return checkRequired(arg, arg.Spec(), params)
+}
+
+// The channel format keys in and out are never named as unknown.
+func TestCheckRequired_FormatKeysAreDeclared(t *testing.T) {
+	err := checkIdentityArgs(map[string]string{"in": "json", "out": "json"})
+	if want := "argument required: identity"; err == nil || err.Error() != want {
+		t.Fatalf("checkRequired = %v; want %q", err, want)
+	}
+}
+
+// An answer names at most maxUnknownNamed unknown keys, then an ellipsis.
+func TestCheckRequired_BoundsUnknownKeys(t *testing.T) {
+	params := map[string]string{}
+	for i := 0; i < 20; i++ {
+		params[fmt.Sprintf("k%02d", i)] = "x"
+	}
+	err := checkIdentityArgs(params)
+	want := "argument required: identity; unknown argument: k00, k01, k02, k03, k04, k05, k06, k07, …"
+	if err == nil || err.Error() != want {
+		t.Fatalf("checkRequired = %v; want %q", err, want)
 	}
 }

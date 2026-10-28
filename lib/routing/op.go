@@ -6,6 +6,8 @@ import (
 	"io"
 	"reflect"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -154,10 +156,8 @@ func (op *Op) invoke(ctx *astral.Context, q *IncomingQuery) (err error) {
 		arg := query.EditValue(argVal)
 
 		err := arg.SetMany(params)
-		for _, spec := range op.ArgumentSpecs() {
-			if _, found := params[spec.Name]; err == nil && spec.Required && !found {
-				err = fmt.Errorf("%w: %s", query.ErrArgumentRequired, spec.Name)
-			}
+		if err == nil {
+			err = checkRequired(arg, op.ArgumentSpecs(), params)
 		}
 
 		// why: an argument error is the caller's mistake, so it reaches the caller
@@ -192,4 +192,44 @@ func (op *Op) ArgumentSpecs() (args []query.FieldSpec) {
 	}
 
 	return query.EditValue(reflect.New(op.argType)).Spec()
+}
+
+// maxUnknownNamed bounds how many unknown keys an answer names.
+//
+// why: the keys are the caller's own, and an error_message is a String16, so an
+// unbounded list could outgrow the one answer the caller gets.
+const maxUnknownNamed = 8
+
+// checkRequired names every required argument params lacks and, beside them,
+// every key arg binds to no field. The channel format keys in and out are never
+// named unknown.
+//
+// why: SetMany skips an unknown key, so a caller still sending a renamed
+// argument learns the old name only from the missing argument it causes.
+func checkRequired(arg *query.Editor, specs []query.FieldSpec, params map[string]string) error {
+	var missing []string
+	for _, spec := range specs {
+		if _, found := params[spec.Name]; spec.Required && !found {
+			missing = append(missing, spec.Name)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	err := fmt.Errorf("%w: %s", query.ErrArgumentRequired, strings.Join(missing, ", "))
+
+	var unknown []string
+	for key := range params {
+		if _, ferr := arg.Field(key); errors.Is(ferr, query.ErrFieldNotFound) && key != "in" && key != "out" {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) == 0 {
+		return err
+	}
+	slices.Sort(unknown)
+	if len(unknown) > maxUnknownNamed {
+		unknown = append(unknown[:maxUnknownNamed], "…")
+	}
+	return fmt.Errorf("%w; %w: %s", err, query.ErrUnknownArgument, strings.Join(unknown, ", "))
 }
