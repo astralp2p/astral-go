@@ -6,6 +6,8 @@ import (
 	"io"
 	"reflect"
 	"runtime/debug"
+	"slices"
+	"strings"
 	"time"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -154,10 +156,8 @@ func (op *Op) invoke(ctx *astral.Context, q *IncomingQuery) (err error) {
 		arg := query.EditValue(argVal)
 
 		err := arg.SetMany(params)
-		for _, spec := range op.ArgumentSpecs() {
-			if _, found := params[spec.Name]; err == nil && spec.Required && !found {
-				err = fmt.Errorf("%w: %s", query.ErrArgumentRequired, spec.Name)
-			}
+		if err == nil {
+			err = checkRequired(op.ArgumentSpecs(), params)
 		}
 
 		// why: an argument error is the caller's mistake, so it reaches the caller
@@ -192,4 +192,37 @@ func (op *Op) ArgumentSpecs() (args []query.FieldSpec) {
 	}
 
 	return query.EditValue(reflect.New(op.argType)).Spec()
+}
+
+// checkRequired names every required argument params lacks and, beside them,
+// every key no argument declares. The channel format keys in and out are
+// always declared.
+//
+// why: SetMany skips an unknown key, so a caller still sending a renamed
+// argument learns the old name only from the missing argument it causes.
+func checkRequired(specs []query.FieldSpec, params map[string]string) error {
+	declared := map[string]bool{"in": true, "out": true}
+	var missing []string
+	for _, spec := range specs {
+		declared[spec.Name] = true
+		if _, found := params[spec.Name]; spec.Required && !found {
+			missing = append(missing, spec.Name)
+		}
+	}
+	if len(missing) == 0 {
+		return nil
+	}
+	err := fmt.Errorf("%w: %s", query.ErrArgumentRequired, strings.Join(missing, ", "))
+
+	var unknown []string
+	for key := range params {
+		if !declared[key] {
+			unknown = append(unknown, key)
+		}
+	}
+	if len(unknown) == 0 {
+		return err
+	}
+	slices.Sort(unknown)
+	return fmt.Errorf("%w; %w: %s", err, query.ErrUnknownArgument, strings.Join(unknown, ", "))
 }

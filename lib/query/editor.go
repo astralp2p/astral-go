@@ -20,6 +20,10 @@ var ErrInvalidArgument = astral.NewError("invalid argument")
 // ErrArgumentRequired refuses a query that omits a required argument.
 var ErrArgumentRequired = astral.NewError("argument required")
 
+// ErrUnknownArgument names a query key no argument declares. It appears only
+// beside ErrArgumentRequired.
+var ErrUnknownArgument = astral.NewError("unknown argument")
+
 // Editor wraps a struct and provides getter/setters for the fields
 type Editor struct {
 	arg    reflect.Value // value of the struct (dereferenced)
