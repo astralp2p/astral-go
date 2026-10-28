@@ -346,6 +346,7 @@ func TestOp_IgnoresUnknownArguments(t *testing.T) {
 func TestOp_RequiredArgumentIsEnforced(t *testing.T) {
 	type requiredArgs struct {
 		Name string `query:"required"`
+		Out  string
 	}
 
 	var called bool
@@ -412,8 +413,13 @@ func TestOp_RequiredArgumentSatisfied(t *testing.T) {
 
 // A malformed argument value fails the call rather than binding a zero value.
 func TestOp_MalformedArgumentFailsTheCall(t *testing.T) {
+	type countArgs struct {
+		Count int
+		Out   string
+	}
+
 	var called bool
-	op, err := NewOp(func(_ *astral.Context, q *IncomingQuery, args opArgs) error {
+	op, err := NewOp(func(_ *astral.Context, q *IncomingQuery, args countArgs) error {
 		called = true
 		return q.Reject()
 	})
@@ -446,6 +452,36 @@ func TestOp_MalformedArgumentFailsTheCall(t *testing.T) {
 
 	if called {
 		t.Fatal("want the handler body skipped, got it called")
+	}
+}
+
+// An op without in or out streams raw bytes, so an argument error keeps the
+// reject: an error_message would reach the caller as payload.
+func TestOp_ArgumentErrorKeepsTheRejectForARawOp(t *testing.T) {
+	type rawArgs struct {
+		ID string `query:"required"`
+	}
+
+	op, err := NewOp(func(_ *astral.Context, q *IncomingQuery, args rawArgs) error {
+		t.Error("the handler ran without its required argument")
+		return q.Reject()
+	})
+	if err != nil {
+		t.Fatalf("NewOp: %v", err)
+	}
+
+	w := &answerWriter{}
+	id := astral.GenerateIdentity()
+	_, err = op.RouteQuery(astral.NewContext(nil), astral.Launch(query.New(id, id, "op", nil)), w)
+
+	var rejected *astral.ErrRejected
+	if !errors.As(err, &rejected) {
+		t.Fatalf("route: %v; want a rejection", err)
+	}
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if n := w.buf.Len(); n != 0 {
+		t.Fatalf("the op wrote %d bytes; want none", n)
 	}
 }
 
