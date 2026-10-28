@@ -7,8 +7,9 @@ import (
 )
 
 // StoreObjectsAction requests permission for Actor to write objects into the
-// node: storing bytes, pushing objects at it, adding a repository, registering
-// a type, and turning indexing of a repository on or off.
+// node: storing bytes, pushing objects at it, adding a repository, and turning
+// indexing of a repository on or off. Registering a blueprint is
+// UseBlueprints.
 //
 // One action covers every write that adds to node state. Deleting, purging and
 // removing a repository are not here — an op that destroys is AdminObjects.
