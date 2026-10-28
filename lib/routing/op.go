@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
@@ -153,18 +154,19 @@ func (op *Op) invoke(ctx *astral.Context, q *IncomingQuery) (err error) {
 		arg := query.EditValue(argVal)
 
 		err := arg.SetMany(params)
-		if err != nil {
-			return err
+		for _, spec := range op.ArgumentSpecs() {
+			if _, found := params[spec.Name]; err == nil && spec.Required && !found {
+				err = fmt.Errorf("%w: %s", query.ErrArgumentRequired, spec.Name)
+			}
 		}
 
-		for _, spec := range op.ArgumentSpecs() {
-			if !spec.Required {
-				continue
-			}
-
-			if _, found := params[spec.Name]; !found {
-				return fmt.Errorf("field required: %s", spec.Name)
-			}
+		// why: an argument error is the caller's mistake, so it reaches the caller
+		// as an error_message naming the argument, not as a bare reject code.
+		if err != nil {
+			ch := q.Accept(channel.WithFormats(params["in"], params["out"]))
+			defer ch.Close()
+			ch.Send(astral.Err(err))
+			return err
 		}
 
 		if op.opFunc.Type().In(2).Kind() == reflect.Pointer {

@@ -118,6 +118,9 @@ func (e *Endpoint) IsZero() bool {
 	return e == nil || e.IP == nil
 }
 
+// ErrInvalidEndpoint refuses a kcp endpoint that ParseEndpoint cannot parse.
+var ErrInvalidEndpoint = astral.NewError("invalid kcp endpoint")
+
 func ParseEndpoint(s string) (*Endpoint, error) {
 	hostStr, portStr, err := net.SplitHostPort(s)
 	if err != nil {

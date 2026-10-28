@@ -3,6 +3,7 @@ package astral
 import (
 	"encoding/json"
 	"io"
+	"strings"
 )
 
 // Error is an error that is also a wire-serializable Object.
@@ -71,6 +72,19 @@ func (msg ErrorMessage) Error() string {
 
 func (msg ErrorMessage) String() string {
 	return msg.err
+}
+
+// Is reports whether target is an ErrorMessage with the same text, or with the
+// text this message starts with before ": " and detail.
+//
+// why: a decoded message is a new value, so errors.Is would never match a
+// sentinel by identity across the wire.
+func (msg ErrorMessage) Is(target error) bool {
+	t, ok := target.(*ErrorMessage)
+	if !ok {
+		return false
+	}
+	return msg.err == t.err || strings.HasPrefix(msg.err, t.err+": ")
 }
 
 func init() {

@@ -19,6 +19,9 @@ var Anyone = &Identity{}
 var anyoneKey = strings.Repeat("00", 33)
 var ErrInvalidKeyLength = errors.New("invalid key length")
 
+// ErrZeroIdentity refuses the zero (anonymous) identity where an identity must name a party.
+var ErrZeroIdentity = NewError("zero identity")
+
 // Identity is an elliptic-curve-based identity
 type Identity struct {
 	publicKey *secp256k1.PublicKey
