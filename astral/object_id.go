@@ -12,6 +12,9 @@ import (
 	"strings"
 )
 
+// ErrPartialObjectID refuses a partial object ID where a full one is required.
+var ErrPartialObjectID = NewError("partial object id")
+
 const idPrefix = "data1"
 const partialIDPrefix = "data0"
 const zBase32CharSet = "ybndrfg8ejkmcpqxot1uwisza345h769"

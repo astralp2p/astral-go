@@ -1,13 +1,16 @@
 package routing
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
@@ -36,6 +39,38 @@ type nopWriteCloser struct{}
 
 func (nopWriteCloser) Write(p []byte) (int, error) { return len(p), nil }
 func (nopWriteCloser) Close() error                { return nil }
+
+// answerWriter is the caller's end of the connection; it keeps every byte the
+// op wrote.
+type answerWriter struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (w *answerWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.buf.Write(p)
+}
+
+func (w *answerWriter) Close() error { return nil }
+
+// onlyError decodes the answer and returns its single error_message.
+func (w *answerWriter) onlyError(t *testing.T) *astral.ErrorMessage {
+	t.Helper()
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	obj, err := channel.NewReceiver(bytes.NewReader(w.buf.Bytes())).Receive()
+	if err != nil {
+		t.Fatalf("decode answer: %v", err)
+	}
+	msg, ok := obj.(*astral.ErrorMessage)
+	if !ok {
+		t.Fatalf("answer is %v; want one error_message", obj)
+	}
+	return msg
+}
 
 // NewOp signature gate ------------------------------------------------------
 
@@ -323,7 +358,11 @@ func TestOp_RequiredArgumentIsEnforced(t *testing.T) {
 	errs := make(chan error, 1)
 	op.LogFunc = func(r *Report) { errs <- r.Err }
 
-	routeTo(t, op, "op")
+	w := &answerWriter{}
+	id := astral.GenerateIdentity()
+	if _, err := op.RouteQuery(astral.NewContext(nil), astral.Launch(query.New(id, id, "op", nil)), w); err != nil {
+		t.Fatalf("route: %v; want the query accepted to carry the error", err)
+	}
 
 	select {
 	case err := <-errs:
@@ -335,6 +374,11 @@ func TestOp_RequiredArgumentIsEnforced(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("LogFunc was not called")
+	}
+
+	msg := w.onlyError(t)
+	if !errors.Is(msg, query.ErrArgumentRequired) || msg.Error() != "argument required: name" {
+		t.Fatalf("answer %q; want %q", msg.Error(), "argument required: name")
 	}
 
 	if called {
@@ -378,7 +422,11 @@ func TestOp_MalformedArgumentFailsTheCall(t *testing.T) {
 	errs := make(chan error, 1)
 	op.LogFunc = func(r *Report) { errs <- r.Err }
 
-	routeTo(t, op, "op?count=not-a-number")
+	w := &answerWriter{}
+	id := astral.GenerateIdentity()
+	if _, err := op.RouteQuery(astral.NewContext(nil), astral.Launch(query.New(id, id, "op?count=not-a-number", nil)), w); err != nil {
+		t.Fatalf("route: %v; want the query accepted to carry the error", err)
+	}
 
 	select {
 	case err := <-errs:
@@ -387,6 +435,11 @@ func TestOp_MalformedArgumentFailsTheCall(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("LogFunc was not called")
+	}
+
+	msg := w.onlyError(t)
+	if !errors.Is(msg, query.ErrInvalidArgument) || !strings.HasPrefix(msg.Error(), "invalid argument: count: ") {
+		t.Fatalf("answer %q; want an invalid argument naming count", msg.Error())
 	}
 
 	if called {

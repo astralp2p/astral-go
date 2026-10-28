@@ -2,6 +2,7 @@ package astral
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 )
 
@@ -65,5 +66,30 @@ func TestErrorMessage_UnmarshalJSON_Empty(t *testing.T) {
 	}
 	if got := msg.Error(); got != "" {
 		t.Fatalf("Error: want %q, got %q", "", got)
+	}
+}
+
+// A decoded message matches its sentinel by text, with or without detail after
+// ": ", and nothing else.
+func TestErrorMessage_IsMatchesTheSentinelText(t *testing.T) {
+	sentinel := NewError("unknown identity")
+
+	cases := []struct {
+		text string
+		want bool
+	}{
+		{"unknown identity", true},
+		{"unknown identity: bob", true},
+		{"unknown identityx", false},
+		{"unknown", false},
+		{"invalid argument: unknown identity", false},
+	}
+	for _, c := range cases {
+		if got := errors.Is(NewError(c.text), sentinel); got != c.want {
+			t.Errorf("errors.Is(%q, %q) = %v; want %v", c.text, sentinel, got, c.want)
+		}
+	}
+	if errors.Is(NewError("unknown identity"), errors.New("unknown identity")) {
+		t.Error("matched a plain error; want only an ErrorMessage to match")
 	}
 }

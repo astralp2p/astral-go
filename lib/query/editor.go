@@ -8,10 +8,17 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/log"
 )
 
 var ErrFieldNotFound = errors.New("field not found")
+
+// ErrInvalidArgument refuses a query argument whose value does not parse.
+var ErrInvalidArgument = astral.NewError("invalid argument")
+
+// ErrArgumentRequired refuses a query that omits a required argument.
+var ErrArgumentRequired = astral.NewError("argument required")
 
 // Editor wraps a struct and provides getter/setters for the fields
 type Editor struct {
@@ -148,7 +155,8 @@ func (editor *Editor) Field(name string) (*FieldEditor, error) {
 }
 
 // SetMany applies a map of values to the editor's fields, silently skipping
-// unknown keys; returns an error only on type-conversion failures.
+// unknown keys; returns an error wrapping ErrInvalidArgument only on
+// type-conversion failures.
 func (editor *Editor) SetMany(vals map[string]string) error {
 	for key, value := range vals {
 		err := editor.Set(key, value)
@@ -157,7 +165,7 @@ func (editor *Editor) SetMany(vals map[string]string) error {
 		case errors.Is(err, ErrFieldNotFound):
 			continue
 		default:
-			return fmt.Errorf("cannot set %s: %w", key, err)
+			return fmt.Errorf("%w: %s: %w", ErrInvalidArgument, key, err)
 		}
 	}
 	return nil
