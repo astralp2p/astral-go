@@ -421,3 +421,5 @@ err := apps.Serve(ctx, routing.NewApp(&API{}), apps.WithServices(p))
 
 A consumer follows offerings with `services.Watch(ctx, names)`, which keeps the
 current set and reports the outcome of the initial attempt on `Initial()`.
+`Initial()` closes without an outcome when the stream fails first; `Err()`
+then names the failure. `Close()` ends the stream.

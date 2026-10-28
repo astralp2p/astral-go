@@ -315,3 +315,48 @@ func TestWatcherInitialClosesOnEarlyFailure(t *testing.T) {
 		})
 	}
 }
+
+// Close ends an idle watcher's stream and its goroutine, and the node sees the
+// stream close.
+func TestWatcherCloseEndsTheStream(t *testing.T) {
+	released := make(chan struct{})
+	c := clientFor(t, map[string]any{services.MethodDiscover: func(ctx *astral.Context, q *routing.IncomingQuery, args discoverArgs) error {
+		defer close(released)
+		return followOp(ctx, q, args)
+	}})
+
+	w, err := c.Watch(astral.NewContext(nil), []string{"player"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o, ok := <-w.Initial(); !ok || !o.Complete {
+		t.Fatalf("initial outcome %+v, %v", o, ok)
+	}
+
+	closed := make(chan error, 1)
+	go func() { closed <- w.Close() }()
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close did not return within 1s")
+	}
+	select {
+	case <-w.Done():
+	default:
+		t.Fatal("Done is open after Close returned")
+	}
+	if !errors.Is(w.Err(), context.Canceled) {
+		t.Fatalf("Err %v; want context.Canceled", w.Err())
+	}
+	select {
+	case <-released:
+	case <-time.After(time.Second):
+		t.Fatal("the node still holds the stream after Close")
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("a second Close: %v", err)
+	}
+}
