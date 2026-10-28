@@ -7,7 +7,7 @@ import (
 )
 
 // Client sends inference queries to one target. Models and Complete address a
-// provider.
+// provider; Discover addresses a node. A nil target is the local node.
 type Client struct {
 	astral   *astrald.Client
 	targetID *astral.Identity
@@ -22,6 +22,7 @@ func New(targetID *astral.Identity, client *astrald.Client) *Client {
 	return &Client{astral: client, targetID: targetID}
 }
 
+// Default addresses the local node.
 func Default() *Client {
 	if defaultClient == nil {
 		defaultClient = New(nil, astrald.Default())
