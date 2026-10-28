@@ -113,7 +113,8 @@ Each piece of a served app calls node ops that check an action. The app's
 identity holds each action through a node-local grant or a signed contract;
 `apphost.register` asks for `mod.auth.serve_apps_action` on every registration,
 and for others only when the app names them in `grant_permits` or
-`contract_permits`.
+`contract_permits`, or a trusted web origin it registers from is entitled to
+them.
 
 | Option | Node op | Action |
 |---|---|---|
@@ -126,7 +127,8 @@ and for others only when the app names them in `grant_permits` or
 
 A refused `objects.blueprints` fails the first registration with
 `blueprint sync: objects.blueprints refused; the app needs
-mod.auth.use_blueprints_action`.
+mod.auth.use_blueprints_action`. A refused `objects.register_blueprint` is
+logged per type and does not fail the registration.
 
 ## Generated objects.find route
 
