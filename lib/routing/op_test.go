@@ -3,7 +3,9 @@ package routing
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -554,11 +556,32 @@ func TestOp_RequiredArgumentNamesUnknownKeys(t *testing.T) {
 	}
 }
 
+type identityArgs struct {
+	Identity string `query:"required"`
+}
+
+func checkIdentityArgs(params map[string]string) error {
+	arg := query.EditValue(reflect.New(reflect.TypeOf(identityArgs{})))
+	return checkRequired(arg, arg.Spec(), params)
+}
+
 // The channel format keys in and out are never named as unknown.
 func TestCheckRequired_FormatKeysAreDeclared(t *testing.T) {
-	specs := []query.FieldSpec{{Name: "identity", Required: true}}
-	err := checkRequired(specs, map[string]string{"in": "json", "out": "json"})
+	err := checkIdentityArgs(map[string]string{"in": "json", "out": "json"})
 	if want := "argument required: identity"; err == nil || err.Error() != want {
+		t.Fatalf("checkRequired = %v; want %q", err, want)
+	}
+}
+
+// An answer names at most maxUnknownNamed unknown keys, then an ellipsis.
+func TestCheckRequired_BoundsUnknownKeys(t *testing.T) {
+	params := map[string]string{}
+	for i := 0; i < 20; i++ {
+		params[fmt.Sprintf("k%02d", i)] = "x"
+	}
+	err := checkIdentityArgs(params)
+	want := "argument required: identity; unknown argument: k00, k01, k02, k03, k04, k05, k06, k07, …"
+	if err == nil || err.Error() != want {
 		t.Fatalf("checkRequired = %v; want %q", err, want)
 	}
 }
