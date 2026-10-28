@@ -26,7 +26,7 @@ func (client *Client) GetAlias(ctx *astral.Context, identity *astral.Identity) (
 	}
 	defer ch.Close()
 
-	err = ch.Switch(channel.ExpectString[*astral.String8](&alias), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.ExpectString[*astral.String8](&alias), channel.PassErrors, channel.WithContext(ctx)))
 	if err != nil {
 		return "", err
 	}
