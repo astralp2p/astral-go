@@ -1,14 +1,19 @@
 package inference
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"io"
+	"syscall"
 	"testing"
 	"time"
 
 	"github.com/astralp2p/astral-go/api/inference"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/astrald"
+	"github.com/astralp2p/astral-go/lib/query"
 	"github.com/astralp2p/astral-go/lib/routing"
 )
 
@@ -141,6 +146,77 @@ func TestCompleteFinishedWithoutEOS(t *testing.T) {
 	events, err := collect(c.Complete(astral.NewContext(nil), &inference.Request{}))
 	if err != nil || len(events) != 1 {
 		t.Fatalf("events %+v, err %v", events, err)
+	}
+}
+
+// broken reads data, then fails with err where data ends, as a connection
+// that resets does.
+type broken struct {
+	data io.Reader
+	err  error
+}
+
+func (b *broken) Read(p []byte) (int, error) {
+	n, err := b.data.Read(p)
+	if errors.Is(err, io.EOF) {
+		return n, b.err
+	}
+	return n, err
+}
+
+// cannedRouter answers every query with answer.
+type cannedRouter struct{ answer io.Reader }
+
+func (r *cannedRouter) RouteQuery(*astral.Context, *astral.InFlightQuery) (astral.Conn, error) {
+	return query.NewConn(nil, nil, discard{}, r.answer, true), nil
+}
+
+func (*cannedRouter) GuestID() *astral.Identity { return nil }
+func (*cannedRouter) HostID() *astral.Identity  { return nil }
+
+type discard struct{}
+
+func (discard) Write(p []byte) (int, error) { return len(p), nil }
+func (discard) Close() error                { return nil }
+
+// canned returns a client whose provider answers with objects, then fails
+// the read with err.
+func canned(t *testing.T, err error, objects ...astral.Object) *Client {
+	t.Helper()
+	var buf bytes.Buffer
+	s := channel.NewSender(&buf)
+	for _, o := range objects {
+		if err := s.Send(o); err != nil {
+			t.Fatalf("encode %s: %v", o.ObjectType(), err)
+		}
+	}
+	return New(nil, astrald.New(&cannedRouter{answer: &broken{data: &buf, err: err}}))
+}
+
+// Once the finishing chunk came, the answer is whole however the channel
+// ends: a connection that resets before usage or eos does not undo it.
+func TestCompleteFinishedThenTransportError(t *testing.T) {
+	finish := &inference.Chunk{Index: 0, Text: "ok", FinishReason: inference.FinishStop}
+	for name, answer := range map[string][]astral.Object{
+		"before usage": {finish},
+		"after usage":  {finish, &inference.Usage{TotalTokens: 3}},
+	} {
+		t.Run(name, func(t *testing.T) {
+			c := canned(t, syscall.ECONNRESET, answer...)
+			events, err := collect(c.Complete(astral.NewContext(nil), &inference.Request{}))
+			if err != nil || len(events) != len(answer) {
+				t.Fatalf("events %+v, err %v; want %d events and no error", events, err, len(answer))
+			}
+		})
+	}
+}
+
+// Before the finishing chunk a transport error is the answer's failure.
+func TestCompleteUnfinishedThenTransportError(t *testing.T) {
+	c := canned(t, syscall.ECONNRESET, &inference.Chunk{Index: 0, Text: "Hel"})
+	events, err := collect(c.Complete(astral.NewContext(nil), &inference.Request{}))
+	if !errors.Is(err, syscall.ECONNRESET) || len(events) != 1 {
+		t.Fatalf("events %+v, err %v; want 1 event, then ECONNRESET", events, err)
 	}
 }
 

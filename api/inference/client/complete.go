@@ -23,7 +23,8 @@ type Event struct {
 
 // Complete sends req to the target provider and yields the answer: chunks in
 // Index order, then usage when the provider reports it. The sequence ends
-// after eos, or with one non-nil error:
+// after eos, when the channel ends after the finishing chunk, or with one
+// non-nil error:
 //
 //   - *inference.Error when the provider failed, before or after chunks;
 //   - ErrUnfinished when the answer ended without a finishing chunk;
@@ -136,14 +137,16 @@ func (a *answer) reported() error {
 	return nil
 }
 
-// ended maps the read error that ended the channel. EOF after the finishing
-// chunk is a whole answer (op modes: a client never waits for eos).
+// ended maps the read error that ended the channel. After the finishing
+// chunk the answer is whole however the channel ends, EOF or a transport
+// error: what came before tells (stream rules), and a client never waits for
+// eos (op modes).
 func (a *answer) ended(err error) error {
-	if !errors.Is(err, io.EOF) {
-		return err
-	}
-	if a.finished {
+	switch {
+	case a.finished:
 		return nil
+	case errors.Is(err, io.EOF):
+		return ErrUnfinished
 	}
-	return ErrUnfinished
+	return err
 }
