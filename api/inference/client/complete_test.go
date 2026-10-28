@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"syscall"
 	"testing"
 	"time"
@@ -220,21 +221,34 @@ func TestCompleteUnfinishedThenTransportError(t *testing.T) {
 	}
 }
 
+// Each answer would be whole but for the one rule it breaks, so it fails
+// for that rule and not as an answer that never finished.
 func TestCompleteRejectsBrokenOrder(t *testing.T) {
-	for name, answer := range map[string][]astral.Object{
-		"gap":          {&inference.Chunk{Index: 0}, &inference.Chunk{Index: 2}},
-		"late start":   {&inference.Chunk{Index: 1}},
-		"after finish": {&inference.Chunk{Index: 0, FinishReason: inference.FinishStop}, &inference.Chunk{Index: 1}},
-		"usage first":  {&inference.Usage{TotalTokens: 1}, &inference.Chunk{Index: 0, FinishReason: inference.FinishStop}},
-		"usage before finish": {&inference.Chunk{Index: 0}, &inference.Usage{TotalTokens: 1},
-			&inference.Chunk{Index: 1, FinishReason: inference.FinishStop}},
-		"usage twice": {&inference.Chunk{Index: 0, FinishReason: inference.FinishStop},
+	stop := astral.String8(inference.FinishStop)
+	for name, tc := range map[string]struct {
+		answer []astral.Object
+		want   string
+	}{
+		"gap": {[]astral.Object{&inference.Chunk{Index: 0}, &inference.Chunk{Index: 2, FinishReason: stop}},
+			"chunk 2 out of order, want 1"},
+		"late start": {[]astral.Object{&inference.Chunk{Index: 1, FinishReason: stop}},
+			"chunk 1 out of order, want 0"},
+		"after finish": {[]astral.Object{&inference.Chunk{Index: 0, FinishReason: stop}, &inference.Chunk{Index: 1, FinishReason: stop}},
+			"chunk 1 after the finishing chunk"},
+		"usage first": {[]astral.Object{&inference.Usage{TotalTokens: 1}, &inference.Chunk{Index: 0, FinishReason: stop}},
+			"usage before the finishing chunk"},
+		"usage before finish": {[]astral.Object{&inference.Chunk{Index: 0}, &inference.Usage{TotalTokens: 1},
+			&inference.Chunk{Index: 1, FinishReason: stop}},
+			"usage before the finishing chunk"},
+		"usage twice": {[]astral.Object{&inference.Chunk{Index: 0, FinishReason: stop},
 			&inference.Usage{TotalTokens: 1}, &inference.Usage{TotalTokens: 1}},
+			"usage reported twice"},
 	} {
 		t.Run(name, func(t *testing.T) {
-			c := provider(t, nil, append(answer, &astral.EOS{})...)
-			if _, err := collect(c.Complete(astral.NewContext(nil), &inference.Request{})); err == nil {
-				t.Fatal("a broken order passed")
+			c := provider(t, nil, append(tc.answer, &astral.EOS{})...)
+			_, err := collect(c.Complete(astral.NewContext(nil), &inference.Request{}))
+			if err == nil || errors.Is(err, ErrUnfinished) || !strings.Contains(err.Error(), tc.want) {
+				t.Fatalf("err = %v; want %q", err, tc.want)
 			}
 		})
 	}
