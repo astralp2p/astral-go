@@ -2,6 +2,7 @@ package apphost
 
 import (
 	"bytes"
+	"errors"
 	"io"
 	"testing"
 
@@ -45,4 +46,22 @@ func recordingClient(t *testing.T, objects ...astral.Object) (*Client, *recordin
 
 	router := &recordingRouter{answer: &buf}
 	return New(nil, astrald.New(router)), router
+}
+
+// decodeAll decodes the objects in b, as the node reads what the client sent.
+func decodeAll(t *testing.T, b []byte) []astral.Object {
+	t.Helper()
+
+	r := channel.NewReceiver(bytes.NewReader(b))
+	var list []astral.Object
+	for {
+		o, err := r.Receive()
+		if errors.Is(err, io.EOF) {
+			return list
+		}
+		if err != nil {
+			t.Fatalf("decode: %v", err)
+		}
+		list = append(list, o)
+	}
 }
