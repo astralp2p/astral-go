@@ -1,6 +1,7 @@
 package apphost
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -85,6 +86,10 @@ func (router *Router) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery) (
 		}
 		defer cancelHost.Close()
 
+		// why: a host that never answers the cancel would hold this goroutine
+		// past cancelTimeout.
+		defer context.AfterFunc(cancelCtx, func() { _ = cancelHost.Close() })()
+
 		conn, _ := cancelHost.RouteQuery(
 			astral.Launch(query.New(nil, nil, apphost.MethodCancel, query.Args{"query_id": q.Nonce})),
 			astral.ZoneDevice,
@@ -99,35 +104,53 @@ func (router *Router) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery) (
 }
 
 // GuestID returns the authenticated guest identity, connecting to the host to
-// resolve it on first call; returns nil if the connection or auth fails.
+// resolve it on first call; returns nil if the connection or auth fails, and
+// for a router without a token, which has no guest identity. It waits on the
+// host for as long as the host takes; GuestIDContext bounds the wait.
 func (router *Router) GuestID() *astral.Identity {
-	if id := router.cachedGuestID(); id != nil {
-		return id
+	id, _ := router.GuestIDContext(astral.NewContext(nil))
+	return id
+}
+
+// GuestIDContext is GuestID within ctx: the connection and its handshake end
+// when ctx ends. It returns the error that kept it from the identity. A router
+// without a token answers nil and no error without connecting.
+func (router *Router) GuestIDContext(ctx *astral.Context) (*astral.Identity, error) {
+	if id := router.cachedGuestID(); id != nil || len(router.token) == 0 {
+		return id, nil
 	}
 
-	host, err := router.connect(astral.NewContext(nil))
+	host, err := router.connect(ctx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer host.Close()
 
-	return router.cachedGuestID()
+	return host.GuestID(), nil
 }
 
 // HostID returns the host node's identity, connecting to resolve it on first
-// call; returns nil if the connection fails.
+// call; returns nil if the connection fails. It waits on the host for as long
+// as the host takes; HostIDContext bounds the wait.
 func (router *Router) HostID() *astral.Identity {
+	id, _ := router.HostIDContext(astral.NewContext(nil))
+	return id
+}
+
+// HostIDContext is HostID within ctx: the connection and its handshake end
+// when ctx ends. It returns the error that kept it from the identity.
+func (router *Router) HostIDContext(ctx *astral.Context) (*astral.Identity, error) {
 	if id := router.cachedHostID(); id != nil {
-		return id
+		return id, nil
 	}
 
-	host, err := router.connect(astral.NewContext(nil))
+	host, err := router.connect(ctx)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer host.Close()
 
-	return router.cachedHostID()
+	return host.HostID(), nil
 }
 
 func (router *Router) cachedGuestID() *astral.Identity {
@@ -151,12 +174,15 @@ func (router *Router) Protocol() string {
 	return split[0]
 }
 
-// connect makes a single attempt to connect and authenticate with the host.
-// Returns ErrNodeUnavailable if the IPC dial fails.
+// connect makes a single attempt to connect and authenticate with the host,
+// within ctx. It returns an error wrapping ErrNodeUnavailable when the dial or
+// the host's greeting fails, or when ctx ends before the handshake completes;
+// the end of ctx stays recognisable through it. A token the host refuses fails
+// with the host's answer.
 func (router *Router) connect(ctx *astral.Context) (*Host, error) {
 	host, err := Connect(ctx, router.endpoint)
 	if err != nil {
-		return nil, fmt.Errorf("%w: %v", ErrNodeUnavailable, err)
+		return nil, unavailable(ctx, err)
 	}
 
 	router.mu.Lock()
@@ -167,8 +193,7 @@ func (router *Router) connect(ctx *astral.Context) (*Host, error) {
 		return host, nil
 	}
 
-	err = host.AuthToken(router.token)
-	if err != nil {
+	if err = router.authenticate(ctx, host); err != nil {
 		host.Close()
 		return nil, err
 	}
@@ -178,6 +203,30 @@ func (router *Router) connect(ctx *astral.Context) (*Host, error) {
 	router.mu.Unlock()
 
 	return host, nil
+}
+
+// authenticate sends the router's token to host and reads its answer, within
+// ctx.
+//
+// why: a host can greet and then never answer the token, and a read does not
+// end with ctx.
+func (router *Router) authenticate(ctx *astral.Context, host *Host) error {
+	stop := context.AfterFunc(ctx, func() { _ = host.Close() })
+	err := host.AuthToken(router.token)
+	if !stop() {
+		return unavailable(ctx, err)
+	}
+	return err
+}
+
+// unavailable wraps err, which kept a session from opening, in
+// ErrNodeUnavailable. When ctx has ended it wraps ctx's error instead, so a
+// caller tells its own cancel or timeout from a node that failed.
+func unavailable(ctx *astral.Context, err error) error {
+	if ctx.Err() != nil {
+		return fmt.Errorf("%w: %w", ErrNodeUnavailable, ctx.Err())
+	}
+	return fmt.Errorf("%w: %v", ErrNodeUnavailable, err)
 }
 
 func newDefaultRouter() *Router {
