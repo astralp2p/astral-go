@@ -7,7 +7,8 @@ import (
 )
 
 // Client sends inference queries to one target. Models and Complete address a
-// provider; Discover addresses a node. A nil target is the local node.
+// provider; Discover, PushBlueprints and CheckBlueprints address a node. A nil
+// target is the local node.
 type Client struct {
 	astral   *astrald.Client
 	targetID *astral.Identity
