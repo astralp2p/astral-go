@@ -27,5 +27,5 @@ func (client *Client) AcceptContract(ctx *astral.Context, signed *auth.SignedCon
 		return
 	}
 
-	return ch.Switch(channel.ExpectAck, channel.PassErrors)
+	return ctxErr(ctx, ch.Switch(channel.ExpectAck, channel.PassErrors, channel.WithContext(ctx)))
 }

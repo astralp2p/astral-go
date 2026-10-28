@@ -23,7 +23,7 @@ func (client *Client) Join(ctx *astral.Context, node string) (signed *auth.Signe
 	}
 	defer ch.Close()
 
-	err = ch.Switch(channel.Expect(&signed), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&signed), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }
 

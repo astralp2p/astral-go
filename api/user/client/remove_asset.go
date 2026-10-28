@@ -15,7 +15,7 @@ func (client *Client) RemoveAsset(ctx *astral.Context, id *astral.ObjectID) (err
 	}
 	defer ch.Close()
 
-	return ch.Switch(channel.ExpectAck, channel.PassErrors)
+	return ctxErr(ctx, ch.Switch(channel.ExpectAck, channel.PassErrors, channel.WithContext(ctx)))
 }
 
 // RemoveAsset calls the operation on the default client.

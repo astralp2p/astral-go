@@ -21,7 +21,7 @@ func (client *Client) Adopt(ctx *astral.Context, target string) (signed *auth.Si
 	}
 	defer ch.Close()
 
-	err = ch.Switch(channel.Expect(&signed), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&signed), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }
 

@@ -27,6 +27,6 @@ func (client *Client) AcceptMembership(ctx *astral.Context, contract *auth.Contr
 		return
 	}
 
-	err = ch.Switch(channel.Expect(&subjectSig), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&subjectSig), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }

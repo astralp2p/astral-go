@@ -36,6 +36,6 @@ func (client *Client) DeriveIdentity(ctx *astral.Context, words string, passphra
 		}
 	}
 
-	err = ch.Switch(channel.Expect(&result), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&result), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }

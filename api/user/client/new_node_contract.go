@@ -15,6 +15,6 @@ func (client *Client) NewContract(ctx *astral.Context, alias string) (contract *
 		return
 	}
 	defer ch.Close()
-	err = ch.Switch(channel.Expect(&contract), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&contract), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }
