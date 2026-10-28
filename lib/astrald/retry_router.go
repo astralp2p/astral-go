@@ -55,3 +55,8 @@ func (rr *RetryRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery) 
 		}
 	}
 }
+
+// GuestIDContext resolves the inner router's guest identity within ctx.
+func (rr *RetryRouter) GuestIDContext(ctx *astral.Context) (*astral.Identity, error) {
+	return guestIDContext(ctx, rr.Router)
+}
