@@ -15,6 +15,7 @@ func nodeActions() []ActionObject {
 		&SeeNodeStateAction{},
 		&ConfigureNodeStateAction{},
 		&UseGatewayAction{},
+		&UseBlueprintsAction{},
 		&ServeAppsAction{},
 		&AdminNetworkAction{},
 		&AdminManageAppsAction{},

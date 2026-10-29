@@ -2,9 +2,12 @@ package apps
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"sync"
 
+	"github.com/astralp2p/astral-go/api/auth"
+	"github.com/astralp2p/astral-go/api/objects"
 	objectsClient "github.com/astralp2p/astral-go/api/objects/client"
 	"github.com/astralp2p/astral-go/astral"
 )
@@ -43,7 +46,7 @@ func SyncBlueprints(ctx *astral.Context) error {
 
 	remote, err := objectsClient.Blueprints(ctx)
 	if err != nil {
-		return err
+		return nameRefusal(err)
 	}
 	have := make(map[string]struct{}, len(remote))
 	for _, n := range remote {
@@ -64,8 +67,23 @@ func SyncBlueprints(ctx *astral.Context) error {
 	return nil
 }
 
+// nameRefusal names objects.blueprints and the action it asks when the node
+// rejects the query, and returns any other error unchanged.
+//
+// why: a rejection carries no reason, and the action the node asks is not
+// visible to the app.
+func nameRefusal(err error) error {
+	if !errors.Is(err, &astral.ErrRejected{}) {
+		return err
+	}
+	return fmt.Errorf("blueprint sync: %s refused; the app needs %s: %w",
+		objects.MethodBlueprints, auth.UseBlueprintsAction{}.ObjectType(), err)
+}
+
 // WithBlueprintSync installs SyncBlueprints as a registration hook so the
-// app's local Blueprints are pushed on every (re)connect.
+// app's local Blueprints are pushed on every (re)connect. The app needs
+// mod.auth.use_blueprints_action; without it the first registration fails with
+// an error naming objects.blueprints and the action.
 func WithBlueprintSync() ServeOption {
 	return WithRegistrationHook(SyncBlueprints)
 }

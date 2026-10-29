@@ -107,6 +107,29 @@ reg := apps.NewAppRegistrar(ctx, apps.WithRetry())
 err := apps.ServeWith(ctx, routing.NewApp(api), reg)
 ```
 
+## Node permits
+
+Each piece of a served app calls node ops that check an action. The app's
+identity holds each action through a node-local grant or a signed contract;
+`apphost.register` asks for `mod.auth.serve_apps_action` on every registration,
+and for others only when the app names them in `grant_permits` or
+`contract_permits`, or a trusted web origin it registers from is entitled to
+them.
+
+| Option | Node op | Action |
+|---|---|---|
+| `Serve`, `ServeWith` | `apphost.register_handler` | `mod.auth.serve_apps_action` |
+| `WithServices` | `services.advertise` | `mod.auth.serve_apps_action` |
+| `WithObjectFinder` | `objects.register_finder` | `mod.auth.serve_objects_action` |
+| `WithObjectSearcher` | `objects.register_searcher` | `mod.auth.serve_objects_action` |
+| `WithObjectDescriber` | `objects.register_describer` | `mod.auth.serve_objects_action` |
+| `WithBlueprintSync` | `objects.blueprints`, `objects.register_blueprint` | `mod.auth.use_blueprints_action` |
+
+A refused `objects.blueprints` fails the first registration with
+`blueprint sync: objects.blueprints refused; the app needs
+mod.auth.use_blueprints_action`. A refused `objects.register_blueprint` is
+logged per type and does not fail the registration.
+
 ## Generated objects.find route
 
 `WithObjectFinder(finder)` mounts an `objects.find` route onto a

@@ -10,7 +10,7 @@ import (
 // TestSeeObjectsActionRoundTrip covers both noun shapes the action is used in:
 // an op that names a single object in a named repository, and one that names
 // neither. The second case is the one that matters — a nil ObjectID reaches the
-// wire from every enumerating op (scan, repositories, blueprints).
+// wire from every enumerating op (scan, repositories).
 func TestSeeObjectsActionRoundTrip(t *testing.T) {
 	var objectID astral.ObjectID
 	objectID.Size = 42
