@@ -21,4 +21,6 @@ const (
 	OpListExpelled         = "user.list_expelled"
 	OpSetSwarmJoinPolicy   = "user.set_swarm_join_policy"
 	OpSetSwarmInvitePolicy = "user.set_swarm_invite_policy"
+
+	OpSetContractAcceptPolicy = "user.set_contract_accept_policy"
 )

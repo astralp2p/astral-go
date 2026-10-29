@@ -15,7 +15,9 @@ import (
 //
 // The node rejects with code 2 when it already holds an active contract
 // (claiming a node is a one-time transition) and streams an error if the
-// contract fails validation. Mirrors the astrald op OpAcceptContract.
+// contract fails validation. It streams user.ErrContractDeclined when the
+// node's contract accept policy declines the contract. Mirrors the astrald op
+// OpAcceptContract.
 func (client *Client) AcceptContract(ctx *astral.Context, signed *auth.SignedContract) (err error) {
 	ch, err := client.queryCh(ctx, user.OpAcceptContract, nil)
 	if err != nil {
