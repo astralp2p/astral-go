@@ -146,6 +146,34 @@ func TestIncomingQuery_AwaitReturnsTheAcceptedWriter(t *testing.T) {
 	}
 }
 
+// An op that closes its connection without reading frees the caller: the
+// caller's write into the pipe fails instead of parking forever.
+func TestIncomingQuery_ClosingTheAcceptedConnFailsTheCallersWrite(t *testing.T) {
+	in := newTestIncomingQuery(t)
+
+	go func() { in.AcceptRaw().Close() }()
+
+	w, err := in.await(astral.NewContext(nil))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := w.Write([]byte("request"))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, io.ErrClosedPipe) {
+			t.Fatalf("write: %v; want %v", err, io.ErrClosedPipe)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the caller's write never returned")
+	}
+}
+
 func TestIncomingQuery_AwaitReturnsTheRejection(t *testing.T) {
 	in := newTestIncomingQuery(t)
 
