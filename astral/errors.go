@@ -15,6 +15,15 @@ var ErrZoneExcluded = errors.New("zone excluded")
 // ErrTargetNotAllowed - target was blocked by a policy or a filter
 var ErrTargetNotAllowed = errors.New("target not allowed")
 
+// ErrOriginNotAllowed - the op does not admit the query's origin
+var ErrOriginNotAllowed = NewError("origin not allowed")
+
+// NewErrOriginNotAllowed returns ErrOriginNotAllowed naming the refused origin,
+// as "origin not allowed: network".
+func NewErrOriginNotAllowed(origin string) Error {
+	return NewError(ErrOriginNotAllowed.Error() + ": " + origin)
+}
+
 // ErrDuplicateObject - a Bundle's members are unique by Object ID; the Object ID offered
 // is already a member. Wrapped with the repeated ID by Bundle.ReadFrom, Bundle.Append and
 // Bundle.UnmarshalJSON.

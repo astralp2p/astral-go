@@ -93,3 +93,14 @@ func TestErrorMessage_IsMatchesTheSentinelText(t *testing.T) {
 		t.Error("matched a plain error; want only an ErrorMessage to match")
 	}
 }
+
+// An origin refusal names the origin and still matches ErrOriginNotAllowed.
+func TestNewErrOriginNotAllowed_NamesTheOrigin(t *testing.T) {
+	err := NewErrOriginNotAllowed(OriginNetwork)
+	if err.Error() != "origin not allowed: network" {
+		t.Fatalf("text %q; want %q", err.Error(), "origin not allowed: network")
+	}
+	if !errors.Is(err, ErrOriginNotAllowed) {
+		t.Fatal("does not match ErrOriginNotAllowed")
+	}
+}
