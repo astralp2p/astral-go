@@ -457,8 +457,8 @@ func TestOp_MalformedArgumentFailsTheCall(t *testing.T) {
 	}
 }
 
-// An op without in or out streams raw bytes, so an argument error keeps the
-// reject: an error_message would reach the caller as payload.
+// An op without in or out streams raw bytes, so an argument error is rejected
+// with CodeInvalidQuery: an error_message would reach the caller as payload.
 func TestOp_ArgumentErrorKeepsTheRejectForARawOp(t *testing.T) {
 	type rawArgs struct {
 		ID string `query:"required"`
@@ -477,8 +477,8 @@ func TestOp_ArgumentErrorKeepsTheRejectForARawOp(t *testing.T) {
 	_, err = op.RouteQuery(astral.NewContext(nil), astral.Launch(query.New(id, id, "op", nil)), w)
 
 	var rejected *astral.ErrRejected
-	if !errors.As(err, &rejected) {
-		t.Fatalf("route: %v; want a rejection", err)
+	if !errors.As(err, &rejected) || rejected.Code != astral.CodeInvalidQuery {
+		t.Fatalf("route: %v; want a rejection with code %d", err, astral.CodeInvalidQuery)
 	}
 	w.mu.Lock()
 	defer w.mu.Unlock()

@@ -166,16 +166,19 @@ func (op *Op) invoke(ctx *astral.Context, q *IncomingQuery) (err error) {
 
 		// why: an argument error is the caller's mistake, so it reaches the caller
 		// as an error_message naming the argument, not as a bare reject code.
-		// note: only an op that takes in or out speaks the channel protocol. A
-		// raw-stream op (objects.read, gateway.node_route, shell.shell) would hand
-		// the message to its caller as payload, so it keeps the reject.
+		// note: only an op that takes in or out speaks the channel protocol.
 		if err != nil && op.speaksChannel() {
 			ch := q.Accept(channel.WithFormats(params["in"], params["out"]))
 			defer ch.Close()
 			ch.Send(astral.Err(err))
 			return err
 		}
+
+		// why: a raw-stream op (objects.read, gateway.node_route, shell.shell)
+		// answers bytes its caller reads as payload, so its argument error is a
+		// rejection; the query itself is what is wrong.
 		if err != nil {
+			q.RejectWithCode(astral.CodeInvalidQuery)
 			return err
 		}
 
