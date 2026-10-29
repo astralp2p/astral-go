@@ -58,6 +58,8 @@ and any other path addressed to that mailbox is a missing route.
 */
 package messaging
 
+import "github.com/astralp2p/astral-go/astral"
+
 const (
 	MethodCreateMailbox = "messaging.create_mailbox"
 	MethodMailbox       = "messaging.mailbox"
@@ -88,9 +90,9 @@ const MethodMessage = "messaging.message"
 // delivery carried, exchanged.
 const MethodReceipt = "messaging.receipt"
 
-// RejectNotAdmitted is the reject code a participant's node answers a caller
-// whose message the participant's own side will not take. It is
-// operation-specific and so sits above the reserved generic codes 0-4.
+// RejectNotAdmitted is the reject code a participant's node answered, before
+// ErrNotAdmitted, a caller whose message the participant's own side will not
+// take. A sender still reads it from a node that predates ErrNotAdmitted.
 //
 // why a reject code and not a missing route: a missing route is also the answer
 // for an identity no node holds and for a node that could not be reached, so a
@@ -107,6 +109,11 @@ const MethodReceipt = "messaging.receipt"
 // the link. When no relay accepts, the sending node's relay path answers the
 // first rejection whose code is not the generic one, with that code.
 const RejectNotAdmitted = 5
+
+// ErrNotAdmitted is the answer a participant's node sends, on an accepted
+// delivery, to a caller whose message the participant's own side will not take.
+// It carries no reason, for the reason RejectNotAdmitted carries none.
+var ErrNotAdmitted = astral.NewError("not admitted")
 
 // The two boxes a stored message sits in. A message is in one of them for its
 // whole life: inbox is what was written to the owner, outbox what the owner
