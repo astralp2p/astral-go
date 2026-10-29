@@ -8,7 +8,7 @@ const (
 	CodeInternalError
 )
 
-// note: 5 is not a generic code; messaging sends it as RejectNotAdmitted.
+// note: 5 is not a generic code; a messaging node that predates ErrNotAdmitted sends it as RejectNotAdmitted.
 const (
 	// CodeTimeout - the query was not answered in time (an HTTP 504).
 	CodeTimeout = 6
