@@ -7,7 +7,6 @@ import (
 	"github.com/astralp2p/astral-go/api/tree"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
-	"github.com/astralp2p/astral-go/lib/routing"
 )
 
 // NodeOps is a set of tree node operations that can be used with lib/routing
@@ -28,12 +27,9 @@ type GetArgs struct {
 
 // Get serves a get query; when Follow is set it streams updates until ctx is done
 // or the client closes the channel, detected by a background Receive on the accepted channel.
-func (ops *NodeOps) Get(ctx *astral.Context, q *routing.IncomingQuery, args GetArgs) (err error) {
+func (ops *NodeOps) Get(ctx *astral.Context, ch *channel.Channel, args GetArgs) (err error) {
 	ctx, cancel := ctx.WithCancel()
 	defer cancel()
-
-	ch := q.Accept(channel.WithFormats(args.In, args.Out))
-	defer ch.Close()
 
 	node, err := tree.Query(ctx, ops.Node, args.Path, false)
 	if err != nil {
@@ -71,10 +67,7 @@ type SetArgs struct {
 
 // Set handles a set query; routes to single-value mode when args.Value is non-empty,
 // otherwise enters batch mode and reads objects from the channel until EOS.
-func (ops *NodeOps) Set(ctx *astral.Context, q *routing.IncomingQuery, args SetArgs) (err error) {
-	ch := q.Accept(channel.WithFormats(args.In, args.Out))
-	defer ch.Close()
-
+func (ops *NodeOps) Set(ctx *astral.Context, ch *channel.Channel, args SetArgs) (err error) {
 	if args.Value != "" {
 		return ops.setSingle(ctx, ch, args)
 	}
@@ -146,10 +139,7 @@ type DeleteArgs struct {
 
 // Delete handles a delete query; when Recursive is set, descends the subtree
 // depth-first and deletes from the leaves up before removing the target node.
-func (ops *NodeOps) Delete(ctx *astral.Context, q *routing.IncomingQuery, args DeleteArgs) (err error) {
-	ch := q.Accept(channel.WithFormats(args.In, args.Out))
-	defer ch.Close()
-
+func (ops *NodeOps) Delete(ctx *astral.Context, ch *channel.Channel, args DeleteArgs) (err error) {
 	node, err := tree.Query(ctx, ops.Node, args.Path, false)
 	if err != nil {
 		return ch.Send(astral.Err(err))
@@ -189,10 +179,7 @@ type ListArgs struct {
 	Out  string
 }
 
-func (ops *NodeOps) List(ctx *astral.Context, query *routing.IncomingQuery, args ListArgs) (err error) {
-	ch := query.Accept(channel.WithFormats(args.In, args.Out))
-	defer ch.Close()
-
+func (ops *NodeOps) List(ctx *astral.Context, ch *channel.Channel, args ListArgs) (err error) {
 	var path = "/"
 	if len(args.Path) > 0 {
 		path = args.Path
