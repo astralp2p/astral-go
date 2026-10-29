@@ -232,8 +232,8 @@ func TestIncomingQuery_AwaitHonoursContextCancellation(t *testing.T) {
 	}
 }
 
-// A handler that never answers is cut off by the 5-second deadline. The
-// duration is a literal in await, so this test costs that wall clock and is
+// A handler that never answers is cut off by the 5-second deadline and rejected
+// with CodeTimeout. The duration is a literal in await, so this test costs that wall clock and is
 // skipped in short mode.
 func TestIncomingQuery_AwaitTimesOut(t *testing.T) {
 	if testing.Short() {
@@ -246,8 +246,9 @@ func TestIncomingQuery_AwaitTimesOut(t *testing.T) {
 	w, err := in.await(astral.NewContext(nil))
 	elapsed := time.Since(start)
 
-	if !errors.Is(err, &astral.ErrRejected{}) {
-		t.Fatalf("want ErrRejected, got %v", err)
+	var rejected *astral.ErrRejected
+	if !errors.As(err, &rejected) || rejected.Code != astral.CodeTimeout {
+		t.Fatalf("want ErrRejected with code %d, got %v", astral.CodeTimeout, err)
 	}
 	if w != nil {
 		t.Fatal("want no writer, got one")
