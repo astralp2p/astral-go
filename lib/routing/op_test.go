@@ -193,8 +193,9 @@ func TestOp_RouteQueryAutoRejectsAnUnresolvedQuery(t *testing.T) {
 
 	w, err := routeTo(t, op, "op")
 
-	if !errors.Is(err, &astral.ErrRejected{}) {
-		t.Fatalf("want ErrRejected, got %v", err)
+	var rejected *astral.ErrRejected
+	if !errors.As(err, &rejected) || rejected.Code != astral.CodeInternalError {
+		t.Fatalf("want ErrRejected with code %d, got %v", astral.CodeInternalError, err)
 	}
 	if w != nil {
 		t.Fatal("want no writer, got one")
@@ -212,8 +213,9 @@ func TestOp_RouteQueryAutoRejectsOnHandlerError(t *testing.T) {
 
 	_, err = routeTo(t, op, "op")
 
-	if !errors.Is(err, &astral.ErrRejected{}) {
-		t.Fatalf("want ErrRejected, got %v", err)
+	var rejected *astral.ErrRejected
+	if !errors.As(err, &rejected) || rejected.Code != astral.CodeInternalError {
+		t.Fatalf("want ErrRejected with code %d, got %v", astral.CodeInternalError, err)
 	}
 }
 
