@@ -156,8 +156,8 @@ func (query *IncomingQuery) await(ctx *astral.Context) (io.WriteCloser, error) {
 		return nil, astral.NewErrRejected(astral.CodeCanceled)
 
 	case <-time.After(5 * time.Second):
-		query.Reject()
-		return nil, astral.NewErrRejected(0)
+		query.RejectWithCode(astral.CodeTimeout)
+		return nil, astral.NewErrRejected(astral.CodeTimeout)
 	}
 }
 

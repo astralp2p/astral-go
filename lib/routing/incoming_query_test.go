@@ -146,6 +146,34 @@ func TestIncomingQuery_AwaitReturnsTheAcceptedWriter(t *testing.T) {
 	}
 }
 
+// An op that closes its connection without reading frees the caller: the
+// caller's write into the pipe fails instead of parking forever.
+func TestIncomingQuery_ClosingTheAcceptedConnFailsTheCallersWrite(t *testing.T) {
+	in := newTestIncomingQuery(t)
+
+	go func() { in.AcceptRaw().Close() }()
+
+	w, err := in.await(astral.NewContext(nil))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := w.Write([]byte("request"))
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		if !errors.Is(err, io.ErrClosedPipe) {
+			t.Fatalf("write: %v; want %v", err, io.ErrClosedPipe)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("the caller's write never returned")
+	}
+}
+
 func TestIncomingQuery_AwaitReturnsTheRejection(t *testing.T) {
 	in := newTestIncomingQuery(t)
 
@@ -204,8 +232,8 @@ func TestIncomingQuery_AwaitHonoursContextCancellation(t *testing.T) {
 	}
 }
 
-// A handler that never answers is cut off by the 5-second deadline. The
-// duration is a literal in await, so this test costs that wall clock and is
+// A handler that never answers is cut off by the 5-second deadline and rejected
+// with CodeTimeout. The duration is a literal in await, so this test costs that wall clock and is
 // skipped in short mode.
 func TestIncomingQuery_AwaitTimesOut(t *testing.T) {
 	if testing.Short() {
@@ -218,8 +246,9 @@ func TestIncomingQuery_AwaitTimesOut(t *testing.T) {
 	w, err := in.await(astral.NewContext(nil))
 	elapsed := time.Since(start)
 
-	if !errors.Is(err, &astral.ErrRejected{}) {
-		t.Fatalf("want ErrRejected, got %v", err)
+	var rejected *astral.ErrRejected
+	if !errors.As(err, &rejected) || rejected.Code != astral.CodeTimeout {
+		t.Fatalf("want ErrRejected with code %d, got %v", astral.CodeTimeout, err)
 	}
 	if w != nil {
 		t.Fatal("want no writer, got one")

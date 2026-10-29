@@ -84,8 +84,10 @@ func NewOp(fn any) (*Op, error) {
 
 // RouteQuery dispatches the query to the op in a new goroutine with a detached
 // context; the caller blocks until the op calls Accept/Reject or the 5-second
-// deadline expires. A panicking op is contained: it is reported as *ErrPanic on
-// the Report and the query is rejected with astral.CodeInternalError.
+// deadline expires, which rejects the query with astral.CodeTimeout. An op that
+// returns without answering, or panics, is an internal error: the query is
+// rejected with astral.CodeInternalError, and a panic is reported as *ErrPanic
+// on the Report.
 func (op *Op) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, remoteWriter io.WriteCloser) (io.WriteCloser, error) {
 	var origin string
 	if o, found := q.Extra.Get("origin"); found {
@@ -94,8 +96,10 @@ func (op *Op) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, remoteWri
 	var inQuery = NewIncomingQuery(q.Query, remoteWriter, origin)
 
 	go func() {
-		// reject the query at the end in case the op did not respond to it, will noop if it did.
-		defer inQuery.Reject()
+		// why an internal error: an op that returns without accepting or rejecting
+		// failed to answer, which is the node's fault and not a refusal of the caller.
+		// note: a noop when the op answered.
+		defer inQuery.RejectWithCode(astral.CodeInternalError)
 
 		// detach from the parent context
 		ctx := ctx.Detach()

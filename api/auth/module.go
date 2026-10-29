@@ -1,7 +1,6 @@
 package auth
 
 const (
-	MethodIndex            = "auth.index"
 	MethodSignContract     = "auth.sign_contract"
 	MethodListAuthorizers  = "auth.list_authorizers"
 	MethodSetAuthorizer    = "auth.set_authorizer"

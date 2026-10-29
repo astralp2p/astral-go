@@ -36,6 +36,18 @@ func (s *Conn) Read(p []byte) (n int, err error) {
 	return n, err
 }
 
+// Close closes the write half, and the read half when it can be closed.
+//
+// why: AcceptRaw's read half is a pipe the caller writes into. An op that closes
+// its connection without reading, such as one answering a refusal, would
+// otherwise leave the caller's next write parked forever.
+func (s *Conn) Close() error {
+	if r, ok := s.Reader.(io.Closer); ok {
+		r.Close()
+	}
+	return s.WriteCloser.Close()
+}
+
 func (s *Conn) Outbound() bool {
 	return s.outbound
 }

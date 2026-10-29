@@ -8,6 +8,7 @@ import (
 
 	"github.com/astralp2p/astral-go/api/tree"
 	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/astral/channel"
 	"github.com/astralp2p/astral-go/lib/astrald"
 	"github.com/astralp2p/astral-go/lib/query"
 	"github.com/astralp2p/astral-go/lib/routing"
@@ -37,7 +38,11 @@ func clientFor(t *testing.T, node tree.Node) *Client {
 	t.Helper()
 
 	ops := routing.NewOpRouter()
-	op, err := routing.NewOp(NewNodeOps(node).Set)
+	op, err := routing.NewOp(func(ctx *astral.Context, q *routing.IncomingQuery, args SetArgs) error {
+		ch := q.Accept(channel.WithFormats(args.In, args.Out))
+		defer ch.Close()
+		return NewNodeOps(node).Set(ctx, ch, args)
+	})
 	if err != nil {
 		t.Fatalf("NewOp: %v", err)
 	}

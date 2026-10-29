@@ -12,6 +12,7 @@ import (
 // One action covers every read in the objects module: reading bytes and
 // enumerating ids are not separated, because a caller who can enumerate a
 // repository already holds what guarding a single object would protect.
+// Reading blueprints is UseBlueprints.
 //
 // ObjectID and Repo declare the nouns a call touches. Nothing evaluates them
 // yet — they are recorded so a constraint can bind to them later without
