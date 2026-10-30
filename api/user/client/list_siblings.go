@@ -26,13 +26,14 @@ func (client *Client) ListSiblings(ctx *astral.Context, zone astral.Zone) ([]*as
 	defer ch.Close()
 
 	var siblings []*astral.Identity
-	err = ch.Switch(
+	err = ctxErr(ctx, ch.Switch(
 		channel.Collect(&siblings),
 		channel.BreakOnEOS,
 		func(msg *astral.ErrorMessage) error {
 			return msg
 		},
-	)
+		channel.WithContext(ctx),
+	))
 
 	return siblings, err
 }

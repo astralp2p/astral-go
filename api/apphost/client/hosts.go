@@ -10,11 +10,16 @@ import (
 
 // Hosts streams each node that hosts app asynchronously; the error pointer is
 // populated only after the channel closes. app is an identity or a name the
-// node resolves; a name of no app yields an empty stream.
+// node resolves; a name of no app yields an empty stream. A query that fails
+// yields a channel that is already closed, with the error set.
 func (client *Client) Hosts(ctx *astral.Context, app string) (<-chan *astral.Identity, *error) {
 	ch, err := client.queryCh(ctx, apphost.MethodHosts, query.Args{"app": app})
 	if err != nil {
-		return nil, &err
+		// why: a range over a nil channel blocks forever, and a caller ranges
+		// before it reads the error.
+		out := make(chan *astral.Identity)
+		close(out)
+		return out, &err
 	}
 
 	out := make(chan *astral.Identity)

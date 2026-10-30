@@ -34,7 +34,36 @@ func SetDefault(client *Client) {
 
 // Query routes an outbound query to client.targetID using the client's own guest identity as the caller.
 func (client *Client) Query(ctx *astral.Context, method string, args any) (astral.Conn, error) {
-	return client.RouteQuery(ctx, astral.Launch(query.New(client.GuestID(), client.targetID, method, args)))
+	return client.RouteQuery(ctx, astral.Launch(query.New(client.guestID(ctx), client.targetID, method, args)))
+}
+
+// guestID is the caller of the client's queries, resolved within ctx when the
+// router can resolve it so.
+//
+// why: lib/apphost's Router connects to learn the identity on first use, and
+// GuestID connects with no context, so a host that never answered held a
+// query past its ctx before the query was sent.
+//
+// A failure leaves the caller unset, as GuestID's nil does; RouteQuery then
+// meets the same failure and returns it.
+func (client *Client) guestID(ctx *astral.Context) *astral.Identity {
+	id, _ := guestIDContext(ctx, client.Router)
+	return id
+}
+
+// guestResolver is a Router that resolves its guest identity within a
+// context, as lib/apphost's Router does.
+type guestResolver interface {
+	GuestIDContext(*astral.Context) (*astral.Identity, error)
+}
+
+// guestIDContext returns router's guest identity, resolved within ctx when
+// router can resolve it so, and router.GuestID() otherwise.
+func guestIDContext(ctx *astral.Context, router Router) (*astral.Identity, error) {
+	if r, ok := router.(guestResolver); ok {
+		return r.GuestIDContext(ctx)
+	}
+	return router.GuestID(), nil
 }
 
 func Query(ctx *astral.Context, method string, args any) (astral.Conn, error) {

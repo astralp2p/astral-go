@@ -21,13 +21,14 @@ func (client *Client) SwarmStatus(ctx *astral.Context) ([]*user.SwarmMember, err
 	defer ch.Close()
 
 	var members []*user.SwarmMember
-	err = ch.Switch(
+	err = ctxErr(ctx, ch.Switch(
 		channel.Collect(&members),
 		channel.BreakOnEOS,
 		func(msg *astral.ErrorMessage) error {
 			return msg
 		},
-	)
+		channel.WithContext(ctx),
+	))
 
 	return members, err
 }

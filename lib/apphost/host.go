@@ -1,6 +1,7 @@
 package apphost
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/astralp2p/astral-go/api/apphost"
@@ -19,12 +20,30 @@ type Host struct {
 	guestID   *astral.Identity
 }
 
-// Connect connects to the apphost endpoint.
+// Connect connects to the apphost endpoint and reads the host's greeting. ctx
+// bounds both: when it ends first, Connect closes the connection and returns
+// ctx's error. Once Connect returns, ctx no longer touches the session.
 func Connect(ctx *astral.Context, endpoint string) (*Host, error) {
 	conn, err := ipc.DialContext(ctx, endpoint)
 	if err != nil {
 		return nil, err
 	}
+
+	// why: a dial ends with ctx and a read does not, so an endpoint that
+	// accepts and never greets, another service's port say, held the caller
+	// past ctx.
+	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
+	host, err := greet(conn)
+	if !stop() {
+		_ = conn.Close()
+		return nil, ctx.Err()
+	}
+	return host, err
+}
+
+// greet reads the host info the host sends when a session opens, and closes
+// conn when it does not come.
+func greet(conn *ipc.Conn) (*Host, error) {
 	ch := channel.New(conn)
 
 	msg, err := ch.Receive()

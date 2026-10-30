@@ -18,11 +18,12 @@ func (client *Client) ListExpelled(ctx *astral.Context) ([]*user.SignedExpulsion
 	defer ch.Close()
 
 	var expelled []*user.SignedExpulsion
-	err = ch.Switch(
+	err = ctxErr(ctx, ch.Switch(
 		channel.Collect(&expelled),
 		channel.BreakOnEOS,
 		channel.PassErrors,
-	)
+		channel.WithContext(ctx),
+	))
 
 	return expelled, err
 }

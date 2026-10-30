@@ -15,11 +15,12 @@ func (client *Client) Assets(ctx *astral.Context) ([]*astral.ObjectID, error) {
 	defer ch.Close()
 
 	var assets []*astral.ObjectID
-	err = ch.Switch(
+	err = ctxErr(ctx, ch.Switch(
 		channel.Collect(&assets),
 		channel.BreakOnEOS,
 		channel.PassErrors,
-	)
+		channel.WithContext(ctx),
+	))
 
 	return assets, err
 }

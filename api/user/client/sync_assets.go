@@ -18,11 +18,12 @@ func (client *Client) SyncAssets(ctx *astral.Context, start uint64) (updates []*
 	defer ch.Close()
 
 	var height *astral.Uint64
-	err = ch.Switch(
+	err = ctxErr(ctx, ch.Switch(
 		channel.Collect(&updates),
 		channel.Expect(&height),
 		channel.PassErrors,
-	)
+		channel.WithContext(ctx),
+	))
 	if height != nil {
 		nextHeight = uint64(*height)
 	}

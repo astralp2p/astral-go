@@ -17,7 +17,7 @@ func (client *Client) SyncWith(ctx *astral.Context, node *astral.Identity) (err 
 	}
 	defer ch.Close()
 
-	return ch.Switch(channel.ExpectAck, channel.PassErrors)
+	return ctxErr(ctx, ch.Switch(channel.ExpectAck, channel.PassErrors, channel.WithContext(ctx)))
 }
 
 // SyncWith calls the operation on the default client.

@@ -15,6 +15,28 @@ func Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, err
 	return Default().Register(ctx, permits...)
 }
 
+// RegisterWith provisions a fresh guest identity on the default node.
+func RegisterWith(ctx *astral.Context, opts RegisterOptions) (*apphost.AccessToken, error) {
+	return Default().RegisterWith(ctx, opts)
+}
+
+// RegisterOptions is what an app asks apphost.register for. All fields are
+// optional; an empty field sends no argument.
+type RegisterOptions struct {
+	// Name is the name the app gives itself, shown to a delegated register
+	// policy. The node does not verify it.
+	Name string
+
+	// GrantPermits are actions asked for as node-local grants, e.g.
+	// `mod.user.see_swarm_action`: revocable by deleting a row, and worthless
+	// off this node.
+	GrantPermits []string
+
+	// ContractPermits are actions asked for in a signed node→app contract:
+	// portable evidence another node verifies, durable until it expires.
+	ContractPermits []string
+}
+
 // Register provisions a fresh guest identity end to end: the node generates a
 // keypair, signs an app contract between the new identity and itself, and
 // mints an access token for it. This is how an app bootstraps itself on first
@@ -28,15 +50,27 @@ func Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, err
 // alone, so a caller learns what it holds by using it. Asking for nothing
 // sends no argument.
 //
-// The operation can also write a permit into a signed node→app contract,
-// which is portable evidence another node verifies, durable until it expires.
-// This client asks for grants alone, so nothing it names becomes portable.
+// Register asks for grants alone, so nothing it names becomes portable.
+// RegisterWith also names the app and asks for contract permits.
 //
 // The node accepts the query before its register policy decides, so a refusal
 // arrives as the error object apphost.ErrRegistrationDeclined, which surfaces
-// here as an error, as does any failure past the accept gate.
+// here as an error, as does any failure past the accept gate. A delegated
+// policy may wait on a person. The wait ends with ctx: Register closes the
+// query, which tells the policy that nobody waits for its answer, and returns
+// ctx's error.
 func (client *Client) Register(ctx *astral.Context, permits ...string) (*apphost.AccessToken, error) {
-	args, err := registerArgs(permits)
+	return client.RegisterWith(ctx, RegisterOptions{GrantPermits: permits})
+}
+
+// RegisterWith is Register with the app's name and both permit lists. A
+// permit name carrying a comma is refused with apphost.ErrProtocolError before
+// anything is sent.
+//
+// why a second method: Register's variadic permits leave no room for options,
+// and existing apps call it as it is.
+func (client *Client) RegisterWith(ctx *astral.Context, opts RegisterOptions) (*apphost.AccessToken, error) {
+	args, err := registerArgs(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -47,46 +81,72 @@ func (client *Client) Register(ctx *astral.Context, permits ...string) (*apphost
 	}
 	defer ch.Close()
 
-	return readAccessToken(ch)
+	return readAccessToken(ctx, ch)
 }
 
-// argGrantPermits is the argument apphost.register reads for the permits it
-// records as node-local grants. The operation declares GrantPermits and the op
-// router lowers a field name to snake_case, so grant_permits is the name on the
-// wire (astrald `mod/apphost/src/op_register.go`, `opRegisterArgs`).
+// The arguments apphost.register reads. The operation declares GrantPermits,
+// ContractPermits and Name, and the op router lowers a field name to
+// snake_case, so these are the names on the wire (astrald
+// `mod/apphost/src/op_register.go`, `opRegisterArgs`).
 //
-// The operation declares ContractPermits beside it, reached as
-// contract_permits. This client asks for grants alone and never sends it.
-//
-// The name is pinned by a test because getting it wrong is silent: an argument
-// the operation does not declare is skipped during binding, so a client naming
-// the wrong one registers successfully and holds nothing it asked for.
-const argGrantPermits = "grant_permits"
-
-// registerArgs joins the permits into the op's grant argument. A permit
-// carrying the separator is refused rather than sent: on the wire it would
-// split into two, so the node would read an action name the caller never
+// The names are pinned by tests because getting one wrong is silent: an
+// argument the operation does not declare is skipped during binding, so a
+// client naming the wrong one registers successfully and holds nothing it
 // asked for.
-func registerArgs(permits []string) (query.Args, error) {
+const (
+	argGrantPermits    = "grant_permits"
+	argContractPermits = "contract_permits"
+	argName            = "name"
+)
+
+// registerArgs builds the op's arguments from opts, leaving out every empty
+// field.
+func registerArgs(opts RegisterOptions) (query.Args, error) {
+	args := query.Args{}
+	if opts.Name != "" {
+		args[argName] = opts.Name
+	}
+	if err := addPermits(args, argGrantPermits, opts.GrantPermits); err != nil {
+		return nil, err
+	}
+	if err := addPermits(args, argContractPermits, opts.ContractPermits); err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
+// addPermits joins permits into args[key]. A permit carrying the separator is
+// refused rather than sent: on the wire it would split into two, so the node
+// would read an action name the caller never asked for.
+func addPermits(args query.Args, key string, permits []string) error {
 	if len(permits) == 0 {
-		return query.Args{}, nil
+		return nil
 	}
 
 	for _, permit := range permits {
 		if strings.Contains(permit, ",") {
-			return nil, fmt.Errorf("%w: permit name contains a comma: %q", apphost.ErrProtocolError, permit)
+			return fmt.Errorf("%w: permit name contains a comma: %q", apphost.ErrProtocolError, permit)
 		}
 	}
 
-	return query.Args{argGrantPermits: strings.Join(permits, ",")}, nil
+	args[key] = strings.Join(permits, ",")
+	return nil
 }
 
 // readAccessToken reads the node's answer: the minted token, or the error
 // object a failed step streams. An answer carrying neither is a protocol
 // error — registration has no empty success, and a nil token returned with a
 // nil error would strand the caller at the one call it cannot retry blind.
-func readAccessToken(ch *channel.Channel) (token *apphost.AccessToken, err error) {
-	if err = ch.Switch(channel.Expect(&token), channel.PassErrors); err != nil {
+// The read ends with ctx, and a token that arrived stands however ctx ends.
+func readAccessToken(ctx *astral.Context, ch *channel.Channel) (token *apphost.AccessToken, err error) {
+	err = ch.Switch(channel.Expect(&token), channel.PassErrors, channel.WithContext(ctx))
+
+	// why: WithContext ends the read by closing the channel, which reads as an
+	// answer without a token or as a transport error, not as the end of ctx.
+	if token == nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if err != nil {
 		return nil, err
 	}
 

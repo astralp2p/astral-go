@@ -67,3 +67,8 @@ func (monitor *RouterMonitor) GuestID() *astral.Identity {
 func (monitor *RouterMonitor) HostID() *astral.Identity {
 	return monitor.Router.HostID()
 }
+
+// GuestIDContext resolves the inner router's guest identity within ctx.
+func (monitor *RouterMonitor) GuestIDContext(ctx *astral.Context) (*astral.Identity, error) {
+	return guestIDContext(ctx, monitor.Router)
+}

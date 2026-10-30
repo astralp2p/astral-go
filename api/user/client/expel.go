@@ -16,6 +16,6 @@ func (client *Client) Expel(ctx *astral.Context, nodeID *astral.Identity) (signe
 	}
 	defer ch.Close()
 
-	err = ch.Switch(channel.Expect(&signed), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&signed), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }

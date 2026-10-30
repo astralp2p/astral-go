@@ -10,7 +10,8 @@ import (
 )
 
 // Register pushes a runtime *astral.Blueprint (struct or alias kind) to the remote node and
-// returns its content-addressed ObjectID.
+// returns its content-addressed ObjectID. The wait for the node's answer ends with ctx, and
+// returns ctx's error.
 func (client *Client) Register(ctx *astral.Context, o astral.Object) (id *astral.ObjectID, err error) {
 	ch, err := client.queryCh(ctx, objects.MethodRegisterBlueprint, nil)
 	if err != nil {
@@ -22,7 +23,13 @@ func (client *Client) Register(ctx *astral.Context, o astral.Object) (id *astral
 		return
 	}
 
-	err = ch.Switch(channel.Expect(&id), channel.PassErrors)
+	err = ch.Switch(channel.Expect(&id), channel.PassErrors, channel.WithContext(ctx))
+
+	// why: WithContext ends the read by closing the channel, which reads as an
+	// empty answer or a transport error, not as the end of ctx.
+	if id == nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
 	if err != nil && strings.HasPrefix(err.Error(), astral.ErrAlreadyRegistered.Error()) {
 		return nil, fmt.Errorf("%w: %s", astral.ErrAlreadyRegistered, typeNameOf(o))
 	}

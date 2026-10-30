@@ -18,7 +18,7 @@ func (client *Client) Info(ctx *astral.Context) (info *user.Info, err error) {
 	}
 	defer ch.Close()
 
-	err = ch.Switch(channel.Expect(&info), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&info), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }
 

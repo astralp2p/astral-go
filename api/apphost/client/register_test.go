@@ -9,6 +9,7 @@ import (
 	"github.com/astralp2p/astral-go/api/apphost"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 func sampleToken() *apphost.AccessToken {
@@ -37,7 +38,7 @@ func answer(t *testing.T, objects ...astral.Object) *channel.Channel {
 // A caller asking for nothing sends no permit argument: the query is the one
 // it always was.
 func TestRegisterArgs_NoPermitsSendsNoArgument(t *testing.T) {
-	args, err := registerArgs(nil)
+	args, err := registerArgs(RegisterOptions{})
 	if err != nil {
 		t.Fatalf("registerArgs: %v", err)
 	}
@@ -48,7 +49,7 @@ func TestRegisterArgs_NoPermitsSendsNoArgument(t *testing.T) {
 }
 
 func TestRegisterArgs_PermitsAreCommaJoined(t *testing.T) {
-	args, err := registerArgs([]string{"mod.user.see_swarm_action", "mod.auth.see_objects_action"})
+	args, err := registerArgs(RegisterOptions{GrantPermits: []string{"mod.user.see_swarm_action", "mod.auth.see_objects_action"}})
 	if err != nil {
 		t.Fatalf("registerArgs: %v", err)
 	}
@@ -69,7 +70,7 @@ func TestRegisterArgs_PermitsAreCommaJoined(t *testing.T) {
 // during binding, so every app that asked for a permit received a token and
 // held none of what it named.
 func TestRegisterArgs_NamesTheArgumentTheNodeReads(t *testing.T) {
-	args, err := registerArgs([]string{"mod.user.see_swarm_action"})
+	args, err := registerArgs(RegisterOptions{GrantPermits: []string{"mod.user.see_swarm_action"}})
 	if err != nil {
 		t.Fatalf("registerArgs: %v", err)
 	}
@@ -86,7 +87,7 @@ func TestRegisterArgs_NamesTheArgumentTheNodeReads(t *testing.T) {
 // A permit carrying the separator would reach the node as two permits, so it
 // is refused here instead of silently becoming an action nobody asked for.
 func TestRegisterArgs_PermitWithACommaIsRefused(t *testing.T) {
-	_, err := registerArgs([]string{"mod.user.info_action,mod.user.expel_action"})
+	_, err := registerArgs(RegisterOptions{GrantPermits: []string{"mod.user.info_action,mod.user.expel_action"}})
 	if err == nil {
 		t.Fatal("expected a comma in a permit name to be refused")
 	}
@@ -95,10 +96,56 @@ func TestRegisterArgs_PermitWithACommaIsRefused(t *testing.T) {
 	}
 }
 
+// RegisterWith sends the name and both permit lists under the names astrald's
+// opRegisterArgs declares. The literals are spelled out, for the reason
+// TestRegisterArgs_NamesTheArgumentTheNodeReads gives.
+func TestRegisterWith_SendsTheNameAndBothPermitLists(t *testing.T) {
+	src := sampleToken()
+	client, router := recordingClient(t, src)
+
+	token, err := client.RegisterWith(astral.NewContext(nil), RegisterOptions{
+		Name:            "smithd@dell /home/robzon/.smith/daemon",
+		GrantPermits:    []string{"mod.auth.see_objects_action", "mod.user.see_swarm_action"},
+		ContractPermits: []string{"mod.auth.store_objects_action"},
+	})
+	if err != nil {
+		t.Fatalf("RegisterWith: %v", err)
+	}
+	if !token.Identity.IsEqual(src.Identity) {
+		t.Fatalf("identity: want %v, got %v", src.Identity, token.Identity)
+	}
+
+	path, params := query.Parse(router.queryString)
+	if path != apphost.MethodRegister {
+		t.Fatalf("path: want %v, got %q", apphost.MethodRegister, path)
+	}
+	want := map[string]string{
+		"name":             "smithd@dell /home/robzon/.smith/daemon",
+		"grant_permits":    "mod.auth.see_objects_action,mod.user.see_swarm_action",
+		"contract_permits": "mod.auth.store_objects_action",
+	}
+	if len(params) != len(want) {
+		t.Fatalf("params: want %v, got %v", want, params)
+	}
+	for k, v := range want {
+		if params[k] != v {
+			t.Fatalf("%s: want %q, got %q", k, v, params[k])
+		}
+	}
+}
+
+// A contract permit carrying the separator is refused like a grant permit.
+func TestRegisterArgs_ContractPermitWithACommaIsRefused(t *testing.T) {
+	_, err := registerArgs(RegisterOptions{ContractPermits: []string{"mod.user.info_action,mod.user.expel_action"}})
+	if !errors.Is(err, apphost.ErrProtocolError) {
+		t.Fatalf("want ErrProtocolError, got %v", err)
+	}
+}
+
 func TestReadAccessToken_ReturnsTheMintedToken(t *testing.T) {
 	src := sampleToken()
 
-	token, err := readAccessToken(answer(t, src))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t, src))
 	if err != nil {
 		t.Fatalf("readAccessToken: %v", err)
 	}
@@ -113,7 +160,7 @@ func TestReadAccessToken_ReturnsTheMintedToken(t *testing.T) {
 
 // A failure past the accept gate arrives as an error object, not as a token.
 func TestReadAccessToken_NodeRefusalIsReturnedNotSwallowed(t *testing.T) {
-	token, err := readAccessToken(answer(t, astral.NewError("register policy refused")))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t, astral.NewError("register policy refused")))
 	if err == nil {
 		t.Fatal("expected the node's refusal to surface")
 	}
@@ -125,7 +172,7 @@ func TestReadAccessToken_NodeRefusalIsReturnedNotSwallowed(t *testing.T) {
 // Registration has no empty success: an answer carrying nothing must not read
 // as a token the caller can use.
 func TestReadAccessToken_EmptyAnswerIsAProtocolError(t *testing.T) {
-	token, err := readAccessToken(answer(t))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t))
 	if err == nil {
 		t.Fatal("expected an empty answer to be an error")
 	}

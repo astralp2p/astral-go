@@ -1,6 +1,7 @@
 package services
 
 import (
+	"context"
 	"errors"
 	"io"
 
@@ -101,6 +102,10 @@ func readDiscovery(ctx *astral.Context, ch *channel.Channel, follow bool, out ch
 	defer close(out)
 	defer ch.Close()
 
+	// why: Receive does not watch ctx, and a follow can stay idle for as long
+	// as nothing changes, so the end of ctx closes the channel to end the read.
+	defer context.AfterFunc(ctx, func() { _ = ch.Close() })()
+
 	r := discoveryReader{follow: follow}
 	err := ch.Collect(func(o astral.Object) error {
 		ev, stop, err := r.read(o)
@@ -123,6 +128,10 @@ func readDiscovery(ctx *astral.Context, ch *channel.Channel, follow bool, out ch
 	switch {
 	case errors.Is(err, io.EOF) && r.boundary && !follow:
 		return
+	case ctx.Err() != nil:
+		// why: a read ended by closing the channel reads as EOF or as the
+		// transport's close error, which would hide that the caller ended it.
+		err = ctx.Err()
 	case err == nil:
 		err = ErrStreamEnded
 	}

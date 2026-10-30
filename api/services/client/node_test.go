@@ -1,6 +1,8 @@
 package services
 
 import (
+	"context"
+	"errors"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -186,5 +188,175 @@ func TestConcurrentAnswersAndChanges(t *testing.T) {
 			t.Fatalf("decoded %d answers and %d changes; want %d and %d", answers, changed, asks, changes)
 		}
 		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// followOp stands in for a node's follow discovery: it sends the initial
+// boundary, then sends nothing while nothing changes, until the caller closes.
+func followOp(_ *astral.Context, q *routing.IncomingQuery, _ discoverArgs) error {
+	ch := q.Accept()
+	defer ch.Close()
+	if err := ch.Send(&astral.EOS{}); err != nil {
+		return err
+	}
+	for {
+		if _, err := ch.Receive(); err != nil {
+			return nil
+		}
+	}
+}
+
+// drained reports whether events closes within d, and the terminal errors it
+// delivered on the way.
+func drained(events <-chan Event, d time.Duration) (bool, []error) {
+	var errs []error
+	deadline := time.After(d)
+	for {
+		select {
+		case ev, ok := <-events:
+			if !ok {
+				return true, errs
+			}
+			if ev.Err != nil {
+				errs = append(errs, ev.Err)
+			}
+		case <-deadline:
+			return false, errs
+		}
+	}
+}
+
+// Evaluation check 13: a follow discovery ends when its context ends, also
+// while no event arrives.
+func TestIdleFollowEndsWithItsContext(t *testing.T) {
+	c := clientFor(t, map[string]any{services.MethodDiscover: followOp})
+	ctx, cancel := astral.NewContext(nil).WithCancel()
+	defer cancel()
+
+	events, err := c.Discover(ctx, []string{"player"}, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev := <-events; ev.Initial == nil {
+		t.Fatalf("first event %+v; want the initial outcome", ev)
+	}
+
+	cancel()
+	ok, errs := drained(events, time.Second)
+	if !ok {
+		t.Fatal("the idle follow did not end within 1s of its context")
+	}
+	for _, err := range errs {
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("terminal error %v; want the context's", err)
+		}
+	}
+}
+
+// initialClosed fails t unless w.Initial closes within d without an outcome.
+func initialClosed(t *testing.T, w *Watcher, d time.Duration) {
+	t.Helper()
+	select {
+	case o, ok := <-w.Initial():
+		if ok {
+			t.Fatalf("initial outcome %+v; want Initial closed without one", o)
+		}
+	case <-time.After(d):
+		t.Fatal("Initial did not close after the stream failed")
+	}
+}
+
+// Initial closes when the stream fails before the initial outcome, and Err
+// says why: a refusal, a node that closed, or the end of the caller's context.
+func TestWatcherInitialClosesOnEarlyFailure(t *testing.T) {
+	refused := astral.NewError("not permitted to discover \"player\"")
+	cases := []struct {
+		name string
+		op   func(*astral.Context, *routing.IncomingQuery, discoverArgs) error
+		end  bool
+		want error
+	}{
+		{"refused", func(_ *astral.Context, q *routing.IncomingQuery, _ discoverArgs) error {
+			ch := q.Accept()
+			defer ch.Close()
+			return ch.Send(astral.Err(refused))
+		}, false, refused},
+		{"closed", func(_ *astral.Context, q *routing.IncomingQuery, _ discoverArgs) error {
+			q.Accept().Close()
+			return nil
+		}, false, ErrStreamEnded},
+		{"context ended", func(_ *astral.Context, q *routing.IncomingQuery, _ discoverArgs) error {
+			ch := q.Accept()
+			defer ch.Close()
+			for {
+				if _, err := ch.Receive(); err != nil {
+					return nil
+				}
+			}
+		}, true, context.Canceled},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := clientFor(t, map[string]any{services.MethodDiscover: tc.op})
+			ctx, cancel := astral.NewContext(nil).WithCancel()
+			defer cancel()
+
+			w, err := c.Watch(ctx, []string{"player"})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if tc.end {
+				cancel()
+			}
+			initialClosed(t, w, time.Second)
+			if err := w.Err(); err == nil || err.Error() != tc.want.Error() {
+				t.Fatalf("Err %v; want %v", err, tc.want)
+			}
+		})
+	}
+}
+
+// Close ends an idle watcher's stream and its goroutine, and the node sees the
+// stream close.
+func TestWatcherCloseEndsTheStream(t *testing.T) {
+	released := make(chan struct{})
+	c := clientFor(t, map[string]any{services.MethodDiscover: func(ctx *astral.Context, q *routing.IncomingQuery, args discoverArgs) error {
+		defer close(released)
+		return followOp(ctx, q, args)
+	}})
+
+	w, err := c.Watch(astral.NewContext(nil), []string{"player"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o, ok := <-w.Initial(); !ok || !o.Complete {
+		t.Fatalf("initial outcome %+v, %v", o, ok)
+	}
+
+	closed := make(chan error, 1)
+	go func() { closed <- w.Close() }()
+	select {
+	case err := <-closed:
+		if err != nil {
+			t.Fatalf("Close: %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Close did not return within 1s")
+	}
+	select {
+	case <-w.Done():
+	default:
+		t.Fatal("Done is open after Close returned")
+	}
+	if !errors.Is(w.Err(), context.Canceled) {
+		t.Fatalf("Err %v; want context.Canceled", w.Err())
+	}
+	select {
+	case <-released:
+	case <-time.After(time.Second):
+		t.Fatal("the node still holds the stream after Close")
+	}
+	if err := w.Close(); err != nil {
+		t.Fatalf("a second Close: %v", err)
 	}
 }

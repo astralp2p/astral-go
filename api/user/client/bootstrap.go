@@ -37,6 +37,6 @@ func (client *Client) Bootstrap(ctx *astral.Context, words string, passphrase st
 		}
 	}
 
-	err = ch.Switch(channel.Expect(&result), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&result), channel.PassErrors, channel.WithContext(ctx)))
 	return
 }

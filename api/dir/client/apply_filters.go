@@ -27,7 +27,7 @@ func (client *Client) ApplyFilters(ctx *astral.Context, identity *astral.Identit
 	defer ch.Close()
 
 	var match *astral.Bool
-	err = ch.Switch(channel.Expect(&match), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&match), channel.PassErrors, channel.WithContext(ctx)))
 	if err != nil {
 		return false, err
 	}

@@ -30,7 +30,7 @@ func (client *Client) ResolveIdentity(ctx *astral.Context, name string) (identit
 	defer ch.Close()
 
 	// fetch the identity from the channel
-	err = ch.Switch(channel.Expect(&identity), channel.PassErrors)
+	err = ctxErr(ctx, ch.Switch(channel.Expect(&identity), channel.PassErrors, channel.WithContext(ctx)))
 	if err != nil {
 		return nil, err
 	}

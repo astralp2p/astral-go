@@ -18,11 +18,12 @@ func (client *Client) Filters(ctx *astral.Context) (filters []string, err error)
 	defer ch.Close()
 
 	// collect the list of filters
-	err = ch.Switch(
+	err = ctxErr(ctx, ch.Switch(
 		channel.CollectStrings[*astral.String8](&filters),
 		channel.BreakOnEOS,
 		channel.PassErrors,
-	)
+		channel.WithContext(ctx),
+	))
 	if err != nil {
 		return nil, err
 	}
