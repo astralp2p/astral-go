@@ -124,6 +124,7 @@ web origin it registers from is entitled to them.
 | `WithObjectSearcher` | `objects.register_searcher` | `mod.auth.serve_objects_action` |
 | `WithObjectDescriber` | `objects.register_describer` | `mod.auth.serve_objects_action` |
 | `WithBlueprintSync` | `objects.blueprints`, `objects.register_blueprint` | `mod.auth.use_blueprints_action` |
+| `crypto` client `RegisterSigner` | `crypto.register_signer` | `mod.auth.register_signer_action` |
 
 A refused `objects.blueprints` fails the first registration with
 `blueprint sync: objects.blueprints refused; the app needs

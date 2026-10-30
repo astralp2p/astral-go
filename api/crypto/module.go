@@ -5,6 +5,7 @@ package crypto
 
 const (
 	MethodPublicKey           = "crypto.public_key"
+	MethodRegisterSigner      = "crypto.register_signer"
 	MethodSignHash            = "crypto.sign_hash"
 	MethodSignText            = "crypto.sign_text"
 	MethodVerifyHashSignature = "crypto.verify_hash_signature"
