@@ -52,4 +52,10 @@ type Constrainable interface {
 	ApplyConstraints(*astral.Bundle) bool
 }
 
+// ConstraintValidator is implemented by Constrainable actions that can refuse a
+// malformed constraints bundle before a permit carrying it is written.
+type ConstraintValidator interface {
+	ValidateConstraints(*astral.Bundle) error
+}
+
 func init() { astral.MustAdd(&Action{}) }
