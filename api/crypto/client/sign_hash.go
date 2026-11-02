@@ -12,7 +12,7 @@ import (
 // SignHash asks the node to sign hash and returns the signature. key selects the
 // signer; nil defaults to the caller's own identity key. scheme selects the
 // signature scheme; "" defaults to "asn1". The node signs with its own private
-// key for key first, and otherwise through the app that holds a
+// key for key when it holds one, and otherwise through the app that holds a
 // crypto.register_signer binding for key. A signature through a binding can wait
 // for a person to approve it, for up to the node's signer_timeout (default 5
 // minutes).
