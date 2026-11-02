@@ -113,8 +113,9 @@ Each piece of a served app calls node ops that check an action. The app's
 identity holds each action through a node-local grant or a signed contract;
 `apphost.register` asks for `mod.auth.serve_apps_action` and
 `mod.auth.use_blueprints_action` on every registration, and for others only
-when the app names them in `grant_permits` or `contract_permits`, or a trusted
-web origin it registers from is entitled to them.
+when the app names them in the `GrantPermits` or `ContractPermits` of the
+`mod.apphost.register_request` it sends, or a trusted web origin it registers
+from is entitled to them.
 
 | Option | Node op | Action |
 |---|---|---|

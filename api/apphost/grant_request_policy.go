@@ -7,33 +7,37 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// GrantRequest is what the grant request policy decides on, and what a
-// delegated policy sends to its delegate.
+// GrantPolicyRequest is what the grant request policy decides on, and what a
+// delegated policy sends to its delegate, once for each apphost.request_grant
+// call.
 //
 // Requester is the authenticated identity of the asking session and receives
 // the grants. Origin is its web origin, empty for local IPC callers. Permits
-// are the node-local grants it asks for.
-type GrantRequest struct {
+// are the node-local grants it asks for, with their constraints as sent.
+// Duration is the lifetime it asks for each grant; zero asks for grants that
+// last until revoked.
+type GrantPolicyRequest struct {
 	Requester *astral.Identity
 	Origin    astral.String8
 	Permits   []*auth.Permit
+	Duration  astral.Duration
 }
 
-func (GrantRequest) ObjectType() string { return "mod.apphost.grant_request" }
+func (GrantPolicyRequest) ObjectType() string { return "mod.apphost.grant_policy_request" }
 
-func (r GrantRequest) WriteTo(w io.Writer) (n int64, err error) {
+func (r GrantPolicyRequest) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&r).WriteTo(w)
 }
 
-func (r *GrantRequest) ReadFrom(rd io.Reader) (n int64, err error) {
+func (r *GrantPolicyRequest) ReadFrom(rd io.Reader) (n int64, err error) {
 	return astral.Objectify(r).ReadFrom(rd)
 }
 
-func (r GrantRequest) MarshalJSON() ([]byte, error) {
+func (r GrantPolicyRequest) MarshalJSON() ([]byte, error) {
 	return astral.Objectify(&r).MarshalJSON()
 }
 
-func (r *GrantRequest) UnmarshalJSON(b []byte) error {
+func (r *GrantPolicyRequest) UnmarshalJSON(b []byte) error {
 	return astral.Objectify(r).UnmarshalJSON(b)
 }
 
@@ -62,6 +66,6 @@ func (d *GrantDecision) UnmarshalJSON(b []byte) error {
 }
 
 func init() {
-	astral.MustAdd(&GrantRequest{})
+	astral.MustAdd(&GrantPolicyRequest{})
 	astral.MustAdd(&GrantDecision{})
 }

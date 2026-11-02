@@ -1,71 +1,47 @@
 package apphost
 
 import (
+	"fmt"
+
 	"github.com/astralp2p/astral-go/api/apphost"
 	"github.com/astralp2p/astral-go/astral"
-	"github.com/astralp2p/astral-go/astral/channel"
-	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// GrantOptions configures apphost.grant. All fields are optional.
-type GrantOptions struct {
-	// Duration is the grant's lifetime. Zero grants until the grant is
-	// revoked.
-	Duration astral.Duration
-
-	// Constraints narrow the granted permit; the action decides what they
-	// mean. mod.services.service_discovery_action covers nothing
-	// unconstrained, so its grant carries a bundle holding one
-	// services.DiscoveryScope. Nil grants the action without constraints.
-	Constraints *astral.Bundle
-}
-
-// Grant records a node-local grant of action for identity on the target node,
-// replacing whatever identity held for that action, so a narrower grant takes
-// authority away. The grant authorizes on that node alone and travels nowhere.
+// Grant asks the target node to write the node-local grants req names. Each
+// permit, with its constraints, becomes one grant for req.Identity that
+// authorizes on that node alone and travels nowhere. A zero req.Duration
+// writes grants that last until revoked.
+//
+// Grants add up: a grant never replaces another. Granting a permit identical
+// to one already held sets that grant's expiry to the new value. Narrowing
+// is granting the narrow permit, then revoking the wide one with RevokeGrant.
 //
 // The caller must hold mod.auth.admin_manage_apps_action. The node rejects
 // any other caller, and any query that arrived over a link, before it answers.
-// A failure past the accept gate, such as an identity that does not resolve,
-// arrives as an error, and so does an answer that ends without an ack. A node
-// that does not ack before ctx ends fails Grant with ctx's error; the grant
-// may still be written.
-func (client *Client) Grant(ctx *astral.Context, identity *astral.Identity, action string, opts GrantOptions) error {
-	args := query.Args{"identity": identity.String(), "action": action}
-	if opts.Duration != 0 {
-		args["duration"] = opts.Duration
-	}
-	if opts.Constraints != nil {
-		args["constrained"] = true
+// A failure past the accept gate arrives as an error: an invalid permit as
+// auth.ErrInvalidPermit, and an answer that ends without an ack as
+// io.ErrUnexpectedEOF. A node that does not ack before ctx ends fails Grant
+// with ctx's error; the grants may still be written. A nil req is refused with
+// apphost.ErrProtocolError before anything is sent.
+func (client *Client) Grant(ctx *astral.Context, req *apphost.GrantRequest) error {
+	if req == nil {
+		return fmt.Errorf("%w: nil grant request", apphost.ErrProtocolError)
 	}
 
-	ch, err := client.queryCh(ctx, apphost.MethodGrant, args)
+	ch, err := client.queryCh(ctx, apphost.MethodGrant, nil)
 	if err != nil {
 		return err
 	}
 	defer ch.Close()
 
-	// why: the constraints travel on the channel because a bundle is not a
-	// query argument; the node reads exactly one before it grants.
-	if opts.Constraints != nil {
-		if err = ch.Send(opts.Constraints); err != nil {
-			return err
-		}
+	if err = ch.Send(req); err != nil {
+		return err
 	}
 
-	// why FailOnEOF: the node acks only once the grant is written, so an
-	// answer that ends without an ack recorded nothing.
-	err = ch.Switch(channel.ExpectAck, channel.PassErrors, channel.FailOnEOF(), channel.WithContext(ctx))
-
-	// why: WithContext ends the read by closing the channel, which reads as an
-	// answer cut short, not as the end of ctx.
-	if err != nil && ctx.Err() != nil {
-		return ctx.Err()
-	}
-	return err
+	return expectAck(ctx, ch)
 }
 
 // Grant calls the operation on the default client.
-func Grant(ctx *astral.Context, identity *astral.Identity, action string, opts GrantOptions) error {
-	return Default().Grant(ctx, identity, action, opts)
+func Grant(ctx *astral.Context, req *apphost.GrantRequest) error {
+	return Default().Grant(ctx, req)
 }
