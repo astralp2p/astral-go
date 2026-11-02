@@ -1,6 +1,7 @@
 package services
 
 import (
+	"errors"
 	"io"
 
 	"github.com/astralp2p/astral-go/api/auth"
@@ -51,6 +52,36 @@ func (a ServiceDiscoveryAction) ApplyConstraints(cs *astral.Bundle) bool {
 	}
 
 	return scope.Allows(a.Service, a.NodeID)
+}
+
+var _ auth.ConstraintValidator = ServiceDiscoveryAction{}
+
+var errOneDiscoveryScope = errors.New("constraints must hold exactly one discovery scope")
+var errScopeNamesNoService = errors.New("discovery scope names no service")
+
+// ValidateConstraints accepts exactly one DiscoveryScope holding at least one
+// rule that names at least one service.
+func (ServiceDiscoveryAction) ValidateConstraints(cs *astral.Bundle) error {
+	if cs == nil {
+		return errOneDiscoveryScope
+	}
+
+	objects := cs.Objects()
+	if len(objects) != 1 {
+		return errOneDiscoveryScope
+	}
+
+	scope, ok := objects[0].(*DiscoveryScope)
+	if !ok || scope == nil {
+		return errOneDiscoveryScope
+	}
+
+	for _, rule := range scope.Rules {
+		if rule != nil && len(rule.Services) > 0 {
+			return nil
+		}
+	}
+	return errScopeNamesNoService
 }
 
 // DiscoveryScope narrows a discovery permit to pairs of service and

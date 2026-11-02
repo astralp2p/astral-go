@@ -1,8 +1,11 @@
 package services
 
 import (
+	"errors"
+	"strings"
 	"testing"
 
+	"github.com/astralp2p/astral-go/api/auth"
 	"github.com/astralp2p/astral-go/astral"
 )
 
@@ -59,6 +62,74 @@ func TestDiscoveryPermitNarrowsByServiceAndNode(t *testing.T) {
 			a := ServiceDiscoveryAction{Service: tc.service, NodeID: tc.node}
 			if got := a.ApplyConstraints(tc.cs); got != tc.want {
 				t.Fatalf("ApplyConstraints: got %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestServiceDiscoveryActionValidateConstraints(t *testing.T) {
+	node := astral.GenerateIdentity()
+
+	for _, tc := range []struct {
+		name    string
+		cs      *astral.Bundle
+		wantErr error
+		allows  astral.String8 // for an accepted bundle: a service it allows
+	}{
+		{"nil bundle", nil, errOneDiscoveryScope, ""},
+		{"empty bundle", astral.NewBundle(), errOneDiscoveryScope, ""},
+		{"foreign object", constraints(astral.NewString8("x")), errOneDiscoveryScope, ""},
+		{"two scopes", constraints(scope(rule([]astral.String8{"player"})), scope(rule([]astral.String8{"storage"}))), errOneDiscoveryScope, ""},
+		{"scope beside foreign object", constraints(scope(rule([]astral.String8{"player"})), astral.NewString8("x")), errOneDiscoveryScope, ""},
+		{"empty scope", constraints(scope()), errScopeNamesNoService, ""},
+		{"rule with nil services", constraints(scope(rule(nil))), errScopeNamesNoService, ""},
+		{"nil rule", constraints(scope(nil)), errScopeNamesNoService, ""},
+
+		{"one scope naming inference", constraints(scope(rule([]astral.String8{"inference"}))), nil, "inference"},
+		{"empty rule beside a rule naming player", constraints(scope(rule(nil), rule([]astral.String8{"player"}))), nil, "player"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ServiceDiscoveryAction{}.ValidateConstraints(tc.cs)
+			if !errors.Is(err, tc.wantErr) {
+				t.Fatalf("ValidateConstraints: got %v, want %v", err, tc.wantErr)
+			}
+			if tc.wantErr != nil {
+				return
+			}
+			a := ServiceDiscoveryAction{Service: tc.allows, NodeID: node}
+			if !a.ApplyConstraints(tc.cs) {
+				t.Fatalf("accepted bundle does not allow %v", tc.allows)
+			}
+		})
+	}
+}
+
+func TestValidatePermitDiscovery(t *testing.T) {
+	const action = "mod.services.service_discovery_action"
+	one := scope(rule([]astral.String8{"inference"}))
+
+	for _, tc := range []struct {
+		name    string
+		cs      *astral.Bundle
+		refused string // empty: passes
+	}{
+		{"nil constraints", nil, "requires constraints"},
+		{"two scopes", constraints(one, scope(rule([]astral.String8{"player"}))), errOneDiscoveryScope.Error()},
+		{"one valid scope", constraints(one), ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			err := auth.ValidatePermit(&auth.Permit{Action: action, Constraints: tc.cs})
+			if tc.refused == "" {
+				if err != nil {
+					t.Fatalf("ValidatePermit: %v, want nil", err)
+				}
+				return
+			}
+			if !errors.Is(err, auth.ErrInvalidPermit) {
+				t.Fatalf("errors.Is(%v, auth.ErrInvalidPermit) = false", err)
+			}
+			if !strings.Contains(err.Error(), action) || !strings.Contains(err.Error(), tc.refused) {
+				t.Fatalf("error %q does not name %q and %q", err, action, tc.refused)
 			}
 		})
 	}
