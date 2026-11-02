@@ -9,7 +9,11 @@ import (
 
 // SignText asks the node to sign text and returns the signature. key selects the
 // signer; nil defaults to the caller's own identity key. scheme selects the
-// signature scheme; "" defaults to "bip137". The private key never leaves the node.
+// signature scheme; "" defaults to "bip137". The node signs with its own private
+// key for key first, and otherwise through the app that holds a
+// crypto.register_signer binding for key. A signature through a binding can wait
+// for a person to approve it, for up to the node's signer_timeout (default 5
+// minutes).
 func (client *Client) SignText(ctx *astral.Context, text string, key *crypto.PublicKey, scheme string) (sig *crypto.Signature, err error) {
 	args := query.Args{"text": text}
 	if scheme != "" {
