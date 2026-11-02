@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/astralp2p/astral-go/api/apphost"
+	"github.com/astralp2p/astral-go/api/auth"
+	"github.com/astralp2p/astral-go/api/services"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
 	"github.com/astralp2p/astral-go/lib/query"
@@ -35,110 +37,129 @@ func answer(t *testing.T, objects ...astral.Object) *channel.Channel {
 	return channel.New(channel.Join(&in, &out))
 }
 
-// A caller asking for nothing sends no permit argument: the query is the one
-// it always was.
-func TestRegisterArgs_NoPermitsSendsNoArgument(t *testing.T) {
-	args, err := registerArgs(RegisterOptions{})
-	if err != nil {
-		t.Fatalf("registerArgs: %v", err)
+func discoveryPermit(t *testing.T, service astral.String8) *auth.Permit {
+	t.Helper()
+	scope := astral.NewBundle()
+	if err := scope.Append(&services.DiscoveryScope{Rules: []*services.DiscoveryRule{{Services: []astral.String8{service}}}}); err != nil {
+		t.Fatal(err)
 	}
+	return &auth.Permit{Action: astral.String8(services.ServiceDiscoveryAction{}.ObjectType()), Constraints: scope}
+}
 
-	if len(args) != 0 {
-		t.Fatalf("want no arguments, got %v", args)
+// noArguments requires the routed query to be method with no arguments. The
+// op reads everything from the object on the channel.
+func noArguments(t *testing.T, router *recordingRouter, method string) {
+	t.Helper()
+	path, params := query.Parse(router.queryString)
+	if path != method {
+		t.Fatalf("path: want %v, got %q", method, path)
+	}
+	if len(params) != 0 {
+		t.Fatalf("want no arguments, got %v", params)
 	}
 }
 
-func TestRegisterArgs_PermitsAreCommaJoined(t *testing.T) {
-	args, err := registerArgs(RegisterOptions{GrantPermits: []string{"mod.user.see_swarm_action", "mod.auth.see_objects_action"}})
-	if err != nil {
-		t.Fatalf("registerArgs: %v", err)
+// onlyObject requires the client to have sent exactly one object of type T.
+func onlyObject[T astral.Object](t *testing.T, router *recordingRouter) T {
+	t.Helper()
+	sent := decodeAll(t, router.sent.Bytes())
+	if len(sent) != 1 {
+		t.Fatalf("sent %d objects; want one", len(sent))
 	}
-
-	if got := args[argGrantPermits]; got != "mod.user.see_swarm_action,mod.auth.see_objects_action" {
-		t.Fatalf("%s: got %q", argGrantPermits, got)
+	obj, ok := sent[0].(T)
+	if !ok {
+		t.Fatalf("sent %s", sent[0].ObjectType())
 	}
+	return obj
 }
 
-// TestRegisterArgs_NamesTheArgumentTheNodeReads pins the wire name against
-// astrald's opRegisterArgs, which declares GrantPermits and ContractPermits and
-// nothing called "permits".
-//
-// The literal is spelled out rather than taken from argGrantPermits, because a
-// test that reads the same constant as the code cannot catch the constant being
-// wrong. This client sent "permits" from the first release until this one, and
-// nothing reported it: an argument the operation does not declare is skipped
-// during binding, so every app that asked for a permit received a token and
-// held none of what it named.
-func TestRegisterArgs_NamesTheArgumentTheNodeReads(t *testing.T) {
-	args, err := registerArgs(RegisterOptions{GrantPermits: []string{"mod.user.see_swarm_action"}})
-	if err != nil {
-		t.Fatalf("registerArgs: %v", err)
+func scopeServices(t *testing.T, p *auth.Permit) []astral.String8 {
+	t.Helper()
+	if p == nil || p.Constraints == nil {
+		t.Fatalf("permit arrived without constraints: %+v", p)
 	}
-
-	if _, ok := args["grant_permits"]; !ok {
-		t.Fatalf("apphost.register reads grant_permits; this client sent %v", args)
+	scope, ok := astral.First[*services.DiscoveryScope](p.Constraints.Objects())
+	if !ok || len(scope.Rules) != 1 {
+		t.Fatalf("constraints arrived as %v", p.Constraints.Objects())
 	}
-
-	if _, ok := args["permits"]; ok {
-		t.Fatalf("this client still sends permits, which the operation does not declare: %v", args)
-	}
+	return scope.Rules[0].Services
 }
 
-// A permit carrying the separator would reach the node as two permits, so it
-// is refused here instead of silently becoming an action nobody asked for.
-func TestRegisterArgs_PermitWithACommaIsRefused(t *testing.T) {
-	_, err := registerArgs(RegisterOptions{GrantPermits: []string{"mod.user.info_action,mod.user.expel_action"}})
-	if err == nil {
-		t.Fatal("expected a comma in a permit name to be refused")
-	}
-	if !errors.Is(err, apphost.ErrProtocolError) {
-		t.Fatalf("want ErrProtocolError, got %v", err)
-	}
-}
-
-// RegisterWith sends the name and both permit lists under the names astrald's
-// opRegisterArgs declares. The literals are spelled out, for the reason
-// TestRegisterArgs_NamesTheArgumentTheNodeReads gives.
-func TestRegisterWith_SendsTheNameAndBothPermitLists(t *testing.T) {
+func TestRegister_SendsOneRegisterRequestAndNoArguments(t *testing.T) {
 	src := sampleToken()
 	client, router := recordingClient(t, src)
 
-	token, err := client.RegisterWith(astral.NewContext(nil), RegisterOptions{
-		Name:            "smithd@dell /home/robzon/.smith/daemon",
-		GrantPermits:    []string{"mod.auth.see_objects_action", "mod.user.see_swarm_action"},
-		ContractPermits: []string{"mod.auth.store_objects_action"},
-	})
+	token, err := client.Register(astral.NewContext(nil), &auth.Permit{Action: "mod.user.see_swarm_action"}, &auth.Permit{Action: "mod.auth.see_objects_action"})
 	if err != nil {
-		t.Fatalf("RegisterWith: %v", err)
+		t.Fatalf("Register: %v", err)
 	}
 	if !token.Identity.IsEqual(src.Identity) {
 		t.Fatalf("identity: want %v, got %v", src.Identity, token.Identity)
 	}
 
-	path, params := query.Parse(router.queryString)
-	if path != apphost.MethodRegister {
-		t.Fatalf("path: want %v, got %q", apphost.MethodRegister, path)
+	noArguments(t, router, "apphost.register")
+	req := onlyObject[*apphost.RegisterRequest](t, router)
+	if len(req.GrantPermits) != 2 || req.GrantPermits[0].Action != "mod.user.see_swarm_action" || req.GrantPermits[1].Action != "mod.auth.see_objects_action" {
+		t.Fatalf("grant permits arrived as %+v", req.GrantPermits)
 	}
-	want := map[string]string{
-		"name":             "smithd@dell /home/robzon/.smith/daemon",
-		"grant_permits":    "mod.auth.see_objects_action,mod.user.see_swarm_action",
-		"contract_permits": "mod.auth.store_objects_action",
-	}
-	if len(params) != len(want) {
-		t.Fatalf("params: want %v, got %v", want, params)
-	}
-	for k, v := range want {
-		if params[k] != v {
-			t.Fatalf("%s: want %q, got %q", k, v, params[k])
-		}
+	if req.Name != "" || len(req.ContractPermits) != 0 {
+		t.Fatalf("Register sent %+v", req)
 	}
 }
 
-// A contract permit carrying the separator is refused like a grant permit.
-func TestRegisterArgs_ContractPermitWithACommaIsRefused(t *testing.T) {
-	_, err := registerArgs(RegisterOptions{ContractPermits: []string{"mod.user.info_action,mod.user.expel_action"}})
+func TestRegisterWith_SendsNameBothListsAndConstraints(t *testing.T) {
+	client, router := recordingClient(t, sampleToken())
+
+	_, err := client.RegisterWith(astral.NewContext(nil), &apphost.RegisterRequest{
+		Name:            "smithd@dell /home/robzon/.smith/daemon",
+		GrantPermits:    []*auth.Permit{discoveryPermit(t, "inference")},
+		ContractPermits: []*auth.Permit{{Action: "mod.auth.store_objects_action"}},
+	})
+	if err != nil {
+		t.Fatalf("RegisterWith: %v", err)
+	}
+
+	noArguments(t, router, "apphost.register")
+	req := onlyObject[*apphost.RegisterRequest](t, router)
+	if req.Name != "smithd@dell /home/robzon/.smith/daemon" {
+		t.Fatalf("name: got %q", req.Name)
+	}
+	if len(req.GrantPermits) != 1 || req.GrantPermits[0].Action != "mod.services.service_discovery_action" {
+		t.Fatalf("grant permits arrived as %+v", req.GrantPermits)
+	}
+	if got := scopeServices(t, req.GrantPermits[0]); len(got) != 1 || got[0] != "inference" {
+		t.Fatalf("scope services: got %v", got)
+	}
+	if len(req.ContractPermits) != 1 || req.ContractPermits[0].Action != "mod.auth.store_objects_action" {
+		t.Fatalf("contract permits arrived as %+v", req.ContractPermits)
+	}
+}
+
+// The op reads one object after accept, so an app asking for nothing still
+// sends one.
+func TestRegister_WithNoPermitsStillSendsTheObject(t *testing.T) {
+	client, router := recordingClient(t, sampleToken())
+
+	if _, err := client.Register(astral.NewContext(nil)); err != nil {
+		t.Fatalf("Register: %v", err)
+	}
+
+	noArguments(t, router, "apphost.register")
+	req := onlyObject[*apphost.RegisterRequest](t, router)
+	if req.Name != "" || len(req.GrantPermits) != 0 || len(req.ContractPermits) != 0 {
+		t.Fatalf("Register with no permits sent %+v", req)
+	}
+}
+
+func TestRegisterWith_NilRequestIsRefused(t *testing.T) {
+	client, router := recordingClient(t, sampleToken())
+
+	_, err := client.RegisterWith(astral.NewContext(nil), nil)
 	if !errors.Is(err, apphost.ErrProtocolError) {
 		t.Fatalf("want ErrProtocolError, got %v", err)
+	}
+	if router.queryString != "" {
+		t.Fatalf("a nil request routed %q", router.queryString)
 	}
 }
 

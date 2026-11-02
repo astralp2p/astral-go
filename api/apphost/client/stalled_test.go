@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/astralp2p/astral-go/api/apphost"
+	"github.com/astralp2p/astral-go/api/auth"
 	"github.com/astralp2p/astral-go/astral"
 	libapphost "github.com/astralp2p/astral-go/lib/apphost"
 	"github.com/astralp2p/astral-go/lib/astrald"
@@ -135,7 +136,7 @@ func TestRegisterWith_EndsWithCtx(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			client := New(nil, astrald.New(router))
 			endsWithCtx(t, func(ctx *astral.Context) error {
-				_, err := client.RegisterWith(ctx, RegisterOptions{Name: "app", GrantPermits: []string{"mod.user.see_swarm_action"}})
+				_, err := client.RegisterWith(ctx, &apphost.RegisterRequest{Name: "app", GrantPermits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}}})
 				return err
 			})
 		})
@@ -160,7 +161,20 @@ func TestGrant_EndsWithCtx(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			client := New(nil, astrald.New(router))
 			endsWithCtx(t, func(ctx *astral.Context) error {
-				return client.Grant(ctx, astral.GenerateIdentity(), "mod.user.see_swarm_action", GrantOptions{})
+				return client.Grant(ctx, &apphost.GrantRequest{Identity: astral.GenerateIdentity(), Permits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}}})
+			})
+		})
+	}
+}
+
+// The node accepts apphost.request_grant before its policy decides, so only
+// ctx ends a wait for a policy that never answers.
+func TestRequestGrant_EndsWithCtx(t *testing.T) {
+	for name, router := range stalledRouters(t, apphost.MethodRequestGrant) {
+		t.Run(name, func(t *testing.T) {
+			client := New(nil, astrald.New(router))
+			endsWithCtx(t, func(ctx *astral.Context) error {
+				return client.RequestGrant(ctx, &apphost.RequestGrantRequest{Permits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}}})
 			})
 		})
 	}
