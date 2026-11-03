@@ -34,8 +34,8 @@ func (d *Delegate) ReadFrom(r io.Reader) (n int64, err error) {
 	return astral.Objectify(d).ReadFrom(r)
 }
 
-// IsZero reports whether the delegate names no identity, which selects the
-// module's bundled policy.
+// IsZero reports whether the delegate names no identity, which leaves the
+// decision to the module's configured or bundled policy.
 func (d *Delegate) IsZero() bool {
 	return d == nil || d.Identity == nil || d.Identity.IsZero()
 }
