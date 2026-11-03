@@ -7,13 +7,33 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// Info contains information about user's node configuration
+// The node states user.info reports in Info.State.
+const (
+	// StateFresh is a node with no manager and no ownership history. It admits
+	// the appointment of a manager.
+	StateFresh = "fresh"
+	// StateUnclaimed is a node without an active user contract whose
+	// appointment is closed: it has a manager, or it was owned before.
+	StateUnclaimed = "unclaimed"
+	// StateClaimed is a node with an active user contract.
+	StateClaimed = "claimed"
+)
+
+// Info contains information about user's node configuration.
+//
+// State is one of StateFresh, StateUnclaimed and StateClaimed. Manager is the
+// App identity apphost.register_manager appointed, nil when none is appointed.
+// NodeAlias, UserAlias, ContractID and Contract are empty unless State is
+// StateClaimed.
 type Info struct {
 	NodeAlias  astral.String8
 	UserAlias  astral.String8
 	ContractID *astral.ObjectID
 
 	Contract *auth.SignedContract
+
+	State   astral.String8
+	Manager *astral.Identity
 }
 
 func (i Info) ObjectType() string { return "mod.user.info" }
