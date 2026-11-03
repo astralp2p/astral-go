@@ -90,3 +90,33 @@ func readAccessToken(ctx *astral.Context, ch *channel.Channel) (token *apphost.A
 
 	return token, nil
 }
+
+// RegisterManager appoints the node's manager on the default node.
+func RegisterManager(ctx *astral.Context, req *apphost.RegisterManagerRequest) (*apphost.AccessToken, error) {
+	return Default().RegisterManager(ctx, req)
+}
+
+// RegisterManager provisions a fresh App identity as RegisterWith does and
+// appoints it the node's manager: the node stores a delegate for each policy
+// req.Policies names, with the new identity as delegate identity, and records
+// the appointment. Only a fresh node accepts it; any other node answers
+// apphost.ErrNotFresh, which surfaces here as an error. The query carries no
+// arguments; req travels on the channel as one object. A nil req is refused
+// with apphost.ErrProtocolError before anything is sent.
+func (client *Client) RegisterManager(ctx *astral.Context, req *apphost.RegisterManagerRequest) (*apphost.AccessToken, error) {
+	if req == nil {
+		return nil, fmt.Errorf("%w: nil register manager request", apphost.ErrProtocolError)
+	}
+
+	ch, err := client.queryCh(ctx, apphost.MethodRegisterManager, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer ch.Close()
+
+	if err = ch.Send(req); err != nil {
+		return nil, err
+	}
+
+	return readAccessToken(ctx, ch)
+}

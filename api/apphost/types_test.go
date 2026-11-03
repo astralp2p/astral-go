@@ -97,6 +97,18 @@ func TestApphostWireTypesRoundTrip(t *testing.T) {
 			fresh: &RegisterRequest{}, json: &RegisterRequest{},
 		},
 		{
+			name: "register manager request",
+			obj: &RegisterManagerRequest{
+				Name:         "control-plane",
+				GrantPermits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}},
+				Policies: []*PolicyBinding{
+					{Policy: PolicyAppRegister, Operation: "cp.approve_app"},
+					{Policy: PolicySwarmJoin, Operation: "cp.approve_join", Timeout: astral.Duration(time.Minute)},
+				},
+			},
+			fresh: &RegisterManagerRequest{}, json: &RegisterManagerRequest{},
+		},
+		{
 			name: "grant request",
 			obj: &GrantRequest{
 				Identity: astral.GenerateIdentity(),
@@ -201,12 +213,14 @@ func TestGrantUntilRevokedIsJSONNull(t *testing.T) {
 
 func TestApphostObjectTypes(t *testing.T) {
 	for want, obj := range map[string]astral.Object{
-		"mod.apphost.grant":                 &Grant{},
-		"mod.apphost.register_request":      &RegisterRequest{},
-		"mod.apphost.grant_request":         &GrantRequest{},
-		"mod.apphost.request_grant_request": &RequestGrantRequest{},
-		"mod.apphost.grant_policy_request":  &GrantPolicyRequest{},
-		"mod.apphost.grant_decision":        &GrantDecision{},
+		"mod.apphost.grant":                    &Grant{},
+		"mod.apphost.register_request":         &RegisterRequest{},
+		"mod.apphost.register_manager_request": &RegisterManagerRequest{},
+		"mod.apphost.policy_binding":           &PolicyBinding{},
+		"mod.apphost.grant_request":            &GrantRequest{},
+		"mod.apphost.request_grant_request":    &RequestGrantRequest{},
+		"mod.apphost.grant_policy_request":     &GrantPolicyRequest{},
+		"mod.apphost.grant_decision":           &GrantDecision{},
 	} {
 		if got := obj.ObjectType(); got != want {
 			t.Errorf("%T.ObjectType() = %q, want %q", obj, got, want)
