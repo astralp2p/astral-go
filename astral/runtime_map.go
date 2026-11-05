@@ -121,7 +121,9 @@ func (m *RuntimeMap) readRuntimeBlueprintEntries(r io.Reader, bps *Blueprints) (
 		return n, nil
 	}
 
-	val.Set(reflect.MakeMapWithSize(val.Type(), int(l)))
+	// why: l is the peer's claim. Sizing the map to it let a four-byte count name an
+	// arbitrarily large allocation; the map grows as entries arrive, as in mapValue.
+	val.Set(reflect.MakeMapWithSize(val.Type(), elemCap(l)))
 	for i := uint32(0); i < l; i++ {
 		key := reflect.New(val.Type().Key()).Elem()
 		km, err := readMapKey(r, key, keyWidth)
