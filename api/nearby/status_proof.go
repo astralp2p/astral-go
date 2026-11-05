@@ -4,6 +4,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"io"
+	"reflect"
 	"slices"
 
 	"github.com/astralp2p/astral-go/astral"
@@ -59,9 +60,9 @@ func (p *StatusProof) UnmarshalJSON(data []byte) error {
 //
 // B is the bytes Bundle.WriteTo writes for a Bundle holding others in their order.
 // nonce and ts are their 8-byte big-endian wire forms. It fails when others holds a nil
-// object or two objects with one Object ID.
+// object (an interface nil or a nil pointer) or two objects with one Object ID.
 func ProofHash(others []astral.Object, nonce astral.Nonce, ts astral.Time) ([]byte, error) {
-	if slices.Contains(others, nil) {
+	if slices.ContainsFunc(others, isNilObject) {
 		return nil, errNilAttachment
 	}
 
@@ -80,6 +81,18 @@ func ProofHash(others []astral.Object, nonce astral.Nonce, ts astral.Time) ([]by
 		return nil, err
 	}
 	return h.Sum(nil), nil
+}
+
+// isNilObject reports whether o is an interface nil or a nil pointer.
+//
+// why: Bundle.Append calls ObjectType on each object, and a nil pointer to a type that
+// declares ObjectType on its value receiver panics there.
+func isNilObject(o astral.Object) bool {
+	if o == nil {
+		return true
+	}
+	v := reflect.ValueOf(o)
+	return v.Kind() == reflect.Pointer && v.IsNil()
 }
 
 // WrapProofSig returns sig XOR the ChaCha20 keystream of len(sig) bytes under key K,

@@ -167,6 +167,12 @@ func TestProofHashRefusesUnbundleableAttachments(t *testing.T) {
 	flag := NewFlag("adoptable")
 	tests := map[string][]astral.Object{
 		"nil object":     {flag, nil},
+		"nil profile":    {flag, (*PublicProfile)(nil)},
+		"nil hint":       {(*StealthHint)(nil)},
+		"nil proof":      {(*StatusProof)(nil)},
+		"nil flag":       {(*Flag)(nil), flag},
+		"nil string8":    {(*astral.String8)(nil)},
+		"nil bundle":     {(*astral.Bundle)(nil)},
 		"duplicate flag": {flag, NewFlag("adoptable")},
 	}
 	for name, others := range tests {
