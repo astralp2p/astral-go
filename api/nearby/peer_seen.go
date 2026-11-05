@@ -14,8 +14,9 @@ const (
 )
 
 // PeerSeen is the events.Event data the nearby module emits locally after a status
-// passes verification. UserID is nil when the peer's user is unknown. Via is ViaHint
-// or ViaProfile. SourceIP is the source address of the datagram.
+// passes verification. UserID is nil when the peer's user is unknown; a reader tests it
+// with IsZero, which also covers a zero identity. Via is ViaHint or ViaProfile.
+// SourceIP is the source address of the datagram.
 type PeerSeen struct {
 	NodeID   *astral.Identity
 	UserID   *astral.Identity

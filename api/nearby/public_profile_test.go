@@ -98,3 +98,46 @@ func TestPublicProfileWireLayout(t *testing.T) {
 		})
 	}
 }
+
+// A present identity of 33 zero bytes decodes as a non-nil zero identity, and an
+// absent one as nil. IsZero reports both.
+func TestPublicProfileDecodesAZeroIdentity(t *testing.T) {
+	zero := append([]byte{1}, make([]byte, 33)...)
+	tests := []struct {
+		name             string
+		wire             []byte
+		nodeNil, userNil bool
+	}{
+		{"zero node, no user", bytes.Join([][]byte{zero, {0}, {0}}, nil), false, true},
+		{"no node, zero user", bytes.Join([][]byte{{0}, zero, {0}}, nil), true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var got PublicProfile
+			n, err := got.ReadFrom(bytes.NewReader(tt.wire))
+			if err != nil {
+				t.Fatalf("ReadFrom(%x): %v", tt.wire, err)
+			}
+			if n != int64(len(tt.wire)) {
+				t.Errorf("ReadFrom reported %d bytes; wire holds %d", n, len(tt.wire))
+			}
+			if (got.NodeID == nil) != tt.nodeNil || (got.UserID == nil) != tt.userNil {
+				t.Errorf("NodeID nil = %v, UserID nil = %v; want %v, %v",
+					got.NodeID == nil, got.UserID == nil, tt.nodeNil, tt.userNil)
+			}
+			if !got.NodeID.IsZero() || !got.UserID.IsZero() {
+				t.Errorf("NodeID.IsZero = %v, UserID.IsZero = %v; want true, true",
+					got.NodeID.IsZero(), got.UserID.IsZero())
+			}
+
+			var again bytes.Buffer
+			if _, err := got.WriteTo(&again); err != nil {
+				t.Fatalf("WriteTo: %v", err)
+			}
+			if !bytes.Equal(again.Bytes(), tt.wire) {
+				t.Errorf("re-encoded = %x; want %x", again.Bytes(), tt.wire)
+			}
+		})
+	}
+}
