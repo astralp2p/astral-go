@@ -243,8 +243,8 @@ type PrimitiveAlias interface {
 // Blueprint of the bytes that codec writes. BlueprintFromType returns the declaration in place
 // of a reflective derivation, which reads Go field types, not the wire:
 //
-//	func (Broadcast) DeclareBlueprint() *astral.Blueprint {
-//		return astral.NewBlueprint("mod.ether.broadcast", ...)
+//	func (Frame) DeclareBlueprint() *astral.Blueprint {
+//		return astral.NewBlueprint("mod.example.frame", ...)
 //	}
 //
 // A declaration whose Type differs from the prototype's ObjectType is not the prototype's own;

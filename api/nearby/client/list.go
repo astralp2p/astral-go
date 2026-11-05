@@ -5,8 +5,9 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/astral/channel"
 
-	// why: a Status bundle carries attachments of any type (mod.dir.alias,
-	// mod.nodes.endpoint_with_ttl, ...), and decoding one needs its blueprint.
+	// why: a Status bundle carries the attachments its sender put in it
+	// (mod.nearby.flag, public_profile, stealth_hint, status_proof, or any other
+	// registered type), and decoding one needs its blueprint.
 	_ "github.com/astralp2p/astral-go"
 )
 

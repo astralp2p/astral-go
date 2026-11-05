@@ -188,9 +188,11 @@ func (s *String32) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	var buf = make([]byte, l)
-	m, err := io.ReadFull(r, buf)
-	n += int64(m)
+	// why: l is the peer's claim. make([]byte, l) reserved it before the first read,
+	// so a 61-byte input claiming 2^40 bytes ended the process with an out-of-memory
+	// fault no recover catches. readNBytes grows the buffer as the bytes arrive.
+	buf, m, err := readNBytes(r, uint64(l))
+	n += m
 	// why: assigning before checking the error left the destination holding a prefix
 	// of the intended value, so a caller that ignored the error could not tell a
 	// truncated string from a complete one.
@@ -198,7 +200,7 @@ func (s *String32) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	*s = String32(buf[:m])
+	*s = String32(buf)
 
 	return
 }
@@ -253,9 +255,11 @@ func (s *String64) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	var buf = make([]byte, l)
-	m, err := io.ReadFull(r, buf)
-	n += int64(m)
+	// why: l is the peer's claim. make([]byte, l) reserved it before the first read,
+	// so a 61-byte input claiming 2^40 bytes ended the process with an out-of-memory
+	// fault no recover catches. readNBytes grows the buffer as the bytes arrive.
+	buf, m, err := readNBytes(r, uint64(l))
+	n += m
 	// why: assigning before checking the error left the destination holding a prefix
 	// of the intended value, so a caller that ignored the error could not tell a
 	// truncated string from a complete one.
@@ -263,7 +267,7 @@ func (s *String64) ReadFrom(r io.Reader) (n int64, err error) {
 		return
 	}
 
-	*s = String64(buf[:m])
+	*s = String64(buf)
 
 	return
 }
