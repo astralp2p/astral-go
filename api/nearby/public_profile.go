@@ -6,8 +6,12 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
+// PublicProfile is a Visible status's identity: the sender's node, its user, and its
+// alias.
 type PublicProfile struct {
 	NodeID *astral.Identity
+	// UserID is nil (presence byte 0) when the node has no owner.
+	UserID *astral.Identity
 	// why: string8, as the spec states (protocols/nearby/types/mod.nearby.public_profile.md).
 	NodeAlias astral.String8
 }
