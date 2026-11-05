@@ -88,9 +88,9 @@ func BlueprintFromType(t reflect.Type) (*Blueprint, error) {
 // declaredBlueprint returns the Blueprint a BlueprintDeclarer prototype of t declares for
 // typeName. ok is false when t declares none for typeName.
 //
-// why: a struct embedding a declarer (SignedBroadcast embeds Broadcast) inherits its
-// DeclareBlueprint method. The promoted declaration names the embedded type, so a Type that
-// differs from typeName selects reflection instead of describing the outer type as the inner.
+// why: a struct embedding a declarer inherits its DeclareBlueprint method. The promoted
+// declaration names the embedded type, so a Type that differs from typeName selects
+// reflection instead of describing the outer type as the inner.
 func declaredBlueprint(t reflect.Type, typeName string) (bp *Blueprint, ok bool, err error) {
 	d, isDeclarer := reflect.New(t).Interface().(BlueprintDeclarer)
 	if !isDeclarer || typeName == "" {
