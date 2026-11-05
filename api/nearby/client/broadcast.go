@@ -8,7 +8,7 @@ import (
 
 // Broadcast makes the target node push its status to nearby nodes at once.
 // The node acks without pushing when its mode is silent, or when it is
-// stealth and the status carries no attachment.
+// stealth and holds no active contract.
 //
 // The target rejects a caller that does not hold mod.auth.admin_network_action.
 func (client *Client) Broadcast(ctx *astral.Context) error {
