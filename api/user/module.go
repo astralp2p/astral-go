@@ -18,6 +18,7 @@ const (
 	OpNewNodeContract      = "user.new_node_contract"
 	OpSyncWith             = "user.sync_with"
 	OpIntroduce            = "user.introduce"
+	OpContract             = "user.contract"
 	OpExpel                = "user.expel"
 	OpListExpelled         = "user.list_expelled"
 	OpSetSwarmJoinPolicy   = "user.set_swarm_join_policy"

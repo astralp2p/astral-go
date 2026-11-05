@@ -23,7 +23,7 @@ func stalledClient(t *testing.T) *Client {
 	ops := routing.NewOpRouter()
 	for _, name := range []string{
 		user.OpAcceptContract, user.OpAcceptMembership, user.OpAddAsset, user.OpAdopt,
-		user.OpAssets, user.OpBootstrap, user.OpDeriveIdentity, user.OpExpel, user.OpInfo,
+		user.OpAssets, user.OpBootstrap, user.OpContract, user.OpDeriveIdentity, user.OpExpel, user.OpInfo,
 		user.OpJoin, user.OpListExpelled, user.OpListSiblings, user.OpNewNodeContract,
 		user.OpRemoveAsset, user.OpRequestMembership, user.OpSwarmStatus, user.OpSyncAssets,
 		user.OpSyncWith,
@@ -65,6 +65,7 @@ func TestEveryCallEndsWithCtx(t *testing.T) {
 		"Adopt":             func(ctx *astral.Context) error { _, err := c.Adopt(ctx, node.String()); return err },
 		"Assets":            func(ctx *astral.Context) error { _, err := c.Assets(ctx); return err },
 		"Bootstrap":         func(ctx *astral.Context) error { _, err := c.Bootstrap(ctx, "some words", ""); return err },
+		"Contract":          func(ctx *astral.Context) error { _, err := c.Contract(ctx); return err },
 		"DeriveIdentity":    func(ctx *astral.Context) error { _, err := c.DeriveIdentity(ctx, "", ""); return err },
 		"Expel":             func(ctx *astral.Context) error { _, err := c.Expel(ctx, node); return err },
 		"Info":              func(ctx *astral.Context) error { _, err := c.Info(ctx); return err },
