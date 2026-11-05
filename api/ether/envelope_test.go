@@ -190,9 +190,8 @@ func nestedBundles(t *testing.T, depth int) []byte {
 	return out.Bytes()
 }
 
-// The slot decodes through the caller's reader, so the depth budget of the call
-// bounds what the datagram carries.
-func TestEnvelopeObjectSharesTheDepthBudget(t *testing.T) {
+// The depth budget bounds what the slot carries.
+func TestEnvelopeObjectIsBoundedByTheDepthBudget(t *testing.T) {
 	datagram := append([]byte{EnvelopeVersion}, nestedBundles(t, 400)...)
 
 	var got Envelope
@@ -204,6 +203,40 @@ func TestEnvelopeObjectSharesTheDepthBudget(t *testing.T) {
 	shallow := append([]byte{EnvelopeVersion}, nestedBundles(t, 4)...)
 	if _, err := got.ReadFrom(bytes.NewReader(shallow)); err != nil {
 		t.Fatalf("ReadFrom of 4 nested bundles: %v", err)
+	}
+}
+
+// nestedEnvelopes returns a datagram of depth Envelopes, each holding the next in its
+// slot. The innermost holds the string8 "hi".
+func nestedEnvelopes(depth int) []byte {
+	typ := Envelope{}.ObjectType()
+	out := []byte{EnvelopeVersion}
+	for range depth - 1 {
+		out = append(out, byte(len(typ)))
+		out = append(out, typ...)
+		out = append(out, EnvelopeVersion)
+	}
+	return append(out, 7, 's', 't', 'r', 'i', 'n', 'g', '8', 2, 'h', 'i')
+}
+
+// The slot decodes through the caller's reader, so one depth budget spans every level
+// of a datagram. Envelopes nested in Envelopes are each shallow, and together they
+// exceed the budget; a slot decoded over a fresh reader would restart the budget at
+// every level and accept any nesting.
+func TestEnvelopeObjectSharesTheDepthBudget(t *testing.T) {
+	var got Envelope
+	_, err := got.ReadFrom(bytes.NewReader(nestedEnvelopes(astral.MaxBlueprintDepth)))
+	if !errors.Is(err, astral.ErrDepthExceeded) {
+		t.Fatalf("ReadFrom of %d nested Envelopes = %v; want ErrDepthExceeded", astral.MaxBlueprintDepth, err)
+	}
+
+	shallow := nestedEnvelopes(4)
+	n, err := got.ReadFrom(bytes.NewReader(shallow))
+	if err != nil {
+		t.Fatalf("ReadFrom of 4 nested Envelopes: %v", err)
+	}
+	if n != int64(len(shallow)) {
+		t.Errorf("ReadFrom of 4 nested Envelopes reported %d bytes; the datagram holds %d", n, len(shallow))
 	}
 }
 
