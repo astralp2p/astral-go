@@ -22,7 +22,7 @@ const (
 // Info contains information about user's node configuration.
 //
 // State is one of StateFresh, StateUnclaimed and StateClaimed. Manager is the
-// App identity apphost.register_manager appointed, nil when none is appointed.
+// App identity sys.register_manager appointed, nil when none is appointed.
 // NodeAlias, UserAlias, ContractID and Contract are empty unless State is
 // StateClaimed.
 type Info struct {
