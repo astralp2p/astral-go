@@ -1,4 +1,4 @@
-package apphost
+package sys
 
 import (
 	"io"
@@ -29,10 +29,10 @@ var PolicyNames = []string{
 }
 
 // RegisterManagerRequest is the registration an app sends to
-// apphost.register_manager to become the node's manager. Name, GrantPermits
-// and ContractPermits mean what they mean in RegisterRequest. Policies names
-// the policies the manager answers: the node stores each as a delegate whose
-// identity is the new manager.
+// sys.register_manager to become the node's manager. Name, GrantPermits and
+// ContractPermits mean what they mean in apphost.RegisterRequest. Policies
+// names the policies the manager answers: the node stores each as a delegate
+// whose identity is the new manager.
 type RegisterManagerRequest struct {
 	Name            astral.String8
 	GrantPermits    []*auth.Permit
@@ -40,7 +40,7 @@ type RegisterManagerRequest struct {
 	Policies        []*PolicyBinding
 }
 
-func (RegisterManagerRequest) ObjectType() string { return "mod.apphost.register_manager_request" }
+func (RegisterManagerRequest) ObjectType() string { return "mod.sys.register_manager_request" }
 
 func (r RegisterManagerRequest) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&r).WriteTo(w)
@@ -67,7 +67,7 @@ type PolicyBinding struct {
 	Timeout   astral.Duration
 }
 
-func (PolicyBinding) ObjectType() string { return "mod.apphost.policy_binding" }
+func (PolicyBinding) ObjectType() string { return "mod.sys.policy_binding" }
 
 func (b PolicyBinding) WriteTo(w io.Writer) (n int64, err error) {
 	return astral.Objectify(&b).WriteTo(w)

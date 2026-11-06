@@ -28,6 +28,7 @@ import (
 	_ "github.com/astralp2p/astral-go/api/secp256k1"
 	_ "github.com/astralp2p/astral-go/api/services"
 	_ "github.com/astralp2p/astral-go/api/shell"
+	_ "github.com/astralp2p/astral-go/api/sys"
 	_ "github.com/astralp2p/astral-go/api/tcp"
 	_ "github.com/astralp2p/astral-go/api/tor"
 	_ "github.com/astralp2p/astral-go/api/tree"
