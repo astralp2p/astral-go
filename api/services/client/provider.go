@@ -19,6 +19,7 @@ type OfferingFunc func(ctx *astral.Context, caller *astral.Identity) (*services.
 type Provider struct {
 	offerings map[string]OfferingFunc
 	names     []string
+	private   bool
 
 	mu      sync.Mutex
 	binding *Binding
@@ -42,6 +43,15 @@ func NewProvider(offerings map[string]OfferingFunc) *Provider {
 	return p
 }
 
+// SetOpen sets the visibility of the bindings Serve opens next. A provider is
+// open unless set otherwise; a private one is found only by callers holding a
+// discovery permit for it.
+func (p *Provider) SetOpen(open bool) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.private = !open
+}
+
 // Names are the provider's services, sorted.
 func (p *Provider) Names() []string { return append([]string(nil), p.names...) }
 
@@ -56,7 +66,7 @@ func (p *Provider) Serve(ctx *astral.Context, client *Client) error {
 	delay := retryFirst
 	deadline := time.Now().Add(retryFor)
 	for {
-		b, err := client.Advertise(ctx, p.names, p.evaluate)
+		b, err := client.AdvertiseOpen(ctx, p.names, p.isOpen(), p.evaluate)
 		if err == nil {
 			p.mu.Lock()
 			p.binding = b
@@ -85,6 +95,12 @@ func (p *Provider) evaluate(ctx *astral.Context, caller *astral.Identity, servic
 		return nil, nil
 	}
 	return f(ctx, caller)
+}
+
+func (p *Provider) isOpen() bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return !p.private
 }
 
 // current returns the open binding, or nil.

@@ -23,17 +23,29 @@ type Binding struct {
 	once    sync.Once
 }
 
-// Advertise opens a binding for names on the target node. It returns once the
-// node acknowledges the binding, or with the node's refusal.
+// Advertise opens an open binding for names on the target node. It returns
+// once the node acknowledges the binding, or with the node's refusal.
 func (client *Client) Advertise(ctx *astral.Context, names []string, h Handler) (*Binding, error) {
+	return client.AdvertiseOpen(ctx, names, true, h)
+}
+
+// AdvertiseOpen is Advertise with an explicit visibility. A private binding
+// (open false) is found only by callers holding a discovery permit for it.
+func (client *Client) AdvertiseOpen(ctx *astral.Context, names []string, open bool, h Handler) (*Binding, error) {
 	list := services.JoinNames(names)
 	if _, err := services.ParseNames(list); err != nil {
 		return nil, err
 	}
+	args := query.Args{"services": list}
+	// why: open is the node's default; omitting it keeps an open binding
+	// working on a node that predates visibility and rejects the argument.
+	if !open {
+		args["open"] = false
+	}
 
 	// why: answers run on per-ask goroutines while Change runs on the
 	// caller's, so writes must not interleave.
-	ch, err := client.queryCh(ctx, services.MethodAdvertise, query.Args{"services": list}, channel.WithLockedWrites())
+	ch, err := client.queryCh(ctx, services.MethodAdvertise, args, channel.WithLockedWrites())
 	if err != nil {
 		return nil, err
 	}

@@ -15,6 +15,7 @@ import (
 type Watcher struct {
 	mu        sync.Mutex
 	offerings map[watchKey]*services.Update
+	ungranted []string
 	err       error
 	settled   bool // Initial has delivered its outcome or closed without one
 
@@ -83,6 +84,8 @@ func (w *Watcher) apply(ev Event) {
 		} else {
 			delete(w.offerings, k)
 		}
+	case ev.NotGranted != nil:
+		w.ungranted = ev.NotGranted
 	case ev.Removed != nil:
 		for _, rk := range ev.Removed {
 			delete(w.offerings, watchKey{rk.ProviderID.String(), string(rk.Name)})
@@ -127,6 +130,15 @@ func (w *Watcher) signal() {
 	case w.changed <- struct{}{}:
 	default:
 	}
+}
+
+// NotGranted returns the watched services the caller holds no discovery
+// permit for on some contributing node. Their private offerings there are
+// filtered; an app can ask for a grant to see them.
+func (w *Watcher) NotGranted() []string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return append([]string(nil), w.ungranted...)
 }
 
 // Offerings returns the current available offerings, ordered by provider and

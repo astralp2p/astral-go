@@ -170,9 +170,13 @@ func TestWatcherKeepsTheCurrentSet(t *testing.T) {
 	a, b := astral.GenerateIdentity(), astral.GenerateIdentity()
 	w := &Watcher{offerings: map[watchKey]*services.Update{}, initial: make(chan InitialOutcome, 1), changed: make(chan struct{}, 1), done: make(chan struct{})}
 
+	w.apply(Event{NotGranted: []string{"player"}})
 	w.apply(Event{Update: &services.Update{Available: true, Name: "player", ProviderID: a}})
 	w.apply(Event{Update: &services.Update{Available: true, Name: "player", ProviderID: b}})
 	w.apply(Event{Initial: &InitialOutcome{Complete: true}})
+	if ng := w.NotGranted(); len(ng) != 1 || ng[0] != "player" {
+		t.Fatalf("not granted %v", ng)
+	}
 	if len(w.Offerings()) != 2 {
 		t.Fatalf("offerings %d; want 2", len(w.Offerings()))
 	}
@@ -206,5 +210,34 @@ func TestProviderNamesAndEvaluation(t *testing.T) {
 	}
 	if err := p.Change(astral.GenerateIdentity()); err != nil {
 		t.Fatal("Change without a binding must do nothing")
+	}
+}
+
+func TestDiscoveryVisibilityEvents(t *testing.T) {
+	provider := astral.GenerateIdentity()
+	u := &services.Update{Available: true, Name: "bitcoin-wallet", ProviderID: provider}
+
+	evs := readAll(t, false,
+		&services.NotGranted{Services: []astral.String8{"bitcoin-wallet"}},
+		&services.TaggedUpdate{Open: false, Update: u},
+		&astral.EOS{})
+	if len(evs) != 3 {
+		t.Fatalf("events: %+v", evs)
+	}
+	if len(evs[0].NotGranted) != 1 || evs[0].NotGranted[0] != "bitcoin-wallet" {
+		t.Fatalf("not granted: %+v", evs[0])
+	}
+	if evs[1].Update == nil || evs[1].Open == nil || *evs[1].Open {
+		t.Fatalf("tagged update: %+v", evs[1])
+	}
+
+	plain := readAll(t, false, u, &astral.EOS{})
+	if plain[0].Open != nil {
+		t.Fatalf("an untagged update carries Open: %+v", plain[0])
+	}
+
+	empty := readAll(t, false, &services.TaggedUpdate{Open: true}, &astral.EOS{})
+	if len(empty) != 1 || empty[0].Err == nil {
+		t.Fatalf("a tagged update without an update is accepted: %+v", empty)
 	}
 }
