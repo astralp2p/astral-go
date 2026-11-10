@@ -80,7 +80,7 @@ func (client *Client) DiscoverFor(ctx *astral.Context, app *astral.Identity, nam
 
 // DiscoverForTagged is DiscoverFor asking the member to tag each offering with
 // its provider's visibility: every Update event carries Open. A member that
-// predates visibility refuses it with an unknown argument error.
+// predates visibility ignores the argument and sends Update events without Open.
 func (client *Client) DiscoverForTagged(ctx *astral.Context, app *astral.Identity, names []string, follow bool) (<-chan Event, error) {
 	return client.discover(ctx, names, follow, query.Args{"for": app.String(), "tagged": true})
 }
