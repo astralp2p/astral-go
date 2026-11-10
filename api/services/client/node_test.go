@@ -360,3 +360,76 @@ func TestWatcherCloseEndsTheStream(t *testing.T) {
 		t.Fatalf("a second Close: %v", err)
 	}
 }
+
+type visibilityArgs struct {
+	Services string
+	Follow   bool
+	For      string
+	Tagged   bool
+	Open     *bool
+}
+
+// Discovery without names omits services, a follow needs names, and the
+// tagged and open arguments reach the node only when they differ from the
+// node's default.
+func TestVisibilityArguments(t *testing.T) {
+	got := make(chan visibilityArgs, 4)
+	c := clientFor(t, map[string]any{
+		services.MethodDiscover: func(_ *astral.Context, q *routing.IncomingQuery, args visibilityArgs) error {
+			got <- args
+			ch := q.Accept()
+			defer ch.Close()
+			return ch.Send(&astral.EOS{})
+		},
+		services.MethodAdvertise: func(_ *astral.Context, q *routing.IncomingQuery, args visibilityArgs) error {
+			got <- args
+			ch := q.Accept()
+			defer ch.Close()
+			return ch.Send(&astral.Ack{})
+		},
+	})
+	ctx := astral.NewContext(nil)
+
+	events, err := c.Discover(ctx, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range events {
+	}
+	if a := <-got; a.Services != "" || a.Tagged {
+		t.Fatalf("Discover without names sent %+v", a)
+	}
+
+	if _, err := c.Discover(ctx, nil, true); !errors.Is(err, ErrFollowWithoutNames) {
+		t.Fatalf("follow without names: %v", err)
+	}
+
+	app := astral.GenerateIdentity()
+	events, err = c.DiscoverForTagged(ctx, app, nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range events {
+	}
+	if a := <-got; !a.Tagged || a.For != app.String() || a.Services != "" {
+		t.Fatalf("DiscoverForTagged sent %+v", a)
+	}
+
+	noop := func(*astral.Context, *astral.Identity, string) (*services.Update, error) { return nil, nil }
+	b, err := c.Advertise(ctx, []string{"player"}, noop)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Close()
+	if a := <-got; a.Open != nil {
+		t.Fatalf("an open advertise sent open=%v", *a.Open)
+	}
+	b, err = c.AdvertiseOpen(ctx, []string{"bitcoin-wallet"}, false, noop)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b.Close()
+	if a := <-got; a.Open == nil || *a.Open {
+		t.Fatalf("a private advertise sent %+v", a)
+	}
+}

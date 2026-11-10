@@ -37,12 +37,15 @@ func Default() *Client {
 	return defaultClient
 }
 
-// Event is one item of a discovery stream. Exactly one field is set.
+// Event is one item of a discovery stream. Exactly one of Update, Removed,
+// NotGranted, Initial and Err is set.
 type Event struct {
-	Update  *services.Update        // one complete offering
-	Removed []*services.OfferingKey // shown offerings whose provider was lost
-	Initial *InitialOutcome         // the end of the initial attempt, sent once
-	Err     error                   // terminal; the channel closes after it
+	Update     *services.Update        // one complete offering
+	Open       *bool                   // with Update on a tagged stream: the provider's visibility
+	Removed    []*services.OfferingKey // shown offerings whose provider was lost or that stopped being visible
+	NotGranted []string                // requested services the caller holds no permit for, sent first
+	Initial    *InitialOutcome         // the end of the initial attempt, sent once
+	Err        error                   // terminal; the channel closes after it
 }
 
 // InitialOutcome reports whether the initial attempt completed. Incomplete
@@ -52,9 +55,13 @@ type InitialOutcome struct {
 	Incomplete []string
 }
 
-// Discover evaluates names for the caller on the target node. Without follow
-// the stream ends after the Initial event; with follow it continues until ctx
-// ends or the node closes it.
+// ErrFollowWithoutNames reports a follow that names no service.
+var ErrFollowWithoutNames = errors.New("follow requires service names")
+
+// Discover evaluates names for the caller on the target node and streams the
+// offerings the caller may see. No names discovers every advertised service
+// and cannot follow. Without follow the stream ends after the Initial event;
+// with follow it continues until ctx ends or the node closes it.
 func (client *Client) Discover(ctx *astral.Context, names []string, follow bool) (<-chan Event, error) {
 	return client.discover(ctx, names, follow, query.Args{})
 }
@@ -71,12 +78,24 @@ func (client *Client) DiscoverFor(ctx *astral.Context, app *astral.Identity, nam
 	return client.discover(ctx, names, follow, query.Args{"for": app.String()})
 }
 
+// DiscoverForTagged is DiscoverFor asking the member to tag each offering with
+// its provider's visibility: every Update event carries Open. A member that
+// predates visibility refuses it with an unknown argument error.
+func (client *Client) DiscoverForTagged(ctx *astral.Context, app *astral.Identity, names []string, follow bool) (<-chan Event, error) {
+	return client.discover(ctx, names, follow, query.Args{"for": app.String(), "tagged": true})
+}
+
 func (client *Client) discover(ctx *astral.Context, names []string, follow bool, args query.Args) (<-chan Event, error) {
-	list := services.JoinNames(names)
-	if _, err := services.ParseNames(list); err != nil {
-		return nil, err
+	if len(names) == 0 && follow {
+		return nil, ErrFollowWithoutNames
 	}
-	args["services"] = list
+	if len(names) > 0 {
+		list := services.JoinNames(names)
+		if _, err := services.ParseNames(list); err != nil {
+			return nil, err
+		}
+		args["services"] = list
+	}
 	args["follow"] = follow
 	ch, err := client.queryCh(ctx, services.MethodDiscover, args)
 	if err != nil {
@@ -153,6 +172,18 @@ func (r *discoveryReader) read(o astral.Object) (*Event, bool, error) {
 	switch obj := o.(type) {
 	case *services.Update:
 		return &Event{Update: obj}, false, nil
+	case *services.TaggedUpdate:
+		if obj.Update == nil {
+			return nil, false, astral.NewErrUnexpectedObject(o)
+		}
+		open := bool(obj.Open)
+		return &Event{Update: obj.Update, Open: &open}, false, nil
+	case *services.NotGranted:
+		names := make([]string, 0, len(obj.Services))
+		for _, s := range obj.Services {
+			names = append(names, string(s))
+		}
+		return &Event{NotGranted: names}, false, nil
 	case *services.Removed:
 		return &Event{Removed: obj.Offerings}, false, nil
 	case *services.Incomplete:

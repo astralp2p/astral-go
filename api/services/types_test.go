@@ -73,6 +73,10 @@ func TestWireTypesRoundTrip(t *testing.T) {
 		{"removed", &Removed{Offerings: []*OfferingKey{{ProviderID: provider, Name: "player"}, {ProviderID: provider, Name: "bitcoin-wallet"}}}, &Removed{}, &Removed{}},
 		{"discovery rule", &DiscoveryRule{Services: []astral.String8{"player"}, Nodes: []*astral.Identity{node}}, &DiscoveryRule{}, &DiscoveryRule{}},
 		{"discovery scope", scope(rule([]astral.String8{"player"})), &DiscoveryScope{}, &DiscoveryScope{}},
+		{"not granted", &NotGranted{Services: []astral.String8{"bitcoin-wallet", "player"}}, &NotGranted{}, &NotGranted{}},
+		{"tagged update", &TaggedUpdate{Open: true, Update: &Update{Available: true, Name: "player", ProviderID: provider, Info: ops}}, &TaggedUpdate{}, &TaggedUpdate{}},
+		{"private entry", &PrivateEntry{Service: "player", ProviderID: provider}, &PrivateEntry{}, &PrivateEntry{}},
+		{"private list", &PrivateList{Entries: []*PrivateEntry{{Service: "bitcoin-wallet"}, {Service: "player", ProviderID: provider}}}, &PrivateList{}, &PrivateList{}},
 		{"action", &ServiceDiscoveryAction{Action: auth.NewAction(caller), Service: "player", NodeID: node}, &ServiceDiscoveryAction{}, &ServiceDiscoveryAction{}},
 	} {
 		t.Run(tc.name, func(t *testing.T) { roundTrip(t, tc.obj, tc.a, tc.b) })
@@ -106,5 +110,32 @@ func TestChangeValid(t *testing.T) {
 	}
 	if !(Change{Callers: []*astral.Identity{astral.GenerateIdentity()}}).Valid() {
 		t.Fatal("Change with a caller is invalid")
+	}
+}
+
+func TestPrivateListCovers(t *testing.T) {
+	wallet := astral.GenerateIdentity()
+	other := astral.GenerateIdentity()
+	l := &PrivateList{Entries: []*PrivateEntry{
+		{Service: "bitcoin-wallet"},
+		{Service: "player", ProviderID: wallet},
+	}}
+	for _, tc := range []struct {
+		provider *astral.Identity
+		service  string
+		want     bool
+	}{
+		{wallet, "bitcoin-wallet", true},
+		{other, "bitcoin-wallet", true},
+		{wallet, "player", true},
+		{other, "player", false},
+		{wallet, "gateway", false},
+	} {
+		if got := l.Covers(tc.provider, tc.service); got != tc.want {
+			t.Errorf("Covers(%v, %q) = %v, want %v", tc.provider, tc.service, got, tc.want)
+		}
+	}
+	if (*PrivateList)(nil).Covers(wallet, "player") {
+		t.Error("a nil list covers a binding")
 	}
 }
