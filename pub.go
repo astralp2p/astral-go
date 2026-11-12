@@ -33,6 +33,7 @@ import (
 	_ "github.com/astralp2p/astral-go/api/tor"
 	_ "github.com/astralp2p/astral-go/api/tree"
 	_ "github.com/astralp2p/astral-go/api/user"
+	_ "github.com/astralp2p/astral-go/api/vfs"
 	_ "github.com/astralp2p/astral-go/astral"
 	_ "github.com/astralp2p/astral-go/astral/log"
 )
