@@ -9,15 +9,15 @@ import (
 // Info is the facts about one VFS.
 //
 // Usage counts the bytes of file content, each distinct ObjectID once. Quota
-// and EntryLimit are limits; 0 means no limit. Entries does not count the
-// root.
+// and InodeLimit are limits; 0 means no limit. Inodes counts the entries of
+// the VFS, files and folders; it does not count the root.
 type Info struct {
 	VFS        *astral.Identity
 	Root       astral.ObjectID
 	Usage      astral.Uint64
 	Quota      astral.Uint64
-	Entries    astral.Uint64
-	EntryLimit astral.Uint64
+	Inodes     astral.Uint64
+	InodeLimit astral.Uint64
 }
 
 func (Info) ObjectType() string { return "mod.vfs.info" }
