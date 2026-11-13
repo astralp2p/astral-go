@@ -97,6 +97,15 @@ func TestApphostWireTypesRoundTrip(t *testing.T) {
 			fresh: &RegisterRequest{}, json: &RegisterRequest{},
 		},
 		{
+			name: "register request with both switches off",
+			obj: &RegisterRequest{
+				Name:      "smithd",
+				Vfs:       astral.NewBool(false),
+				Evaluator: astral.NewBool(false),
+			},
+			fresh: &RegisterRequest{}, json: &RegisterRequest{},
+		},
+		{
 			name: "grant request",
 			obj: &GrantRequest{
 				Identity: astral.GenerateIdentity(),
@@ -196,6 +205,73 @@ func TestGrantUntilRevokedIsJSONNull(t *testing.T) {
 	}
 	if !bytes.Contains(j, []byte(`"ExpiresAt":null`)) {
 		t.Fatalf("until-revoked grant marshals as %s", j)
+	}
+}
+
+// decodeRegisterRequest decodes in through the binary codec and through the JSON codec.
+func decodeRegisterRequest(t *testing.T, in *RegisterRequest) map[string]*RegisterRequest {
+	t.Helper()
+
+	var buf bytes.Buffer
+	if _, err := in.WriteTo(&buf); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	bin := &RegisterRequest{}
+	if _, err := bin.ReadFrom(&buf); err != nil {
+		t.Fatalf("read: %v", err)
+	}
+
+	j, err := json.Marshal(in)
+	if err != nil {
+		t.Fatalf("marshal json: %v", err)
+	}
+	js := &RegisterRequest{}
+	if err := json.Unmarshal(j, js); err != nil {
+		t.Fatalf("unmarshal json: %v (%s)", err, j)
+	}
+
+	return map[string]*RegisterRequest{"binary": bin, "json": js}
+}
+
+// TestRegisterRequestSwitchesSurviveDecode: each value of Vfs and Evaluator, nil included, arrives as sent and
+// reads as the request it is.
+func TestRegisterRequestSwitchesSurviveDecode(t *testing.T) {
+	on, off := astral.NewBool(true), astral.NewBool(false)
+
+	for _, tc := range []struct {
+		name           string
+		vfs, evaluator *astral.Bool
+		wantVFS        bool
+		wantEvaluator  bool
+	}{
+		{"omitted", nil, nil, true, true},
+		{"both on", on, on, true, true},
+		{"evaluator off", nil, off, true, false},
+		{"vfs off", off, nil, false, false},
+		{"vfs off evaluator on", off, on, false, false},
+	} {
+		in := &RegisterRequest{Name: "app", Vfs: tc.vfs, Evaluator: tc.evaluator}
+		for codec, got := range decodeRegisterRequest(t, in) {
+			if (got.Vfs == nil) != (tc.vfs == nil) || (got.Evaluator == nil) != (tc.evaluator == nil) {
+				t.Errorf("%s/%s: nil switches changed: %+v", tc.name, codec, got)
+			}
+			if got.RequestsVFS() != tc.wantVFS || got.RequestsEvaluator() != tc.wantEvaluator {
+				t.Errorf("%s/%s: requests VFS %v, evaluator %v; want %v, %v", tc.name, codec,
+					got.RequestsVFS(), got.RequestsEvaluator(), tc.wantVFS, tc.wantEvaluator)
+			}
+		}
+	}
+}
+
+// TestRegisterRequestJSONWithoutSwitchesAsksForBoth: a JSON request written before the switches existed asks for
+// a VFS and the evaluator.
+func TestRegisterRequestJSONWithoutSwitchesAsksForBoth(t *testing.T) {
+	var req RegisterRequest
+	if err := json.Unmarshal([]byte(`{"Name":"app","GrantPermits":[],"ContractPermits":[]}`), &req); err != nil {
+		t.Fatal(err)
+	}
+	if !req.RequestsVFS() || !req.RequestsEvaluator() {
+		t.Fatalf("a request without switches asks for VFS %v, evaluator %v", req.RequestsVFS(), req.RequestsEvaluator())
 	}
 }
 

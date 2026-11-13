@@ -18,4 +18,11 @@ const (
 	MethodVolumes  = "vfs.volumes"
 	MethodCreate   = "vfs.create"
 	MethodSetQuota = "vfs.set_quota"
+
+	MethodSetEvaluator = "vfs.set_evaluator"
+
+	// MethodAuthorize is the op an evaluating app serves, not the node. The
+	// app reads one mod.vfs.read_action or mod.vfs.write_action and answers
+	// ack to allow; any other answer refuses.
+	MethodAuthorize = "vfs.authorize"
 )
