@@ -31,7 +31,10 @@ func TestEntryRoundTrip(t *testing.T) {
 }
 
 func TestInfoRoundTrip(t *testing.T) {
-	in := Info{VFS: astral.GenerateIdentity(), Root: fileID("r"), Usage: 1, Quota: 2, Inodes: 3, InodeLimit: 4}
+	in := Info{
+		VFS: astral.GenerateIdentity(), Root: fileID("r"), Usage: 1, Quota: 2, Inodes: 3, InodeLimit: 4,
+		Evaluator: "astral://app:vfs.authorize",
+	}
 
 	var buf bytes.Buffer
 	if _, err := in.WriteTo(&buf); err != nil {
@@ -42,8 +45,21 @@ func TestInfoRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !out.VFS.IsEqual(in.VFS) || !out.Root.IsEqual(&in.Root) ||
-		out.Usage != 1 || out.Quota != 2 || out.Inodes != 3 || out.InodeLimit != 4 {
+		out.Usage != 1 || out.Quota != 2 || out.Inodes != 3 || out.InodeLimit != 4 ||
+		out.Evaluator != in.Evaluator {
 		t.Fatalf("round trip changed the info: %+v", out)
+	}
+
+	j, err := json.Marshal(in)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var fromJSON Info
+	if err := json.Unmarshal(j, &fromJSON); err != nil {
+		t.Fatal(err)
+	}
+	if fromJSON.Evaluator != in.Evaluator {
+		t.Fatalf("json round trip changed the evaluator: %q", fromJSON.Evaluator)
 	}
 }
 
@@ -62,10 +78,12 @@ func TestMethodNames(t *testing.T) {
 	want := []string{
 		"vfs.ls", "vfs.stat", "vfs.statfs", "vfs.read", "vfs.write", "vfs.mkdir",
 		"vfs.move", "vfs.remove", "vfs.touch", "vfs.volumes", "vfs.create", "vfs.set_quota",
+		"vfs.set_evaluator", "vfs.authorize",
 	}
 	got := []string{
 		MethodLs, MethodStat, MethodStatfs, MethodRead, MethodWrite, MethodMkdir,
 		MethodMove, MethodRemove, MethodTouch, MethodVolumes, MethodCreate, MethodSetQuota,
+		MethodSetEvaluator, MethodAuthorize,
 	}
 	for i := range want {
 		if got[i] != want[i] {
