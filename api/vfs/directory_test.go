@@ -15,6 +15,10 @@ import (
 // vectorTime is the ModTime of every vector of VFS 6, section 5.
 var vectorTime = astral.Time(time.Unix(0, 1700000000000000000))
 
+// vectorCreationTime is the CreationTime of every vector, one hour before
+// vectorTime.
+var vectorCreationTime = astral.Time(time.Unix(0, 1699996400000000000))
+
 func unhex(t *testing.T, s string) []byte {
 	t.Helper()
 	b, err := hex.DecodeString(strings.Join(strings.Fields(s), ""))
@@ -35,65 +39,68 @@ type vector struct {
 	sha256  string
 }
 
-// vectors are V1 to V4 of VFS 6, section 5. The bytes and the SHA-256 values
-// are copied from the specification.
+// vectors are V1 to V4 of VFS 6, section 5, with the type name
+// mod.vfs.directory and the creation time. The SHA-256 values are copied from
+// the ticket "VFS: add a creation time to the entry".
 func vectors() []vector {
-	empty := astral.ObjectID{Size: 24}
-	copy(empty.Hash[:], mustHex("bca43d0a568b64607f38b186a87810458f6776e86ae1978408b6e5790a00c242"))
+	empty := astral.ObjectID{Size: 26}
+	copy(empty.Hash[:], mustHex("5bda020d3782b67b601ab110d94f3a3d64396438e5b4c4a7c2cbf3d9ff565382"))
 
 	return []vector{
 		{
 			name:   "V1 empty folder",
-			bytes:  `414443300f6d6f642e7666732e6c697374696e6700000000`,
-			sha256: "bca43d0a568b64607f38b186a87810458f6776e86ae1978408b6e5790a00c242",
+			bytes:  `41444330116d6f642e7666732e6469726563746f727900000000`,
+			sha256: "5bda020d3782b67b601ab110d94f3a3d64396438e5b4c4a7c2cbf3d9ff565382",
 		},
 		{
 			name: "V2 one file",
 			entries: []Entry{
-				{Name: "a.txt", ID: fileID("hello\n"), ModTime: vectorTime},
+				{Name: "a.txt", ID: fileID("hello\n"), ModTime: vectorTime, CreationTime: vectorCreationTime},
 			},
-			bytes: `414443300f6d6f642e7666732e6c697374696e6700000001
+			bytes: `41444330116d6f642e7666732e6469726563746f727900000001
 				05 612e747874
 				0000000000000006
 				5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03
 				0000
-				17979cfe362a0000`,
-			sha256: "5ab8b70ba82974c48df86f4bcf3525cabe79931cff16d52d9fbb7c281f381eae",
+				17979cfe362a0000
+				179799b805716000`,
+			sha256: "d7702ed2ff919b922b0b391123f977fe466455a7afcaba17f0528e66f0bc3982",
 		},
 		{
 			name: "V3 one sub-folder",
 			entries: []Entry{
-				{Name: "sub", ID: empty, Flags: FlagFolder, ModTime: vectorTime},
+				{Name: "sub", ID: empty, Flags: FlagFolder, ModTime: vectorTime, CreationTime: vectorCreationTime},
 			},
-			bytes: `414443300f6d6f642e7666732e6c697374696e6700000001
+			bytes: `41444330116d6f642e7666732e6469726563746f727900000001
 				03 737562
-				0000000000000018
-				bca43d0a568b64607f38b186a87810458f6776e86ae1978408b6e5790a00c242
+				000000000000001a
+				5bda020d3782b67b601ab110d94f3a3d64396438e5b4c4a7c2cbf3d9ff565382
 				0001
-				17979cfe362a0000`,
-			sha256: "44ef65c004d37cd130e83e85f7e994b0ddbf39f8fe072faedfaad32b5e87781b",
+				17979cfe362a0000
+				179799b805716000`,
+			sha256: "dab8a151d3e876ddb3c9cac823a0078a6a715698c82ae5b3b85b8d4abbb2805d",
 		},
 		{
 			name: "V4 byte order of names",
 			entries: []Entry{
-				{Name: "z", ID: fileID("1"), ModTime: vectorTime},
-				{Name: "è", ID: fileID("2"), ModTime: vectorTime},
-				{Name: "é", ID: fileID("3"), ModTime: vectorTime},
+				{Name: "z", ID: fileID("1"), ModTime: vectorTime, CreationTime: vectorCreationTime},
+				{Name: "è", ID: fileID("2"), ModTime: vectorTime, CreationTime: vectorCreationTime},
+				{Name: "é", ID: fileID("3"), ModTime: vectorTime, CreationTime: vectorCreationTime},
 			},
-			bytes: `414443300f6d6f642e7666732e6c697374696e6700000003
+			bytes: `41444330116d6f642e7666732e6469726563746f727900000003
 				01 7a
 				0000000000000001
 				6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b
-				0000 17979cfe362a0000
+				0000 17979cfe362a0000 179799b805716000
 				02 c3a8
 				0000000000000001
 				d4735e3a265e16eee03f59718b9b5d03019c07d8b6c51f90da3a666eec13ab35
-				0000 17979cfe362a0000
+				0000 17979cfe362a0000 179799b805716000
 				02 c3a9
 				0000000000000001
 				4e07408562bedb8b60ce05c1decfe3ad16b72230967de01f640b7e4729b49fce
-				0000 17979cfe362a0000`,
-			sha256: "7a9882a18b111cf488f7c0de46fc95d4a1d8356c6adcc33b63d21550b6393049",
+				0000 17979cfe362a0000 179799b805716000`,
+			sha256: "d34da3f6c22c6532dc7737e39aca0b641256797c324fd7273435226586135de5",
 		},
 	}
 }
@@ -106,8 +113,8 @@ func mustHex(s string) []byte {
 	return b
 }
 
-func encodeListing(entries []Entry, out *bytes.Buffer) (*astral.ObjectID, error) {
-	l, err := NewListingWriter(out, uint32(len(entries)))
+func encodeDirectory(entries []Entry, out *bytes.Buffer) (*astral.ObjectID, error) {
+	l, err := NewDirectoryWriter(out, uint32(len(entries)))
 	if err != nil {
 		return nil, err
 	}
@@ -119,8 +126,8 @@ func encodeListing(entries []Entry, out *bytes.Buffer) (*astral.ObjectID, error)
 	return l.Close()
 }
 
-func TestListingVectors(t *testing.T) {
-	sizes := map[string]uint64{"V1": 24, "V2": 80, "V3": 78, "V4": 182}
+func TestDirectoryVectors(t *testing.T) {
+	sizes := map[string]uint64{"V1": 26, "V2": 90, "V3": 88, "V4": 208}
 
 	for _, v := range vectors() {
 		t.Run(v.name, func(t *testing.T) {
@@ -136,7 +143,7 @@ func TestListingVectors(t *testing.T) {
 			}
 
 			var got bytes.Buffer
-			id, err := encodeListing(v.entries, &got)
+			id, err := encodeDirectory(v.entries, &got)
 			if err != nil {
 				t.Fatalf("encode: %v", err)
 			}
@@ -153,12 +160,12 @@ func TestListingVectors(t *testing.T) {
 	}
 }
 
-// TestListingHashOnly covers the writer made without an output: the ObjectID is
+// TestDirectoryHashOnly covers the writer made without an output: the ObjectID is
 // the same.
-func TestListingHashOnly(t *testing.T) {
+func TestDirectoryHashOnly(t *testing.T) {
 	for _, v := range vectors() {
 		t.Run(v.name, func(t *testing.T) {
-			l, err := NewListingWriter(nil, uint32(len(v.entries)))
+			l, err := NewDirectoryWriter(nil, uint32(len(v.entries)))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -178,9 +185,9 @@ func TestListingHashOnly(t *testing.T) {
 	}
 }
 
-func TestListingRefusals(t *testing.T) {
-	a := Entry{Name: "a", ID: fileID("a"), ModTime: vectorTime}
-	b := Entry{Name: "b", ID: fileID("b"), ModTime: vectorTime}
+func TestDirectoryRefusals(t *testing.T) {
+	a := Entry{Name: "a", ID: fileID("a"), ModTime: vectorTime, CreationTime: vectorCreationTime}
+	b := Entry{Name: "b", ID: fileID("b"), ModTime: vectorTime, CreationTime: vectorCreationTime}
 
 	for _, tc := range []struct {
 		name    string
@@ -188,18 +195,18 @@ func TestListingRefusals(t *testing.T) {
 		count   uint32
 		wantErr error
 	}{
-		{"out of order", []Entry{b, a}, 2, ErrListingOrder},
-		{"repeated name", []Entry{a, a}, 2, ErrListingOrder},
+		{"out of order", []Entry{b, a}, 2, ErrDirectoryOrder},
+		{"repeated name", []Entry{a, a}, 2, ErrDirectoryOrder},
 		{"invalid name empty", []Entry{{Name: "", ID: a.ID}}, 1, ErrInvalidPath},
 		{"invalid name slash", []Entry{{Name: "x/y", ID: a.ID}}, 1, ErrInvalidPath},
 		{"invalid name dot", []Entry{{Name: ".", ID: a.ID}}, 1, ErrInvalidPath},
-		{"unknown flag bit", []Entry{{Name: "a", ID: a.ID, Flags: 0x0002}}, 1, ErrListingFlags},
-		{"unknown flag bit with folder", []Entry{{Name: "a", ID: a.ID, Flags: 0x8001}}, 1, ErrListingFlags},
-		{"too many entries", []Entry{a, b}, 1, ErrListingCount},
-		{"too few entries", []Entry{a}, 2, ErrListingCount},
+		{"unknown flag bit", []Entry{{Name: "a", ID: a.ID, Flags: 0x0002}}, 1, ErrDirectoryFlags},
+		{"unknown flag bit with folder", []Entry{{Name: "a", ID: a.ID, Flags: 0x8001}}, 1, ErrDirectoryFlags},
+		{"too many entries", []Entry{a, b}, 1, ErrDirectoryCount},
+		{"too few entries", []Entry{a}, 2, ErrDirectoryCount},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			l, err := NewListingWriter(nil, tc.count)
+			l, err := NewDirectoryWriter(nil, tc.count)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -224,10 +231,10 @@ func sameError(err, target error) bool {
 	return errors.As(target, &t) && errors.Is(err, t)
 }
 
-// TestListingFailureIsSticky covers a writer that refused an entry: it accepts
+// TestDirectoryFailureIsSticky covers a writer that refused an entry: it accepts
 // nothing more and does not close.
-func TestListingFailureIsSticky(t *testing.T) {
-	l, err := NewListingWriter(nil, 2)
+func TestDirectoryFailureIsSticky(t *testing.T) {
+	l, err := NewDirectoryWriter(nil, 2)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -244,14 +251,14 @@ func TestListingFailureIsSticky(t *testing.T) {
 	}
 }
 
-func TestListingLongestName(t *testing.T) {
+func TestDirectoryLongestName(t *testing.T) {
 	name := strings.Repeat("n", MaxNameLen)
 	var out bytes.Buffer
-	_, err := encodeListing([]Entry{{Name: astral.String8(name), ID: fileID("x"), ModTime: vectorTime}}, &out)
+	_, err := encodeDirectory([]Entry{{Name: astral.String8(name), ID: fileID("x"), ModTime: vectorTime, CreationTime: vectorCreationTime}}, &out)
 	if err != nil {
 		t.Fatalf("255-byte name refused: %v", err)
 	}
-	if out.Len() != 24+entryMaxLen {
-		t.Fatalf("size: got %d, want %d", out.Len(), 24+entryMaxLen)
+	if out.Len() != 26+entryMaxLen {
+		t.Fatalf("size: got %d, want %d", out.Len(), 26+entryMaxLen)
 	}
 }

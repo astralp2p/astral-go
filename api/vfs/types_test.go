@@ -9,7 +9,7 @@ import (
 )
 
 func TestEntryRoundTrip(t *testing.T) {
-	in := Entry{Name: "sub", ID: fileID("x"), Flags: FlagFolder, ModTime: vectorTime}
+	in := Entry{Name: "sub", ID: fileID("x"), Flags: FlagFolder, ModTime: vectorTime, CreationTime: vectorCreationTime}
 
 	var buf bytes.Buffer
 	if _, err := in.WriteTo(&buf); err != nil {
@@ -20,7 +20,8 @@ func TestEntryRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if out.Name != in.Name || !out.ID.IsEqual(&in.ID) || out.Flags != in.Flags ||
-		!out.ModTime.Time().Equal(in.ModTime.Time()) || !out.IsFolder() {
+		!out.ModTime.Time().Equal(in.ModTime.Time()) ||
+		!out.CreationTime.Time().Equal(in.CreationTime.Time()) || !out.IsFolder() {
 		t.Fatalf("round trip changed the entry: %+v", out)
 	}
 
