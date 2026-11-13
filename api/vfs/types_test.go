@@ -30,7 +30,7 @@ func TestEntryRoundTrip(t *testing.T) {
 }
 
 func TestInfoRoundTrip(t *testing.T) {
-	in := Info{VFS: astral.GenerateIdentity(), Root: fileID("r"), Usage: 1, Quota: 2, Entries: 3, EntryLimit: 4}
+	in := Info{VFS: astral.GenerateIdentity(), Root: fileID("r"), Usage: 1, Quota: 2, Inodes: 3, InodeLimit: 4}
 
 	var buf bytes.Buffer
 	if _, err := in.WriteTo(&buf); err != nil {
@@ -41,7 +41,7 @@ func TestInfoRoundTrip(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !out.VFS.IsEqual(in.VFS) || !out.Root.IsEqual(&in.Root) ||
-		out.Usage != 1 || out.Quota != 2 || out.Entries != 3 || out.EntryLimit != 4 {
+		out.Usage != 1 || out.Quota != 2 || out.Inodes != 3 || out.InodeLimit != 4 {
 		t.Fatalf("round trip changed the info: %+v", out)
 	}
 }

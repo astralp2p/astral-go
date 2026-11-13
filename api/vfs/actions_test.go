@@ -152,7 +152,7 @@ func TestErrorsText(t *testing.T) {
 		"already exists":   ErrAlreadyExists,
 		"folder not empty": ErrFolderNotEmpty,
 		"quota exceeded":   ErrQuotaExceeded,
-		"too many entries": ErrTooManyEntries,
+		"no inodes left":   ErrNoInodesLeft,
 		"invalid time":     ErrInvalidTime,
 		"no storage":       ErrNoStorage,
 	}
