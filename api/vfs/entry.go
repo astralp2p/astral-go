@@ -16,13 +16,15 @@ const flagsKnown = FlagFolder
 // Entry is one name in a folder.
 //
 // ID is the ObjectID of the content for a file and the ObjectID of the
-// listing for a folder. The size of a file is ID.Size. The folder bit never
-// changes after the entry is created.
+// directory for a folder. The size of a file is ID.Size. The folder bit never
+// changes after the entry is created. CreationTime is set when the name is
+// created and never changes after.
 type Entry struct {
-	Name    astral.String8
-	ID      astral.ObjectID
-	Flags   astral.Uint16
-	ModTime astral.Time
+	Name         astral.String8
+	ID           astral.ObjectID
+	Flags        astral.Uint16
+	ModTime      astral.Time
+	CreationTime astral.Time
 }
 
 func (Entry) ObjectType() string { return "mod.vfs.entry" }

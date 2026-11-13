@@ -1,6 +1,6 @@
 // Package vfs holds the wire surface of the vfs module: the entry and info
 // types, the three actions, the error values, the operation names and the
-// canonical listing encoder (VFS 6, sections 4, 5, 7 and 8).
+// canonical directory encoder (VFS 6, sections 4, 5, 7 and 8).
 package vfs
 
 const (
