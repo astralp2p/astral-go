@@ -35,7 +35,7 @@ func (d *Delegate) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // IsZero reports whether the delegate names no identity, which leaves the
-// decision to the module's configured or bundled policy.
+// decision to the module's configured policy, reject_all by default.
 func (d *Delegate) IsZero() bool {
 	return d == nil || d.Identity == nil || d.Identity.IsZero()
 }

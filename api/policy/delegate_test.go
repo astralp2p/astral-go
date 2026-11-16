@@ -30,7 +30,7 @@ func TestDelegateRoundTrip(t *testing.T) {
 	}
 }
 
-// A nil delegate and one naming no identity both select the bundled policy.
+// A nil delegate and one naming no identity both select the configured policy.
 func TestDelegateIsZero(t *testing.T) {
 	var none *Delegate
 	if !none.IsZero() || !(&Delegate{}).IsZero() || !(&Delegate{Operation: "x"}).IsZero() {
