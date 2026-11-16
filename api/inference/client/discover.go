@@ -1,6 +1,9 @@
 package inference
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/astralp2p/astral-go/api/inference"
 	"github.com/astralp2p/astral-go/api/services"
 	servicescli "github.com/astralp2p/astral-go/api/services/client"
@@ -31,14 +34,36 @@ type Discovery struct {
 	Removed []*astral.Identity
 	// Initial ends the initial attempt, once.
 	Initial *servicescli.InitialOutcome
-	// Err is terminal; the channel closes after it.
+	// Err is terminal and the channel closes after it, except a
+	// *NotGrantedError: that notice comes first, and the offerings the
+	// caller may still see follow it.
 	Err error
+}
+
+// ErrNotGranted reports that the caller lacks a permit to discover inference
+// on at least one node the discovery reaches. errors.Is matches every
+// *NotGrantedError to it.
+var ErrNotGranted = errors.New("inference: discovery not granted")
+
+// NotGrantedError names the requested services the node refused to discover
+// for the caller.
+type NotGrantedError struct {
+	Services []string
+}
+
+func (e *NotGrantedError) Error() string {
+	return ErrNotGranted.Error() + ": " + strings.Join(e.Services, ", ")
+}
+
+func (e *NotGrantedError) Is(target error) bool {
+	return target == ErrNotGranted
 }
 
 // Discover finds the inference providers that offer to the caller, as the
 // target node sees them with reach. Without follow the channel closes after
 // the Initial item; with follow it continues until ctx ends or the node
-// closes the stream.
+// closes the stream. A missing discovery permit on any contributing node
+// arrives first as an Err matching ErrNotGranted; the discovery continues.
 func (client *Client) Discover(ctx *astral.Context, reach services.Reach, follow bool) (<-chan Discovery, error) {
 	events, err := servicescli.New(client.targetID, client.astral).DiscoverIn(ctx, reach, []string{inference.ServiceName}, follow)
 	if err != nil {
@@ -94,10 +119,19 @@ func readDiscovery(ev servicescli.Event) (Discovery, bool) {
 			}
 		}
 		return Discovery{Removed: lost}, len(lost) > 0
+	case ev.NotGranted != nil:
+		for _, name := range ev.NotGranted {
+			if name == inference.ServiceName {
+				return Discovery{Err: &NotGrantedError{Services: []string{name}}}, true
+			}
+		}
+		return Discovery{}, false
 	case ev.Initial != nil:
 		return Discovery{Initial: ev.Initial}, true
-	default:
+	case ev.Err != nil:
 		return Discovery{Err: ev.Err}, true
+	default:
+		return Discovery{}, false
 	}
 }
 
