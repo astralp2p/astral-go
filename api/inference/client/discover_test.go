@@ -1,11 +1,13 @@
 package inference
 
 import (
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/astralp2p/astral-go/api/inference"
 	"github.com/astralp2p/astral-go/api/services"
+	servicescli "github.com/astralp2p/astral-go/api/services/client"
 	"github.com/astralp2p/astral-go/astral"
 	"github.com/astralp2p/astral-go/lib/routing"
 )
@@ -143,5 +145,48 @@ func TestDiscoverFollowReportsTheEnd(t *testing.T) {
 	}
 	if last.Err == nil {
 		t.Fatalf("last item %+v; want the end of the stream", last)
+	}
+}
+
+// A refusal reaches the caller as ErrNotGranted carrying the refused names,
+// and ends the discovery.
+func TestDiscoverReportsTheRefusal(t *testing.T) {
+	c := node(t, make(chan discoverArgs, 1), false,
+		&services.NotGranted{Services: []astral.String8{inference.ServiceName}},
+		&astral.EOS{},
+	)
+
+	items, err := c.Discover(astral.NewContext(nil), services.ReachSwarm, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var list []Discovery
+	for d := range items {
+		list = append(list, d)
+	}
+
+	if len(list) != 1 {
+		t.Fatalf("%d items; want the refusal alone: %+v", len(list), list)
+	}
+	var refused *NotGrantedError
+	switch err := list[0].Err; {
+	case !errors.Is(err, ErrNotGranted):
+		t.Fatalf("item %+v; want ErrNotGranted", list[0])
+	case !errors.As(err, &refused) || len(refused.Services) != 1 || refused.Services[0] != inference.ServiceName:
+		t.Fatalf("refusal %v; want the inference service named", err)
+	}
+}
+
+// A refusal naming only other services is not an inference item.
+func TestReadDiscoveryIgnoresOtherRefusals(t *testing.T) {
+	if d, ok := readDiscovery(servicescli.Event{NotGranted: []string{"chat"}}); ok {
+		t.Fatalf("item %+v for a refusal of another service", d)
+	}
+}
+
+// An event with no field set is not an item.
+func TestReadDiscoverySkipsAnEmptyEvent(t *testing.T) {
+	if d, ok := readDiscovery(servicescli.Event{}); ok {
+		t.Fatalf("item %+v for an empty event", d)
 	}
 }
