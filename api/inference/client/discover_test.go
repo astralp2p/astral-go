@@ -148,11 +148,13 @@ func TestDiscoverFollowReportsTheEnd(t *testing.T) {
 	}
 }
 
-// A refusal reaches the caller as ErrNotGranted carrying the refused names,
-// and ends the discovery.
+// A refusal reaches the caller first as ErrNotGranted carrying the refused
+// names, and the offerings the caller may still see follow it.
 func TestDiscoverReportsTheRefusal(t *testing.T) {
+	ai0 := astral.GenerateIdentity()
 	c := node(t, make(chan discoverArgs, 1), false,
 		&services.NotGranted{Services: []astral.String8{inference.ServiceName}},
+		offering(t, ai0),
 		&astral.EOS{},
 	)
 
@@ -165,15 +167,21 @@ func TestDiscoverReportsTheRefusal(t *testing.T) {
 		list = append(list, d)
 	}
 
-	if len(list) != 1 {
-		t.Fatalf("%d items; want the refusal alone: %+v", len(list), list)
+	if len(list) != 3 {
+		t.Fatalf("%d items; want the refusal, the offering and the initial outcome: %+v", len(list), list)
 	}
 	var refused *NotGrantedError
 	switch err := list[0].Err; {
 	case !errors.Is(err, ErrNotGranted):
-		t.Fatalf("item %+v; want ErrNotGranted", list[0])
+		t.Fatalf("first item %+v; want ErrNotGranted", list[0])
 	case !errors.As(err, &refused) || len(refused.Services) != 1 || refused.Services[0] != inference.ServiceName:
 		t.Fatalf("refusal %v; want the inference service named", err)
+	}
+	if o := list[1].Offering; o == nil || !o.ProviderID.IsEqual(ai0) {
+		t.Fatalf("second item %+v; want the visible offering", list[1])
+	}
+	if list[2].Initial == nil {
+		t.Fatalf("last item %+v; want the initial outcome", list[2])
 	}
 }
 

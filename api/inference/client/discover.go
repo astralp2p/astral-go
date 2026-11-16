@@ -34,13 +34,15 @@ type Discovery struct {
 	Removed []*astral.Identity
 	// Initial ends the initial attempt, once.
 	Initial *servicescli.InitialOutcome
-	// Err is terminal; the channel closes after it. A refusal of the
-	// discovery permit is a *NotGrantedError.
+	// Err is terminal and the channel closes after it, except a
+	// *NotGrantedError: that notice comes first, and the offerings the
+	// caller may still see follow it.
 	Err error
 }
 
-// ErrNotGranted reports that the caller holds no permit to discover
-// inference. errors.Is matches every *NotGrantedError to it.
+// ErrNotGranted reports that the caller lacks a permit to discover inference
+// on at least one node the discovery reaches. errors.Is matches every
+// *NotGrantedError to it.
 var ErrNotGranted = errors.New("inference: discovery not granted")
 
 // NotGrantedError names the requested services the node refused to discover
@@ -60,8 +62,8 @@ func (e *NotGrantedError) Is(target error) bool {
 // Discover finds the inference providers that offer to the caller, as the
 // target node sees them with reach. Without follow the channel closes after
 // the Initial item; with follow it continues until ctx ends or the node
-// closes the stream. A refusal arrives as an Err matching ErrNotGranted,
-// before any Initial item, and ends the channel.
+// closes the stream. A missing discovery permit on any contributing node
+// arrives first as an Err matching ErrNotGranted; the discovery continues.
 func (client *Client) Discover(ctx *astral.Context, reach services.Reach, follow bool) (<-chan Discovery, error) {
 	events, err := servicescli.New(client.targetID, client.astral).DiscoverIn(ctx, reach, []string{inference.ServiceName}, follow)
 	if err != nil {
@@ -83,11 +85,7 @@ func Discover(ctx *astral.Context, reach services.Reach, follow bool) (<-chan Di
 //
 // why RecvOk: a follow stream can stay silent for hours, and the caller
 // that ends ctx must see out close without waiting for the next item.
-//
-// why drain: a refusal ends out while the services reader still holds the
-// Initial event; reading events to their close lets that reader end.
 func relayDiscovery(ctx *astral.Context, events <-chan servicescli.Event, out chan<- Discovery) {
-	defer drain(events)
 	defer close(out)
 	for {
 		ev, open, err := sig.RecvOk(ctx, events)
@@ -98,14 +96,9 @@ func relayDiscovery(ctx *astral.Context, events <-chan servicescli.Event, out ch
 		if !ok {
 			continue
 		}
-		if sig.Send(ctx, out, d) != nil || d.Err != nil {
+		if sig.Send(ctx, out, d) != nil {
 			return
 		}
-	}
-}
-
-func drain(events <-chan servicescli.Event) {
-	for range events {
 	}
 }
 
