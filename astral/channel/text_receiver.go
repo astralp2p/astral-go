@@ -75,12 +75,13 @@ func (r *TextReceiver) Receive() (obj astral.Object, err error) {
 
 	case "base64":
 		var payload = make([]byte, base64.StdEncoding.DecodedLen(len(parsed.Text)))
-		_, err = base64.StdEncoding.Decode(payload, []byte(parsed.Text))
+		var n int
+		n, err = base64.StdEncoding.Decode(payload, []byte(parsed.Text))
 		if err != nil {
 			return nil, err
 		}
 
-		_, err = obj.ReadFrom(bytes.NewReader(payload))
+		_, err = obj.ReadFrom(bytes.NewReader(payload[:n]))
 		if err != nil {
 			return nil, err
 		}
