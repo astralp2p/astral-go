@@ -9,7 +9,17 @@ import (
 // both ways, and a nil error if EOF was reached, or the first non-EOF error.
 func Join(left, right io.ReadWriteCloser) (writtenL int64, writtenR int64, err error) {
 	var wg sync.WaitGroup
+	var mu sync.Mutex
 	wg.Add(2)
+
+	// setErr keeps the first non-nil error in completion order.
+	setErr := func(e error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if err == nil {
+			err = e
+		}
+	}
 
 	go func() {
 		defer wg.Done()
@@ -17,9 +27,7 @@ func Join(left, right io.ReadWriteCloser) (writtenL int64, writtenR int64, err e
 
 		var errL error
 		writtenL, errL = io.Copy(left, right)
-		if err == nil {
-			err = errL
-		}
+		setErr(errL)
 	}()
 
 	go func() {
@@ -28,9 +36,7 @@ func Join(left, right io.ReadWriteCloser) (writtenL int64, writtenR int64, err e
 
 		var errR error
 		writtenR, errR = io.Copy(right, left)
-		if err == nil {
-			err = errR
-		}
+		setErr(errR)
 	}()
 
 	wg.Wait()
