@@ -9,6 +9,8 @@ const (
 	OpAcceptContract       = "user.accept_contract"
 	OpBootstrap            = "user.bootstrap"
 	OpDeriveIdentity       = "user.derive_identity"
+	OpMnemonic             = "user.mnemonic"
+	OpForgetMnemonic       = "user.forget_mnemonic"
 	OpJoin                 = "user.join"
 	OpAdopt                = "user.adopt"
 	OpRequestMembership    = "user.request_membership"
