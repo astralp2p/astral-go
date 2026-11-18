@@ -168,12 +168,12 @@ func TestDiscoveryEvents(t *testing.T) {
 
 func TestWatcherKeepsTheCurrentSet(t *testing.T) {
 	a, b := astral.GenerateIdentity(), astral.GenerateIdentity()
-	w := &Watcher{offerings: map[watchKey]*services.Update{}, initial: make(chan InitialOutcome, 1), changed: make(chan struct{}, 1), done: make(chan struct{})}
+	w := newWatcher(func() {})
 
 	w.apply(Event{NotGranted: []string{"player"}})
 	w.apply(Event{Update: &services.Update{Available: true, Name: "player", ProviderID: a}})
 	w.apply(Event{Update: &services.Update{Available: true, Name: "player", ProviderID: b}})
-	w.apply(Event{Initial: &InitialOutcome{Complete: true}})
+	w.boundary(InitialOutcome{Complete: true})
 	if ng := w.NotGranted(); len(ng) != 1 || ng[0] != "player" {
 		t.Fatalf("not granted %v", ng)
 	}
@@ -189,7 +189,7 @@ func TestWatcherKeepsTheCurrentSet(t *testing.T) {
 	if len(w.Offerings()) != 0 {
 		t.Fatalf("offerings %d; want 0", len(w.Offerings()))
 	}
-	w.apply(Event{Err: ErrStreamEnded})
+	w.end(astral.NewContext(nil), ErrStreamEnded)
 	if !errors.Is(w.Err(), ErrStreamEnded) {
 		t.Fatal("terminal error lost")
 	}

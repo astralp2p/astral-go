@@ -30,9 +30,11 @@ type Offering struct {
 // Discovery is one item of an inference discovery. Exactly one field is set.
 type Discovery struct {
 	Offering *Offering
-	// Removed lists the providers whose offerings were lost with their node.
+	// Removed lists the providers whose offerings were lost with their node,
+	// or that a reopened follow no longer shows.
 	Removed []*astral.Identity
-	// Initial ends the initial attempt, once.
+	// Initial ends the initial attempt: once, or with follow once per
+	// reopened follow.
 	Initial *servicescli.InitialOutcome
 	// Err is terminal and the channel closes after it, except a
 	// *NotGrantedError: that notice comes first, and the offerings the
@@ -61,11 +63,22 @@ func (e *NotGrantedError) Is(target error) bool {
 
 // Discover finds the inference providers that offer to the caller, as the
 // target node sees them with reach. Without follow the channel closes after
-// the Initial item; with follow it continues until ctx ends or the node
-// closes the stream. A missing discovery permit on any contributing node
-// arrives first as an Err matching ErrNotGranted; the discovery continues.
+// the Initial item. With follow it continues until ctx ends: the follow is
+// reopened with backoff after the node ends it, and each reopened follow sends
+// the difference to what came before, then its own Initial
+// (servicescli.FollowReconnecting). A missing discovery permit on any
+// contributing node arrives first as an Err matching ErrNotGranted; the
+// discovery continues.
 func (client *Client) Discover(ctx *astral.Context, reach services.Reach, follow bool) (<-chan Discovery, error) {
-	events, err := servicescli.New(client.targetID, client.astral).DiscoverIn(ctx, reach, []string{inference.ServiceName}, follow)
+	svc := servicescli.New(client.targetID, client.astral)
+	names := []string{inference.ServiceName}
+	var events <-chan servicescli.Event
+	var err error
+	if follow {
+		events, err = svc.FollowReconnecting(ctx, reach, names)
+	} else {
+		events, err = svc.DiscoverIn(ctx, reach, names, false)
+	}
 	if err != nil {
 		return nil, err
 	}
