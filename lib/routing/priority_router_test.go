@@ -1,17 +1,19 @@
 package routing
 
 import (
+	"context"
 	"errors"
 	"io"
 	"testing"
 
 	"github.com/astralp2p/astral-go/astral"
+	"github.com/astralp2p/astral-go/lib/query"
 )
 
 // PriorityRouter walks its entries in ascending priority order. The walk stops
-// on the first success and on a hard rejection; it continues past any other
-// error, so a failing router cannot mask a lower-priority one that would have
-// answered.
+// on the first success, on a hard rejection, and on a dead context; it
+// continues past any other error, so a failing router cannot mask a
+// lower-priority one that would have answered.
 
 // orderedRouter records the order in which routers were consulted.
 type orderedRouter struct {
@@ -116,23 +118,77 @@ func TestPriorityRouter_ContinuesPastNonRejectionErrors(t *testing.T) {
 	}
 }
 
-// When nothing answers, the router reports no route — the collected errors are
-// not surfaced.
-func TestPriorityRouter_ExhaustedWalkReportsRouteNotFound(t *testing.T) {
+// When nothing answers, the first router that tried and failed answers: its
+// error outranks a later router that never knew the target.
+func TestPriorityRouter_ExhaustedWalkReportsTheFirstFailure(t *testing.T) {
 	var order []string
 	router := NewPriorityRouter("test")
+	failure := errors.New("transport failed")
 
-	router.Add(&orderedRouter{name: "first", err: errors.New("transport failed"), order: &order}, 10)
-	router.Add(&orderedRouter{name: "second", err: astral.NewErrRouteNotFound(), order: &order}, 20)
+	router.Add(&orderedRouter{name: "first", err: astral.NewErrRouteNotFound(), order: &order}, 10)
+	router.Add(&orderedRouter{name: "second", err: failure, order: &order}, 20)
+	router.Add(&orderedRouter{name: "third", err: errors.New("later failure"), order: &order}, 30)
+	router.Add(&orderedRouter{name: "fourth", err: astral.NewErrRouteNotFound(), order: &order}, 40)
 
 	w, err := routeTo(t, router, "op")
 
-	if !errors.Is(err, &astral.ErrRouteNotFound{}) {
-		t.Fatalf("want ErrRouteNotFound, got %v", err)
+	if !errors.Is(err, failure) {
+		t.Fatalf("want %v, got %v", failure, err)
 	}
 	if w != nil {
 		t.Fatal("want no writer, got one")
 	}
+	if len(order) != 4 {
+		t.Fatalf("want every router consulted, got %v", order)
+	}
+}
+
+// Only a walk on which every router said not-found reports no route.
+func TestPriorityRouter_EveryNotFoundReportsRouteNotFound(t *testing.T) {
+	var order []string
+	router := NewPriorityRouter("test")
+
+	router.Add(&orderedRouter{name: "first", err: astral.NewErrRouteNotFound(), order: &order}, 10)
+	router.Add(&orderedRouter{name: "second", err: astral.NewErrRouteNotFound(), order: &order}, 20)
+
+	_, err := routeTo(t, router, "op")
+
+	if !errors.Is(err, &astral.ErrRouteNotFound{}) {
+		t.Fatalf("want ErrRouteNotFound, got %v", err)
+	}
+}
+
+// A context that ended stops the walk with its own error: no later router is
+// asked, and a router's not-found does not hide the cancel.
+func TestPriorityRouter_DeadContextStopsTheWalk(t *testing.T) {
+	var order []string
+	router := NewPriorityRouter("test")
+
+	ctx, cancel := astral.NewContext(nil).WithCancel()
+	router.Add(&cancelingRouter{cancel: cancel, order: &order}, 10)
+	router.Add(&orderedRouter{name: "second", order: &order}, 20)
+
+	id := astral.GenerateIdentity()
+	_, err := router.RouteQuery(ctx, astral.Launch(query.New(id, id, "op", nil)), nopWriteCloser{})
+
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("want context.Canceled, got %v", err)
+	}
+	if len(order) != 1 {
+		t.Fatalf("want the walk stopped at the cancel, got %v", order)
+	}
+}
+
+// cancelingRouter cancels the routing context, then answers not-found.
+type cancelingRouter struct {
+	cancel context.CancelFunc
+	order  *[]string
+}
+
+func (r *cancelingRouter) RouteQuery(*astral.Context, *astral.InFlightQuery, io.WriteCloser) (io.WriteCloser, error) {
+	*r.order = append(*r.order, "canceling")
+	r.cancel()
+	return query.RouteNotFound()
 }
 
 // An empty router reports no route rather than succeeding vacuously.

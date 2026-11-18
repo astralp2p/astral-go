@@ -34,21 +34,31 @@ func NewPriorityRouter(name string) *PriorityRouter {
 	return &PriorityRouter{Name: name}
 }
 
-// RouteQuery iterates entries in priority order; stops on success or
-// ErrRejected, collects other errors, and falls back to ErrRouteNotFound.
-func (router *PriorityRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, w io.WriteCloser) (rw io.WriteCloser, err error) {
-	var errs []error
+// RouteQuery iterates entries in priority order and stops on success or
+// ErrRejected. When no router answers, it returns the first error that is not
+// ErrRouteNotFound, and ErrRouteNotFound only when every router said so.
+//
+// why the first real failure wins: a router that tried and failed (a dead
+// link, a deadline) tells the caller more than a later router that never knew
+// the target; shell, for one, answers ErrRouteNotFound for every remote target.
+func (router *PriorityRouter) RouteQuery(ctx *astral.Context, q *astral.InFlightQuery, w io.WriteCloser) (io.WriteCloser, error) {
+	var failed error
 
 	for _, r := range router.entries.Clone() {
-		rw, err = r.Router.RouteQuery(ctx, q, w)
+		rw, err := r.Router.RouteQuery(ctx, q, w)
 		switch {
-		case err == nil:
-			return
-		case errors.Is(err, &astral.ErrRejected{}):
-			return
-		default:
-			errs = append(errs, err)
+		case err == nil, errors.Is(err, &astral.ErrRejected{}):
+			return rw, err
+		case ctx.Err() != nil:
+			// why: a dead context fails every later router too.
+			return nil, ctx.Err()
+		case failed == nil && !errors.Is(err, &astral.ErrRouteNotFound{}):
+			failed = err
 		}
+	}
+
+	if failed != nil {
+		return nil, failed
 	}
 
 	return query.RouteNotFound()
