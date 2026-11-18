@@ -459,7 +459,8 @@ after a follow that reached its boundary.
 * A reopened follow's events are staged until its boundary, then applied in one
   step: one `Changed()` signal and one `Synced()` signal.
 * An incomplete boundary keeps the offerings it did not show, and `Stale()`
-  stays true.
+  stays true until each of them is updated or removed, or a later boundary is
+  complete.
 * `Initial()` reports the first boundary only; `Synced()` signals every
   boundary.
 * `Err()` stays nil while the Watcher reopens. The Watcher stops on `Close()`,

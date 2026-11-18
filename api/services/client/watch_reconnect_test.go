@@ -308,12 +308,20 @@ func TestReconnectBackoffCap(t *testing.T) {
 }
 
 // An incomplete boundary keeps the offerings the reopened follow did not
-// show, and the set stays stale.
+// show, and the set stays stale until the follow shows each of them again.
 func TestReconnectIncompleteBoundaryKeepsUnseenKeys(t *testing.T) {
 	b, c := astral.GenerateIdentity(), astral.GenerateIdentity()
+	gate := make(chan struct{})
+	open := true
+	defer func() {
+		if open {
+			close(gate)
+		}
+	}()
+	incomplete := &services.Incomplete{Services: []astral.String8{"player"}}
 	node, _ := scriptedNode(t,
 		follow{send: []astral.Object{offer(b), offer(c), &astral.EOS{}}},
-		follow{send: []astral.Object{offer(b), &services.Incomplete{Services: []astral.String8{"player"}}, &astral.EOS{}}, hold: true},
+		follow{send: []astral.Object{offer(b), incomplete, &astral.EOS{}, offer(c)}, gate: gate, hold: true},
 	)
 	w := startReconnecting(t, node, &delays{})
 
@@ -324,6 +332,13 @@ func TestReconnectIncompleteBoundaryKeepsUnseenKeys(t *testing.T) {
 	}
 	if !w.Stale() {
 		t.Fatal("not Stale after an incomplete boundary")
+	}
+
+	close(gate)
+	open = false
+	eventually(t, "the late update of C confirmed the set", func() bool { return !w.Stale() })
+	if !sameProviders(w.Offerings(), b, c) {
+		t.Fatalf("offerings %v; want B and C", providers(w.Offerings()))
 	}
 }
 

@@ -12,7 +12,11 @@ import (
 type followSet struct {
 	offerings map[watchKey]*services.Update
 	ungranted []string
-	stale     bool // offerings holds keys no follow confirmed since a stream ended
+
+	// unconfirmed holds the shown keys an incomplete boundary kept without
+	// the reopened follow showing them; an update or a removal of a key
+	// confirms it.
+	unconfirmed map[watchKey]bool
 
 	// staging holds a reopened follow's view until its boundary: the last
 	// update per key, nil for a key it removed. A nil map means no follow is
@@ -22,7 +26,13 @@ type followSet struct {
 }
 
 func newFollowSet() followSet {
-	return followSet{offerings: map[watchKey]*services.Update{}}
+	return followSet{offerings: map[watchKey]*services.Update{}, unconfirmed: map[watchKey]bool{}}
+}
+
+// stale reports whether the shown set holds offerings no follow confirmed
+// since a stream ended.
+func (s *followSet) stale() bool {
+	return s.staging != nil || len(s.unconfirmed) > 0
 }
 
 func keyOf(u *services.Update) watchKey {
@@ -31,7 +41,6 @@ func keyOf(u *services.Update) watchKey {
 
 // reopen marks the offerings stale and stages the next follow from empty.
 func (s *followSet) reopen() {
-	s.stale = true
 	s.staging = map[watchKey]*services.Update{}
 	s.stagedNG = nil
 }
@@ -45,6 +54,7 @@ func (s *followSet) add(ev Event) bool {
 	}
 	switch {
 	case ev.Update != nil:
+		delete(s.unconfirmed, keyOf(ev.Update))
 		if bool(ev.Update.Available) {
 			s.offerings[keyOf(ev.Update)] = ev.Update
 		} else {
@@ -54,7 +64,9 @@ func (s *followSet) add(ev Event) bool {
 		s.ungranted = ev.NotGranted
 	case ev.Removed != nil:
 		for _, rk := range ev.Removed {
-			delete(s.offerings, watchKey{rk.ProviderID.String(), string(rk.Name)})
+			k := watchKey{rk.ProviderID.String(), string(rk.Name)}
+			delete(s.unconfirmed, k)
+			delete(s.offerings, k)
 		}
 	default:
 		return false
@@ -82,7 +94,8 @@ func (s *followSet) stage(ev Event) {
 //
 // why only a complete outcome prunes: an offering missing from an incomplete
 // outcome may belong to a member that did not answer in time, so it is kept
-// and the set stays stale.
+// and stays stale until a later update or removal of it, or a later complete
+// boundary.
 func (s *followSet) settle(o InitialOutcome) []Event {
 	if s.staging == nil {
 		return nil
@@ -105,19 +118,22 @@ func (s *followSet) settle(o InitialOutcome) []Event {
 			delete(s.offerings, k)
 		}
 	}
-	if o.Complete {
-		for _, k := range sortedKeys(s.offerings) {
-			if _, seen := s.staging[k]; !seen {
-				old := s.offerings[k]
-				removed = append(removed, &services.OfferingKey{ProviderID: old.ProviderID, Name: old.Name})
-				delete(s.offerings, k)
-			}
+	s.unconfirmed = map[watchKey]bool{}
+	for _, k := range sortedKeys(s.offerings) {
+		if _, seen := s.staging[k]; seen {
+			continue
 		}
+		if !o.Complete {
+			s.unconfirmed[k] = true
+			continue
+		}
+		old := s.offerings[k]
+		removed = append(removed, &services.OfferingKey{ProviderID: old.ProviderID, Name: old.Name})
+		delete(s.offerings, k)
 	}
 	if len(removed) > 0 {
 		diff = append(diff, Event{Removed: removed})
 	}
-	s.stale = !o.Complete
 	s.staging, s.stagedNG = nil, nil
 	return diff
 }

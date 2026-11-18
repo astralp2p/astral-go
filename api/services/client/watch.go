@@ -178,7 +178,7 @@ func (w *Watcher) boundary(o InitialOutcome) {
 // reopen marks the set stale before the next follow.
 func (w *Watcher) reopen(error) {
 	w.mu.Lock()
-	turned := !w.set.stale
+	turned := !w.set.stale()
 	w.set.reopen()
 	w.mu.Unlock()
 	if turned {
@@ -243,11 +243,12 @@ func (w *Watcher) Offerings() []*services.Update {
 // Stale reports whether Offerings holds offerings no follow has confirmed
 // since a stream ended: true from the end of a stream until a reopened
 // follow's complete boundary. An incomplete boundary keeps the offerings it
-// did not see, and Stale stays true.
+// did not show, and Stale stays true until each of them is updated or
+// removed, or a later boundary is complete.
 func (w *Watcher) Stale() bool {
 	w.mu.Lock()
 	defer w.mu.Unlock()
-	return w.set.stale
+	return w.set.stale()
 }
 
 // Initial receives the outcome of the watcher's first boundary once, then
