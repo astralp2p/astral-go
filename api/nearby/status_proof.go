@@ -106,13 +106,25 @@ func isNilObject(o astral.Object) bool {
 // why: a plain ECDSA signature over a publicly computable hash lets anyone recover the
 // signer's public key. Wrapped, only a node that already knows N reads it.
 func WrapProofSig(node *astral.Identity, nonce astral.Nonce, sig []byte) []byte {
+	return nodeKeyXOR(proofKeyLabel, node, nonce, sig)
+}
+
+// nodeKeyXOR returns data XOR the ChaCha20 keystream of len(data) bytes under key K,
+// a 12-byte all-zero nonce and counter 0, where
+//
+//	K = SHA-256(label || H(N) || nonce)
+//
+// N is node's compressed key and H is SHA-256. It returns nil when node is nil or zero.
+//
+// why: each use has its own label, so two uses under one node and nonce never share a keystream.
+func nodeKeyXOR(label string, node *astral.Identity, nonce astral.Nonce, data []byte) []byte {
 	n := identityKey(node)
 	if n == nil {
 		return nil
 	}
 
 	hn := sha256.Sum256(n)
-	key := sha256Of([]byte(proofKeyLabel), hn[:], nonceBytes(nonce))
+	key := sha256Of([]byte(label), hn[:], nonceBytes(nonce))
 
 	var zeroNonce [chacha20.NonceSize]byte
 	stream, err := chacha20.NewUnauthenticatedCipher(key, zeroNonce[:])
@@ -121,8 +133,8 @@ func WrapProofSig(node *astral.Identity, nonce astral.Nonce, sig []byte) []byte 
 		return nil
 	}
 
-	out := make([]byte, len(sig))
-	stream.XORKeyStream(out, sig)
+	out := make([]byte, len(data))
+	stream.XORKeyStream(out, data)
 	return out
 }
 
