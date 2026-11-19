@@ -40,12 +40,13 @@ func Default() *Client {
 // Event is one item of a discovery stream. Exactly one of Update, Removed,
 // NotGranted, Initial and Err is set.
 type Event struct {
-	Update     *services.Update        // one complete offering
-	Open       *bool                   // with Update on a tagged stream: the provider's visibility
-	Removed    []*services.OfferingKey // shown offerings whose provider was lost or that stopped being visible
-	NotGranted []string                // requested services the caller holds no permit for, sent first
-	Initial    *InitialOutcome         // the end of the initial attempt, sent once
-	Err        error                   // terminal; the channel closes after it
+	Update       *services.Update        // one complete offering
+	Open         *bool                   // with Update on a tagged stream: the provider's visibility
+	Removed      []*services.OfferingKey // shown offerings that left the caller's view
+	RemovedCause services.RemovalCause   // with Removed: why the node retracted them; zero on a FollowReconnecting difference no node sent
+	NotGranted   []string                // requested services the caller holds no permit for, sent first
+	Initial      *InitialOutcome         // the end of the initial attempt, sent once
+	Err          error                   // terminal; the channel closes after it
 }
 
 // InitialOutcome reports whether the initial attempt completed. Incomplete
@@ -185,7 +186,7 @@ func (r *discoveryReader) read(o astral.Object) (*Event, bool, error) {
 		}
 		return &Event{NotGranted: names}, false, nil
 	case *services.Removed:
-		return &Event{Removed: obj.Offerings}, false, nil
+		return &Event{Removed: obj.Offerings, RemovedCause: services.RemovalCause(obj.Cause)}, false, nil
 	case *services.Incomplete:
 		r.incomplete = obj
 		return nil, false, nil

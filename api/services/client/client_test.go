@@ -160,9 +160,12 @@ func TestDiscoveryEvents(t *testing.T) {
 	}
 
 	key := &services.OfferingKey{ProviderID: provider, Name: "player"}
-	follow := readAll(t, true, &astral.EOS{}, u, &services.Removed{Offerings: []*services.OfferingKey{key}})
+	follow := readAll(t, true, &astral.EOS{}, u, &services.Removed{Offerings: []*services.OfferingKey{key}, Cause: astral.Uint8(services.CauseMemberLost)})
 	if len(follow) != 4 || !follow[0].Initial.Complete || follow[1].Update == nil || len(follow[2].Removed) != 1 || !errors.Is(follow[3].Err, ErrStreamEnded) {
 		t.Fatalf("follow: %+v", follow)
+	}
+	if follow[2].RemovedCause != services.CauseMemberLost {
+		t.Fatalf("removed cause %v; want member_lost", follow[2].RemovedCause)
 	}
 }
 
@@ -240,4 +243,84 @@ func TestDiscoveryVisibilityEvents(t *testing.T) {
 	if len(empty) != 1 || empty[0].Err == nil {
 		t.Fatalf("a tagged update without an update is accepted: %+v", empty)
 	}
+}
+
+func TestWatcherKeepsRemovalCauses(t *testing.T) {
+	a, b := astral.GenerateIdentity(), astral.GenerateIdentity()
+	w := newWatcher(func() {})
+	ua := &services.Update{Available: true, Name: "player", ProviderID: a}
+	ub := &services.Update{Available: true, Name: "player", ProviderID: b}
+	w.apply(Event{Update: ua})
+	w.apply(Event{Update: ub})
+
+	w.apply(Event{Removed: []*services.OfferingKey{{ProviderID: a, Name: "player"}}, RemovedCause: services.CauseMemberLost})
+	w.apply(Event{Removed: []*services.OfferingKey{{ProviderID: b, Name: "player"}}, RemovedCause: services.CauseMemberLeft})
+	// a key never shown leaves no removal
+	w.apply(Event{Removed: []*services.OfferingKey{{ProviderID: b, Name: "chat"}}, RemovedCause: services.CauseHidden})
+	if len(w.Offerings()) != 0 {
+		t.Fatalf("offerings %d; want 0", len(w.Offerings()))
+	}
+	got := map[string]services.RemovalCause{}
+	for _, r := range w.Removals() {
+		if r.Offering == nil {
+			t.Fatal("removal without its last view")
+		}
+		got[r.Offering.ProviderID.String()] = r.Cause
+	}
+	if len(got) != 2 || got[a.String()] != services.CauseMemberLost || got[b.String()] != services.CauseMemberLeft {
+		t.Fatalf("removals %v", got)
+	}
+
+	w.apply(Event{Update: ua})
+	if rs := w.Removals(); len(rs) != 1 || rs[0].Cause != services.CauseMemberLeft {
+		t.Fatalf("an offering offered again stays a removal: %+v", rs)
+	}
+}
+
+func TestFollowSetSettleSplitsRemovalsByCause(t *testing.T) {
+	a, b, c := astral.GenerateIdentity(), astral.GenerateIdentity(), astral.GenerateIdentity()
+	ua := &services.Update{Available: true, Name: "player", ProviderID: a}
+	ub := &services.Update{Available: true, Name: "player", ProviderID: b}
+	uc := &services.Update{Available: true, Name: "player", ProviderID: c}
+	s := newFollowSet()
+	s.add(Event{Update: ua})
+	s.add(Event{Update: ub})
+	s.add(Event{Update: uc})
+
+	// the reopened follow shows a, removes b as member_lost, and leaves c out
+	s.reopen()
+	s.add(Event{Update: ua})
+	s.add(Event{Update: ub})
+	s.add(Event{Removed: []*services.OfferingKey{{ProviderID: b, Name: "player"}}, RemovedCause: services.CauseMemberLost})
+	diff := s.settle(InitialOutcome{Complete: true})
+
+	var causes []services.RemovalCause
+	for _, ev := range diff {
+		if ev.Removed == nil {
+			continue
+		}
+		if len(ev.Removed) != 1 {
+			t.Fatalf("removed %d keys in one event; want 1", len(ev.Removed))
+		}
+		causes = append(causes, ev.RemovedCause)
+	}
+	if len(causes) != 2 || causes[0] != 0 || causes[1] != services.CauseMemberLost {
+		t.Fatalf("removal causes %v; want [0 member_lost]", causes)
+	}
+	got := map[string]services.RemovalCause{}
+	for _, k := range sortedWatchRemovals(s) {
+		got[k.provider] = s.removals[k].Cause
+	}
+	if len(got) != 2 || got[b.String()] != services.CauseMemberLost || got[c.String()] != 0 {
+		t.Fatalf("removals %v", got)
+	}
+}
+
+func sortedWatchRemovals(s followSet) []watchKey {
+	keys := make([]watchKey, 0, len(s.removals))
+	for k := range s.removals {
+		keys = append(keys, k)
+	}
+	sortWatchKeys(keys)
+	return keys
 }
