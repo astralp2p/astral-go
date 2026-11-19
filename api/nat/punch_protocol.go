@@ -16,11 +16,15 @@ type PunchProtocol struct {
 	LocalIdentity *astral.Identity
 	PeerIdentity  *astral.Identity
 
+	// LocalIP and LocalPort are the endpoint this side advertises to the peer.
 	LocalIP   ip.IP
 	LocalPort astral.Uint16
+	// LocalBindPort is the local UDP port of this side's punch socket.
+	LocalBindPort astral.Uint16
 
-	PeerIP   ip.IP
-	PeerPort astral.Uint16
+	PeerIP       ip.IP
+	PeerPort     astral.Uint16
+	PeerBindPort astral.Uint16
 
 	Hole Hole
 }
@@ -33,23 +37,27 @@ func NewPunchProtocol(localID, peerID *astral.Identity, localIP ip.IP) *PunchPro
 	}
 }
 
-// OnOffer records the peer's advertised IP, port, and session from an incoming offer signal.
+// OnOffer records the peer's advertised endpoint, bind port, and session from an incoming offer signal.
 func (t *PunchProtocol) OnOffer(sig *PunchSignal) {
 	t.PeerIP = sig.IP
 	t.PeerPort = sig.Port
+	t.PeerBindPort = sig.BindPort
 	t.Session = sig.Session
 }
 
-// OnAnswer records the peer's advertised IP and port from an answer signal.
+// OnAnswer records the peer's advertised endpoint and bind port from an answer signal.
 func (t *PunchProtocol) OnAnswer(sig *PunchSignal) {
 	t.PeerIP = sig.IP
 	t.PeerPort = sig.Port
+	t.PeerBindPort = sig.BindPort
 }
 
-// OnResult records the hole nonce and the active endpoint from a result signal.
+// OnResult records the hole nonce, the active endpoint the peer observed, and
+// the peer's bind port from a result signal.
 func (t *PunchProtocol) OnResult(sig *PunchSignal) {
 	t.Hole.Nonce = sig.PairNonce
 	t.Hole.ActiveEndpoint = Endpoint{IP: sig.IP, Port: sig.Port}
+	t.Hole.PassiveBindPort = sig.BindPort
 }
 
 // ExpectSignal returns a handler that accepts only the given signalType and, for all types
@@ -71,13 +79,17 @@ func (t *PunchProtocol) ExpectSignal(signalType astral.String8, on func(*PunchSi
 }
 
 // SetPunchResult populates the Hole with active/passive role assignments, the
-// remote endpoint observed during punching, and the creation timestamp; must be
-// called before ResultSignal.
+// remote endpoint observed during punching, both bind ports, and the creation
+// timestamp; must be called before ResultSignal.
 func (t *PunchProtocol) SetPunchResult(result *PunchResult) {
 	t.Hole = Hole{
-		ActiveIdentity:  t.LocalIdentity,
+		ActiveIdentity: t.LocalIdentity,
+		// why: behind a NAT that translates ports the socket's local port is not
+		// the observed one; the hole rebinds the local port to keep the mapping.
+		ActiveBindPort:  result.LocalPort,
 		PassiveIdentity: t.PeerIdentity,
 		PassiveEndpoint: Endpoint{IP: result.RemoteIP, Port: result.RemotePort},
+		PassiveBindPort: t.PeerBindPort,
 		// why: the punch result is the moment the hole exists, and it is the one
 		// construction point both the active and the passive path share. A zero
 		// astral.Time encodes as UnixNano out of range and decodes as 1754.
@@ -87,19 +99,21 @@ func (t *PunchProtocol) SetPunchResult(result *PunchResult) {
 
 func (t *PunchProtocol) OfferSignal() *PunchSignal {
 	return &PunchSignal{
-		Signal:  PunchSignalTypeOffer,
-		Session: t.Session,
-		IP:      t.LocalIP,
-		Port:    t.LocalPort,
+		Signal:   PunchSignalTypeOffer,
+		Session:  t.Session,
+		IP:       t.LocalIP,
+		Port:     t.LocalPort,
+		BindPort: t.LocalBindPort,
 	}
 }
 
 func (t *PunchProtocol) AnswerSignal() *PunchSignal {
 	return &PunchSignal{
-		Signal:  PunchSignalTypeAnswer,
-		Session: t.Session,
-		IP:      t.LocalIP,
-		Port:    t.LocalPort,
+		Signal:   PunchSignalTypeAnswer,
+		Session:  t.Session,
+		IP:       t.LocalIP,
+		Port:     t.LocalPort,
+		BindPort: t.LocalBindPort,
 	}
 }
 
@@ -123,6 +137,7 @@ func (t *PunchProtocol) ResultSignal() *PunchSignal {
 		Session:   t.Session,
 		IP:        t.Hole.PassiveEndpoint.IP,
 		Port:      t.Hole.PassiveEndpoint.Port,
+		BindPort:  t.Hole.ActiveBindPort,
 		PairNonce: t.Hole.Nonce,
 	}
 }

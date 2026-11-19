@@ -25,6 +25,7 @@ func (t *Client) NodePunch(ctx *astral.Context, target *astral.Identity, localIP
 	}
 
 	proto.LocalPort = astral.Uint16(localPort)
+	proto.LocalBindPort = astral.Uint16(localPort)
 	proto.Session = puncher.Session()
 
 	if err := ch.Send(proto.OfferSignal()); err != nil {

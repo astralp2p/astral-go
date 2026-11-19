@@ -9,12 +9,17 @@ import (
 )
 
 // Hole represents a pair of connected endpoints resulting from a successful nat.punch operation.
+//
+// An endpoint is the external address the other side observed; a bind port is
+// the local UDP port its owner binds. A NAT that translates ports makes them differ.
 type Hole struct {
 	Nonce           astral.Nonce
 	ActiveIdentity  *astral.Identity
 	ActiveEndpoint  Endpoint
+	ActiveBindPort  astral.Uint16
 	PassiveIdentity *astral.Identity
 	PassiveEndpoint Endpoint
+	PassiveBindPort astral.Uint16
 	CreatedAt       astral.Time
 }
 
@@ -74,6 +79,22 @@ func (h *Hole) GetRemoteAddr(self *astral.Identity) *net.UDPAddr {
 		return h.PassiveEndpoint.UDPAddr()
 	}
 	return h.ActiveEndpoint.UDPAddr()
+}
+
+// GetLocalBindPort returns the local UDP port this node binds for the hole.
+func (h *Hole) GetLocalBindPort(self *astral.Identity) int {
+	if h.ActiveIdentity.IsEqual(self) {
+		return int(h.ActiveBindPort)
+	}
+	return int(h.PassiveBindPort)
+}
+
+// GetRemoteBindPort returns the local UDP port the remote peer binds for the hole.
+func (h *Hole) GetRemoteBindPort(self *astral.Identity) int {
+	if h.ActiveIdentity.IsEqual(self) {
+		return int(h.PassiveBindPort)
+	}
+	return int(h.ActiveBindPort)
 }
 
 func (h *Hole) MatchesPeer(peer *astral.Identity) bool {
