@@ -8,7 +8,8 @@ import (
 )
 
 // WithServices advertises p's services on every registration and reconnect,
-// keeping one binding open while the app is registered.
+// keeping one binding open while the app is registered. Between reconnects,
+// p's keeper advertises again whenever the node ends the binding.
 //
 // why the hook retries itself: a hook error on the first registration stops the
 // registrar, and a failed reconnect costs a registrar backoff. The node may

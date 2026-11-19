@@ -15,14 +15,24 @@ type OfferingFunc func(ctx *astral.Context, caller *astral.Identity) (*services.
 
 // Provider is an app's set of services with one evaluator each. Serve keeps
 // one binding open for the whole set; lib/apps.WithServices calls it on every
-// registration.
+// registration. Between registrations a keeper opens a new binding whenever
+// the node ends the current one.
+//
+// Spec: .ai/system/protocols/services/ops/services.advertise.md#liveness
 type Provider struct {
 	offerings map[string]OfferingFunc
 	names     []string
 	private   bool
+	opening   chan struct{} // holds the one open in progress
 
 	mu      sync.Mutex
 	binding *Binding
+	keeper  *keeper // the running keeper; nil when none runs
+}
+
+// keeper re-advertises after the node ends a binding, until cancel.
+type keeper struct {
+	cancel func()
 }
 
 // Advertise retry: the node can still hold the previous binding right after a
@@ -33,8 +43,15 @@ const (
 	retryFor   = 30 * time.Second
 )
 
+// Keeper backoff after an advertise that failed for another reason, such as a
+// node that is down.
+var (
+	keepFirst = time.Second
+	keepMax   = 30 * time.Second
+)
+
 func NewProvider(offerings map[string]OfferingFunc) *Provider {
-	p := &Provider{offerings: map[string]OfferingFunc{}}
+	p := &Provider{offerings: map[string]OfferingFunc{}, opening: make(chan struct{}, 1)}
 	for name, f := range offerings {
 		p.offerings[name] = f
 		p.names = append(p.names, name)
@@ -57,12 +74,35 @@ func (p *Provider) Names() []string { return append([]string(nil), p.names...) }
 
 // Serve opens a binding unless one is open. It retries a refusal naming an
 // already advertised service for up to 30 seconds and returns any other error
-// at once.
+// at once. After the first binding opens, one keeper per Provider opens a new
+// binding whenever the node ends the current one, until ctx ends or Close.
 func (p *Provider) Serve(ctx *astral.Context, client *Client) error {
+	if err := p.ensure(ctx, client); err != nil {
+		return err
+	}
+	p.startKeeper(ctx, client)
+	return nil
+}
+
+// ensure opens a binding unless one is open.
+// why: the registrar hook and the keeper may both find no binding after a
+// reconnect; one open at a time keeps the second from a refusal loop.
+func (p *Provider) ensure(ctx *astral.Context, client *Client) error {
+	select {
+	case p.opening <- struct{}{}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	defer func() { <-p.opening }()
 	if p.current() != nil {
 		return nil
 	}
+	return p.open(ctx, client)
+}
 
+// open advertises the provider's names, retrying a refusal naming an already
+// advertised service for up to 30 seconds.
+func (p *Provider) open(ctx *astral.Context, client *Client) error {
 	delay := retryFirst
 	deadline := time.Now().Add(retryFor)
 	for {
@@ -82,6 +122,61 @@ func (p *Provider) Serve(ctx *astral.Context, client *Client) error {
 			return ctx.Err()
 		}
 		delay = min(delay*2, retryMax)
+	}
+}
+
+// startKeeper starts the keeper unless one runs.
+func (p *Provider) startKeeper(ctx *astral.Context, client *Client) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.keeper != nil {
+		return
+	}
+	kctx, cancel := ctx.WithCancel()
+	k := &keeper{cancel: cancel}
+	p.keeper = k
+	go p.keep(kctx, client, k)
+}
+
+// keep waits for the open binding to end and opens a new one, backing off
+// 1 s doubling to 30 s while advertising fails, until ctx ends.
+// note: a provider that hangs never runs its keeper, so a binding the node
+// retired for unanswered asks stays retired.
+func (p *Provider) keep(ctx *astral.Context, client *Client, k *keeper) {
+	defer p.stopKeeper(k)
+	delay := keepFirst
+	for {
+		if b := p.current(); b != nil {
+			select {
+			case <-b.Done():
+			case <-ctx.Done():
+				return
+			}
+			continue
+		}
+		if ctx.Err() != nil {
+			return
+		}
+		if err := p.ensure(ctx, client); err == nil {
+			delay = keepFirst
+			continue
+		}
+		select {
+		case <-time.After(delay):
+		case <-ctx.Done():
+			return
+		}
+		delay = min(delay*2, keepMax)
+	}
+}
+
+// stopKeeper cancels k and forgets it, unless another keeper replaced it.
+func (p *Provider) stopKeeper(k *keeper) {
+	k.cancel()
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.keeper == k {
+		p.keeper = nil
 	}
 }
 
@@ -138,8 +233,15 @@ func (p *Provider) ChangeAll() error {
 	return nil
 }
 
-// Close ends the open binding, if any.
+// Close stops the keeper and ends the open binding, if any. A later Serve
+// opens a binding and starts a keeper again.
 func (p *Provider) Close() error {
+	p.mu.Lock()
+	k := p.keeper
+	p.mu.Unlock()
+	if k != nil {
+		p.stopKeeper(k)
+	}
 	if b := p.current(); b != nil {
 		return b.Close()
 	}
