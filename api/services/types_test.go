@@ -70,7 +70,7 @@ func TestWireTypesRoundTrip(t *testing.T) {
 		{"operations list", &OperationsList{Operations: []astral.String8{"a.b"}}, &OperationsList{}, &OperationsList{}},
 		{"incomplete", &Incomplete{Services: []astral.String8{"player"}}, &Incomplete{}, &Incomplete{}},
 		{"offering key", &OfferingKey{ProviderID: provider, Name: "player"}, &OfferingKey{}, &OfferingKey{}},
-		{"removed", &Removed{Offerings: []*OfferingKey{{ProviderID: provider, Name: "player"}, {ProviderID: provider, Name: "bitcoin-wallet"}}}, &Removed{}, &Removed{}},
+		{"removed", &Removed{Offerings: []*OfferingKey{{ProviderID: provider, Name: "player"}, {ProviderID: provider, Name: "bitcoin-wallet"}}, Cause: astral.Uint8(CauseMemberLost)}, &Removed{}, &Removed{}},
 		{"discovery rule", &DiscoveryRule{Services: []astral.String8{"player"}, Nodes: []*astral.Identity{node}}, &DiscoveryRule{}, &DiscoveryRule{}},
 		{"discovery scope", scope(rule([]astral.String8{"player"})), &DiscoveryScope{}, &DiscoveryScope{}},
 		{"not granted", &NotGranted{Services: []astral.String8{"bitcoin-wallet", "player"}}, &NotGranted{}, &NotGranted{}},

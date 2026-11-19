@@ -112,8 +112,10 @@ func (w *Watcher) runReconnecting(ctx *astral.Context, open func(*astral.Context
 // the backoff; the default is 1 s doubling to 30 s). The events read as one
 // follow: the first follow's pass through; a reopened follow's are held until
 // its boundary and then sent as the difference to what was sent before — a
-// NotGranted notice, an Update per offering it shows, one Removed for the
-// offerings it no longer shows (only after a complete outcome) — followed by
+// NotGranted notice, an Update per offering it shows, one Removed per cause
+// for the offerings it no longer shows (only after a complete outcome; an
+// offering the reopened follow removed keeps the node's cause, one it left
+// out has cause zero) — followed by
 // its Initial. Initial therefore arrives at every follow's boundary. The
 // channel closes after an Err: the end of ctx, or the node's refusal of the
 // very first follow before its boundary.

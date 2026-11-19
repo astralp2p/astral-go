@@ -65,6 +65,12 @@ func newWatchConfig(opts []WatchOption) watchConfig {
 
 type watchKey struct{ provider, name string }
 
+// Removal is an offering the stream removed and has not offered again.
+type Removal struct {
+	Offering *services.Update      // the last view shown before the removal
+	Cause    services.RemovalCause // why the node removed it; zero when a reopened follow no longer shows it
+}
+
 // Watch follows names on the target node.
 func (client *Client) Watch(ctx *astral.Context, names []string, opts ...WatchOption) (*Watcher, error) {
 	return client.WatchIn(ctx, services.ReachLocal, names, opts...)
@@ -236,6 +242,33 @@ func (w *Watcher) Offerings() []*services.Update {
 	list := make([]*services.Update, 0, len(keys))
 	for _, k := range keys {
 		list = append(list, w.set.offerings[k])
+	}
+	return list
+}
+
+// Removals returns the offerings the stream removed and has not offered
+// again, with the cause of each removal, ordered by provider and name. An app
+// can keep a removal with services.CauseMemberLost as reconnecting, since the
+// node retries that member. With WithReconnect, an offering a reopened
+// follow's complete boundary no longer shows is a removal with cause zero.
+//
+// A removal stays until the stream offers its key again. A member_lost
+// removal is not superseded when the member later leaves the swarm: the node
+// sends no member_left for keys it no longer shows, so the removal keeps
+// member_lost. An app that shows reconnecting bounds it with its own timeout.
+// The list grows with every key removed and never offered again over the
+// watcher's life.
+func (w *Watcher) Removals() []Removal {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	keys := make([]watchKey, 0, len(w.set.removals))
+	for k := range w.set.removals {
+		keys = append(keys, k)
+	}
+	sortWatchKeys(keys)
+	list := make([]Removal, 0, len(keys))
+	for _, k := range keys {
+		list = append(list, w.set.removals[k])
 	}
 	return list
 }
