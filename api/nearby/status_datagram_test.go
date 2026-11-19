@@ -49,22 +49,29 @@ func TestStatusDatagramSizes(t *testing.T) {
 		maxSizeProof(),
 	)
 	stealth := statusDatagram(t, mustHint(t, node, user, astral.NewNonce()), maxSizeProof())
+	hint := mustHint(t, node, user, astral.NewNonce())
+	sealed, err := SealPorts(node, hint.Nonce, &ListenPorts{TCP: 1800, KCP: 1801})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stealthPorts := statusDatagram(t, hint, sealed, maxSizeProof())
 	// why: no real status carries both the adoptable flag and a UserID; holding both
 	// bounds the visible owned and visible unowned compositions at once.
 	worst := statusDatagram(t,
 		NewFlag("adoptable"),
 		&PublicProfile{NodeID: node, UserID: user, NodeAlias: astral.String8(strings.Repeat("a", 255))},
+		&ListenPorts{TCP: 1800, KCP: 1801},
 		maxSizeProof(),
 	)
 
-	t.Logf("datagram sizes: visible owned %d B (16-byte alias), %d B (255-byte alias); stealth %d B; "+
-		"worst case %d B (flag, UserID, 255-byte alias); cap %d B",
-		len(visible), len(visibleMax), len(stealth), len(worst), datagramCap)
+	t.Logf("datagram sizes: visible owned %d B (16-byte alias), %d B (255-byte alias); stealth %d B, "+
+		"%d B with sealed ports; worst case %d B (flag, UserID, 255-byte alias, ports); cap %d B",
+		len(visible), len(visibleMax), len(stealth), len(stealthPorts), len(worst), datagramCap)
 
 	if len(worst) > datagramCap {
 		t.Errorf("worst case = %d B; want <= %d B", len(worst), datagramCap)
 	}
-	for _, sent := range [][]byte{visible, visibleMax, stealth} {
+	for _, sent := range [][]byte{visible, visibleMax, stealth, stealthPorts} {
 		if len(sent) > len(worst) {
 			t.Errorf("a sent status of %d B exceeds the worst case %d B", len(sent), len(worst))
 		}
