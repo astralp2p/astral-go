@@ -72,13 +72,19 @@ func (d *delays) get() []time.Duration {
 	return append([]time.Duration(nil), d.list...)
 }
 
-// startReconnecting starts a reconnecting watcher on c whose Changed channel
-// counts up to 64 signals, and whose backoff waits are recorded in d.
+// startReconnecting starts a reconnecting watcher on c whose Changed and
+// Synced channels count up to 64 signals each, and whose backoff waits are
+// recorded in d.
+//
+// why the larger buffers: the waits return at once, so two boundaries can
+// pass before the test reads the first signal, and a coalesced channel would
+// merge them.
 func startReconnecting(t *testing.T, c *Client, d *delays) *Watcher {
 	t.Helper()
 	ctx, cancel := astral.NewContext(nil).WithCancel()
 	w := newWatcher(cancel)
 	w.changed = make(chan struct{}, 64)
+	w.synced = make(chan struct{}, 64)
 	cfg := newWatchConfig([]WatchOption{WithReconnect(time.Second, 30*time.Second), withWait(d.wait)})
 	open := func(ctx *astral.Context) (<-chan Event, error) {
 		return c.DiscoverIn(ctx, services.ReachSwarm, []string{"player"}, true)
