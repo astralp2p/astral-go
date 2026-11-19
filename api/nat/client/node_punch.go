@@ -10,7 +10,11 @@ import (
 
 // NodePunch coordinates the offer/answer/ready/go signalling exchange with the NAT module, then delegates
 // the actual UDP hole-punch to puncher; returns the resulting Hole on success.
-func (t *Client) NodePunch(ctx *astral.Context, target *astral.Identity, localIP ip.IP, puncher nat.Puncher) (*nat.Hole, error) {
+//
+// A non-nil reflector supplies the endpoint the offer advertises (see
+// nat.PunchProtocol.Announce); a nil one, or a failed reflection, advertises
+// localIP and the socket's local port.
+func (t *Client) NodePunch(ctx *astral.Context, target *astral.Identity, localIP ip.IP, puncher nat.Puncher, reflector nat.Reflector) (*nat.Hole, error) {
 	ch, err := t.queryCh(ctx, nat.MethodNodePunch, query.Args{})
 	if err != nil {
 		return nil, err
@@ -24,8 +28,9 @@ func (t *Client) NodePunch(ctx *astral.Context, target *astral.Identity, localIP
 		return nil, err
 	}
 
-	proto.LocalPort = astral.Uint16(localPort)
-	proto.LocalBindPort = astral.Uint16(localPort)
+	// note: a failed reflection leaves the local endpoint advertised; the
+	// peer's any-port receive still lets a public peer punch to it.
+	_ = proto.Announce(ctx, localPort, reflector)
 	proto.Session = puncher.Session()
 
 	if err := ch.Send(proto.OfferSignal()); err != nil {

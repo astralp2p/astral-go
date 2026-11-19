@@ -37,6 +37,38 @@ func NewPunchProtocol(localID, peerID *astral.Identity, localIP ip.IP) *PunchPro
 	}
 }
 
+// Announce sets the endpoint this side advertises in its offer or answer.
+//
+// The punch socket's local port bindPort is always the bind port. The advertised
+// endpoint is the IPv4 endpoint reflector observes for the socket when reflector
+// reports one within ReflectTimeout, and LocalIP with bindPort otherwise. The
+// returned error is the reflection's failure, for the caller to log; the
+// protocol stays usable either way.
+func (t *PunchProtocol) Announce(ctx *astral.Context, bindPort int, reflector Reflector) error {
+	t.LocalBindPort = astral.Uint16(bindPort)
+	t.LocalPort = astral.Uint16(bindPort)
+	if reflector == nil {
+		return nil
+	}
+
+	rctx, cancel := ctx.WithTimeout(ReflectTimeout)
+	defer cancel()
+
+	ext, err := reflector.Reflect(rctx)
+	switch {
+	case err != nil:
+		return err
+	case ext == nil || !ext.IP.IsIPv4():
+		return fmt.Errorf("reflected endpoint %v is not IPv4", ext)
+	}
+
+	// why: under endpoint-independent mapping the reflected port is the one
+	// the peer reaches; the local port is never seen behind a translating NAT.
+	t.LocalIP = ext.IP
+	t.LocalPort = ext.Port
+	return nil
+}
+
 // OnOffer records the peer's advertised endpoint, bind port, and session from an incoming offer signal.
 func (t *PunchProtocol) OnOffer(sig *PunchSignal) {
 	t.PeerIP = sig.IP
