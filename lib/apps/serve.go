@@ -3,6 +3,7 @@ package apps
 import (
 	"errors"
 
+	servicesclient "github.com/astralp2p/astral-go/api/services/client"
 	"github.com/astralp2p/astral-go/astral"
 	libastrald "github.com/astralp2p/astral-go/lib/astrald"
 )
@@ -10,9 +11,10 @@ import (
 type ServeOption func(*serveConfig) error
 
 type serveConfig struct {
-	mounts  []func(astral.Router) error
-	hooks   []RegistrationHook
-	address string
+	mounts      []func(astral.Router) error
+	hooks       []RegistrationHook
+	discoveries []discovery
+	address     string
 }
 
 // Serve creates a handler, registers it with the default session, gates queries until
@@ -26,6 +28,12 @@ func Serve(ctx *astral.Context, router astral.Router, opts ...ServeOption) error
 	if err := applyMounts(router, cfg); err != nil {
 		return err
 	}
+
+	stop, err := startDiscoveries(ctx, cfg.discoveries, servicesclient.Default())
+	if err != nil {
+		return err
+	}
+	defer stop()
 
 	reg := NewDefaultAppRegistrar(ctx, WithRegistrarRegistrationHooks(cfg.hooks...))
 	return serveRegistered(ctx, router, reg, cfg.address)
@@ -46,6 +54,12 @@ func ServeWith(ctx *astral.Context, router astral.Router, reg Registrar, opts ..
 	if err := applyServeConfig(reg, cfg); err != nil {
 		return err
 	}
+
+	stop, err := startDiscoveries(ctx, cfg.discoveries, servicesclient.Default())
+	if err != nil {
+		return err
+	}
+	defer stop()
 
 	return serveRegistered(ctx, router, reg, cfg.address)
 }

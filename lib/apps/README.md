@@ -448,3 +448,37 @@ A consumer follows offerings with `services.Watch(ctx, names)`, which keeps the
 current set and reports the outcome of the initial attempt on `Initial()`.
 `Initial()` closes without an outcome when the stream fails first; `Err()`
 then names the failure. `Close()` ends the stream.
+
+`services.WithReconnect(min, max)` makes the Watcher reopen its follow after
+the stream ends, after a node restart or a lost connection. The wait starts at
+`min` (default 1 s), doubles up to `max` (default 30 s), and returns to `min`
+after a follow that reached its boundary.
+
+* The Watcher keeps the set it held and `Stale()` reports true from the end of
+  a stream until a reopened follow's complete boundary.
+* A reopened follow's events are staged until its boundary, then applied in one
+  step: one `Changed()` signal and one `Synced()` signal.
+* An incomplete boundary keeps the offerings it did not show, and `Stale()`
+  stays true until each of them is updated or removed, or a later boundary is
+  complete.
+* `Initial()` reports the first boundary only; `Synced()` signals every
+  boundary.
+* `Err()` stays nil while the Watcher reopens. The Watcher stops on `Close()`,
+  on the end of its context, or when the node refuses the very first follow
+  before its boundary.
+
+`WithDiscovery(names, reach, onChange)` runs such a Watcher for as long as
+`Serve` runs, and calls `onChange` after every change:
+
+```go
+err := apps.Serve(ctx, routing.NewApp(&API{}),
+	apps.WithDiscovery([]string{"player"}, api.ReachSwarm, func(w *services.Watcher) {
+		if !w.Stale() {
+			show(w.Offerings())
+		}
+	}))
+```
+
+`services.FollowReconnecting(ctx, reach, names)` is the same reopen loop for
+a caller that reads discovery events: a reopened follow sends the difference
+to the events before it, then its own `Initial`.

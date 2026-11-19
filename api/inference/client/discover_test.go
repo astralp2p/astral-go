@@ -2,6 +2,7 @@ package inference
 
 import (
 	"errors"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -130,21 +131,61 @@ func TestDiscoverFollowEndsWithCtx(t *testing.T) {
 	}
 }
 
-// A stream the node ends while following is reported, then the channel
-// closes.
-func TestDiscoverFollowReportsTheEnd(t *testing.T) {
-	c := node(t, make(chan discoverArgs, 1), false, &astral.EOS{})
+// A follow the node ends is reopened: the first stream's offering, its
+// initial outcome, then the reopened follow's difference (the offering it no
+// longer shows) and its own initial outcome. The channel stays open.
+func TestDiscoverFollowReopens(t *testing.T) {
+	ai0 := astral.GenerateIdentity()
+	var calls atomic.Int32
+	c, _ := clientFor(t, map[string]any{services.MethodDiscover: func(_ *astral.Context, q *routing.IncomingQuery, _ discoverArgs) error {
+		ch := q.Accept()
+		defer ch.Close()
+		if calls.Add(1) == 1 {
+			if err := ch.Send(offering(t, ai0)); err != nil {
+				return err
+			}
+			return ch.Send(&astral.EOS{})
+		}
+		if err := ch.Send(&astral.EOS{}); err != nil {
+			return err
+		}
+		for {
+			if _, err := ch.Receive(); err != nil {
+				return nil
+			}
+		}
+	}})
+	ctx, cancel := astral.NewContext(nil).WithCancel()
+	defer cancel()
 
-	items, err := c.Discover(astral.NewContext(nil), services.ReachLocal, true)
+	items, err := c.Discover(ctx, services.ReachLocal, true)
 	if err != nil {
 		t.Fatal(err)
 	}
-	var last Discovery
-	for d := range items {
-		last = d
+	var list []Discovery
+	for len(list) < 4 {
+		select {
+		case d, open := <-items:
+			if !open {
+				t.Fatalf("the channel closed after %+v", list)
+			}
+			list = append(list, d)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("items %+v; want four within 5 s", list)
+		}
 	}
-	if last.Err == nil {
-		t.Fatalf("last item %+v; want the end of the stream", last)
+	switch {
+	case list[0].Offering == nil || !list[0].Offering.ProviderID.IsEqual(ai0):
+		t.Fatalf("first item %+v; want the offering", list[0])
+	case list[1].Initial == nil:
+		t.Fatalf("second item %+v; want the first initial outcome", list[1])
+	case len(list[2].Removed) != 1 || !list[2].Removed[0].IsEqual(ai0):
+		t.Fatalf("third item %+v; want the offering the reopened follow lost", list[2])
+	case list[3].Initial == nil || !list[3].Initial.Complete:
+		t.Fatalf("fourth item %+v; want the reopened follow's initial outcome", list[3])
+	}
+	if n := calls.Load(); n != 2 {
+		t.Fatalf("%d follows opened; want 2", n)
 	}
 }
 
