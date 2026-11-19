@@ -2,10 +2,15 @@ package nat
 
 import (
 	"context"
+	"time"
 
 	"github.com/astralp2p/astral-go/api/ip"
 	"github.com/astralp2p/astral-go/astral"
 )
+
+// ReflectTimeout bounds one reflection: the reflector waits this long for the
+// datagram, and a punch side waits this long for the observed endpoint.
+const ReflectTimeout = 2 * time.Second
 
 // Puncher is a minimal abstraction for UDP NAT hole punching.
 // Implementations supply configuration (e.g., ports, timeouts) outside this interface.
@@ -34,4 +39,11 @@ type PunchResult struct {
 	LocalPort  astral.Uint16
 	RemoteIP   ip.IP
 	RemotePort astral.Uint16
+}
+
+// Reflector reports the external UDP endpoint a public peer observes for an
+// open puncher socket. Behind a NAT with endpoint-independent mapping, every
+// peer sees the socket at that endpoint.
+type Reflector interface {
+	Reflect(ctx *astral.Context) (*Endpoint, error)
 }
