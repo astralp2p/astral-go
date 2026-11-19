@@ -23,6 +23,7 @@ const (
 	OpContract             = "user.contract"
 	OpExpel                = "user.expel"
 	OpListExpelled         = "user.list_expelled"
+	OpRelayContracts       = "user.relay_contracts"
 	OpSetSwarmJoinPolicy   = "user.set_swarm_join_policy"
 	OpSetSwarmInvitePolicy = "user.set_swarm_invite_policy"
 
