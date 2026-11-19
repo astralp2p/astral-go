@@ -25,6 +25,7 @@ type PunchSignal struct {
 	Session   astral.Bytes8  `json:"session"`
 	IP        ip.IP          `json:"ip"`
 	Port      astral.Uint16  `json:"port"`
+	BindPort  astral.Uint16  `json:"bind_port"`
 	PairNonce astral.Nonce   `json:"pair_nonce"`
 }
 
