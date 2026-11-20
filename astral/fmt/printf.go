@@ -265,6 +265,13 @@ func SetView[T astral.Object](fn func(T) View) {
 	})
 }
 
+// HasView reports whether a view builder is registered for o's type. Without
+// one, o renders through the fallback or as a Stringify dump.
+func HasView(o astral.Object) bool {
+	_, ok := viewBuilders.Get(o.ObjectType())
+	return ok
+}
+
 func ViewFor(a any) (view View) {
 	var ok bool
 
