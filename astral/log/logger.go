@@ -280,7 +280,10 @@ func (l *Logger) hold(e *Entry) bool {
 		return false
 	}
 
-	if len(l.held) < heldCap {
+	// why the cap only before the renderer: once it is set a drain is running or
+	// starting and empties the hold, so an entry that waits behind it is queued
+	// in order, never refused.
+	if ready || len(l.held) < heldCap {
 		l.held = append(l.held, e)
 	} else {
 		l.heldDropped++
