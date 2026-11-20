@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
+	"slices"
 
 	"github.com/astralp2p/astral-go/astral"
 )
@@ -89,8 +91,39 @@ func (ip IP) IsGlobalUnicast() bool { return net.IP(ip).IsGlobalUnicast() }
 // IsPrivate is an alias for the native net.IP.IsPrivate.
 func (ip IP) IsPrivate() bool { return net.IP(ip).IsPrivate() }
 
-// IsPublic returns true if the IP address is a public unicast address.
-func (ip IP) IsPublic() bool { return ip.IsGlobalUnicast() && !ip.IsPrivate() }
+// notGlobal lists ranges that pass IsGlobalUnicast and are not private by the
+// native net.IP.IsPrivate, yet are never reachable from the global internet.
+//
+// The documentation ranges 192.0.2.0/24, 198.51.100.0/24 and 203.0.113.0/24
+// are deliberately absent: netsim labs and tests use them as stand-ins for
+// public addresses.
+var notGlobal = []netip.Prefix{
+	netip.MustParsePrefix("0.0.0.0/8"),     // "this network"
+	netip.MustParsePrefix("100.64.0.0/10"), // shared address space (CGNAT, Tailscale)
+	netip.MustParsePrefix("192.0.0.0/24"),  // IETF protocol assignments (464XLAT, DS-Lite)
+	netip.MustParsePrefix("198.18.0.0/15"), // benchmarking
+	netip.MustParsePrefix("240.0.0.0/4"),   // reserved
+	netip.MustParsePrefix("100::/64"),      // discard-only
+}
+
+// IsPublic returns true if the IP address is a public unicast address. It
+// returns false for private addresses and for the ranges in notGlobal,
+// including their IPv4-mapped IPv6 forms.
+func (ip IP) IsPublic() bool {
+	if !ip.IsGlobalUnicast() || ip.IsPrivate() {
+		return false
+	}
+
+	addr, ok := netip.AddrFromSlice(ip)
+	if !ok {
+		return false
+	}
+	addr = addr.Unmap()
+
+	return !slices.ContainsFunc(notGlobal, func(p netip.Prefix) bool {
+		return p.Contains(addr)
+	})
+}
 
 // String returns a string representation of the IP address.
 func (ip IP) String() string {
