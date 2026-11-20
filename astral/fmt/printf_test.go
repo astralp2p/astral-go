@@ -39,6 +39,7 @@ func TestHasView(t *testing.T) {
 	}
 
 	SetView(func(o *hasViewProbe) View { return stringView("probe") })
+	t.Cleanup(func() { viewBuilders.Delete((&hasViewProbe{}).ObjectType()) })
 
 	if !HasView(&hasViewProbe{}) {
 		t.Error("HasView is false after a view is registered")

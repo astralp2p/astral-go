@@ -30,8 +30,9 @@ const rootBufferSize = 64 << 10
 // here, a few dozen in practice. A full buffer refuses the newest entry and
 // counts it, the way the queue does, and the count prints as one line after
 // the entries that were kept. The earliest lines are the ones a failed start
-// needs, so they are the ones kept.
-const heldCap = 1024
+// needs, so they are the ones kept. It sits well below rootQueueCap so a full
+// drain fits the queue of a writer that is keeping up.
+const heldCap = 256
 
 // closeTimeout bounds how long Close waits for a stalled writer.
 const closeTimeout = 2 * time.Second
@@ -62,11 +63,15 @@ type Logger struct {
 
 	// why: an entry renders only once the node's modules have registered the
 	// entry view, so earlier entries wait here in arrival order.
-	holdMu      sync.Mutex // guards held, heldDropped and draining; never held across a render
+	holdMu      sync.Mutex // guards held, heldDropped, draining and the release of the hold; never held across a render
 	held        []*Entry
 	heldDropped uint64
 	draining    bool       // a goroutine is writing the held entries out
 	drainMu     sync.Mutex // one drain at a time; held across renders
+
+	// released is set for good once a drain empties the hold with a renderer
+	// set, or by Release/Close. From then on an entry never waits.
+	released atomic.Bool
 }
 
 // SetFilter sets the filter on the root; an entry is emitted only when filter is
@@ -109,18 +114,27 @@ func New(id *astral.Identity) *Logger {
 	return l
 }
 
-// Close writes out the entries still held for a renderer and waits, up to
-// closeTimeout, for the writer to take everything queued. Call it before the
-// process exits.
+// Release writes out the entries held for a renderer, whether or not one was
+// ever set, and stops holding: an entry logged afterwards goes straight to the
+// queue. Call it when module loading is over, so a node that never registers
+// the entry view, or that fails to start, still prints its early lines.
 //
-// note: entries held when Close runs render with whatever view is registered,
-// the struct dump of *Entry when none is. A late dump is a lossy line, not a
-// lost one. Close does not stop the logger; an entry logged afterwards is held
-// again until a renderer is set.
+// note: held entries render with whatever view is registered, the struct dump
+// of *Entry when none is. A late dump is a lossy line, not a lost one.
+func (l *Logger) Release() {
+	l.root().drain(true)
+}
+
+// Close releases the hold (see Release), then waits, up to closeTimeout, for
+// the writer to take everything queued. Call it before the process exits.
+//
+// note: without Release or Close, and with no renderer ever set, entries stay
+// held: the first heldCap are kept in memory, the rest are counted, and
+// nothing is written. Close does not stop the logger.
 func (l *Logger) Close() {
 	var root = l.root()
 
-	root.drain(true)
+	root.Release()
 
 	if root.flushc == nil {
 		return
@@ -251,9 +265,15 @@ func (l *Logger) logEntry(e *Entry) {
 // ones that can be ahead of a new entry; with none, an entry takes the
 // unchanged path.
 func (l *Logger) hold(e *Entry) bool {
+	if l.released.Load() {
+		return false
+	}
+
 	l.holdMu.Lock()
 
-	var ready = rendererSet()
+	// note: released is read again under holdMu, where drain sets it, so an
+	// entry cannot be appended after the drain emptied the hold for good.
+	var ready = l.released.Load() || rendererSet()
 
 	if ready && len(l.held) == 0 && !l.draining {
 		l.holdMu.Unlock()
@@ -277,7 +297,8 @@ func (l *Logger) hold(e *Entry) bool {
 }
 
 // drain renders the held entries and queues them in arrival order, looping
-// until none are left. Without force it stops while no renderer is set.
+// until none are left, then releases the hold for good. Without force it stops
+// while no renderer is set.
 //
 // why: a render may log (see TestRenderMayReEnterLogger), and an entry logged
 // meanwhile finds draining set, joins the held entries and is picked up by the
@@ -289,8 +310,17 @@ func (l *Logger) drain(force bool) {
 	for {
 		l.holdMu.Lock()
 
-		if (len(l.held) == 0 && l.heldDropped == 0) || (!force && !rendererSet()) {
+		var ready = force || l.released.Load() || rendererSet()
+
+		if !ready {
 			l.draining = false
+			l.holdMu.Unlock()
+			return
+		}
+
+		if len(l.held) == 0 && l.heldDropped == 0 {
+			l.draining = false
+			l.released.Store(true)
 			l.holdMu.Unlock()
 			return
 		}
@@ -350,6 +380,7 @@ func (l *Logger) pump() {
 
 		case ack := <-l.flushc:
 			l.drainQueue(w)
+			l.reportDrops(w)
 			w.Flush()
 			close(ack)
 		}

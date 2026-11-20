@@ -269,7 +269,10 @@ func TestEntriesAfterRendererSkipTheHold(t *testing.T) {
 }
 
 // TestCloseWritesEntriesHeldForARenderer records the exit path: a process that
-// ends before any renderer is set still gets its early entries out.
+// ends before any renderer is set still gets its early entries out. It checks
+// delivery, not rendering: the test binary registers an entry view for the
+// whole process, so the struct dump a real early line would get is not
+// exercised here.
 func TestCloseWritesEntriesHeldForARenderer(t *testing.T) {
 	setRenderer(t, false)
 
@@ -281,6 +284,65 @@ func TestCloseWritesEntriesHeldForARenderer(t *testing.T) {
 
 	// Close returns once the writer has them: no waiting here.
 	wantLines(t, strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n"), 0, 3)
+}
+
+// TestNoRendererNoReleaseWritesNothing documents the bound: with no renderer
+// ever set and neither Release nor Close called, entries stay held and nothing
+// is written. This is why astrald releases the hold after module loading.
+func TestNoRendererNoReleaseWritesNothing(t *testing.T) {
+	setRenderer(t, false)
+
+	var out lockedBuffer
+	var l = newTestLogger(&out)
+
+	logN(l, 0, heldCap+10)
+
+	time.Sleep(20 * time.Millisecond)
+	if got := out.String(); got != "" {
+		t.Fatalf("wrote %q with no renderer and no release, want nothing", got)
+	}
+
+	if len(l.held) != heldCap {
+		t.Errorf("held %v entries, want %v", len(l.held), heldCap)
+	}
+}
+
+// TestReleaseWritesHeldEntriesAndStopsHolding records that Release writes the
+// held entries without a renderer, in order, and that later entries are not
+// held again.
+func TestReleaseWritesHeldEntriesAndStopsHolding(t *testing.T) {
+	setRenderer(t, false)
+
+	var out lockedBuffer
+	var l = newTestLogger(&out)
+
+	logN(l, 0, 3)
+	l.SetPrefix().Release() // a child releases the root
+
+	logN(l, 3, 5)
+
+	wantLines(t, out.lines(t, 5), 0, 5)
+
+	if len(l.held) != 0 {
+		t.Errorf("held %v entries after release, want 0", len(l.held))
+	}
+}
+
+// TestCloseReportsRefusedEntries records that the drop line is written even
+// when the queue is empty by the time Close flushes.
+func TestCloseReportsRefusedEntries(t *testing.T) {
+	setRenderer(t, true)
+
+	var out lockedBuffer
+	var l = newTestLogger(&out)
+
+	l.dropped.Store(3)
+	l.firstDrop.Store(time.Now().UnixNano())
+	l.Close()
+
+	if got := out.String(); !strings.Contains(got, "log: dropped 3 entries since") {
+		t.Errorf("wrote %q, want the drop line", got)
+	}
 }
 
 // TestHeldBufferOverflowKeepsTheEarliest records the bound: past heldCap the
