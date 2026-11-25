@@ -10,9 +10,16 @@ import (
 
 // Approval answers the request RequestID with yes. Issuer signs it. The node
 // the Approval touches carries it out: it signs a contract whose ApprovalID is
-// this Approval's ObjectID.
+// the entry ID of this Approval's SignedApproval (see EntryKindOf).
+//
+// An Approval counts whenever it is given: nodes cannot tell when it was
+// signed, so, like the Decline rule (D3), its effect needs no clock. Answering
+// nodes do not sign answers to an expired request; MayAnswer says who may.
 type Approval struct {
-	Issuer    *astral.Identity
+	Issuer *astral.Identity
+	// RequestID is the entry ID of the stored signed request it answers
+	// (*SignedContractRequest, *SignedJoinRequest or *SignedExpelRequest),
+	// not the ID of the request body.
 	RequestID *astral.ObjectID
 }
 
@@ -62,7 +69,8 @@ func (a *SignedApproval) IsNil() bool { return a == nil || a.Approval == nil }
 // Decline answers the request RequestID with no. Issuer signs it. A Decline
 // beats every Approval of the same request, even one already carried out.
 type Decline struct {
-	Issuer    *astral.Identity
+	Issuer *astral.Identity
+	// RequestID is the entry ID of the stored signed request, as in Approval.
 	RequestID *astral.ObjectID
 }
 
@@ -108,6 +116,39 @@ func (d *SignedDecline) UnmarshalJSON(b []byte) error { return astral.Objectify(
 func (d *SignedDecline) Signature() *crypto.Signature { return d.IssuerSig }
 
 func (d *SignedDecline) IsNil() bool { return d == nil || d.Decline == nil }
+
+// MayAnswer reports whether a node of tier answerer may sign an Approval or a
+// Decline of req, a request body or its signed form. Privileged answers every
+// request. Trusted answers only a JoinRequest at TierMember (D5). Member
+// answers none. The user key needs no tier and may answer any request.
+//
+// A Privileged node's Approval of a JoinRequest at TierPrivilegedMember does
+// not let its carrier sign the membership: only the user key does (D2).
+func MayAnswer(answerer Tier, req astral.Object) bool {
+	switch answerer {
+	case TierPrivilegedMember:
+		switch r := req.(type) {
+		case *ContractRequest, *ExpelRequest:
+			return true
+		case *SignedContractRequest:
+			return !r.IsNil()
+		case *SignedExpelRequest:
+			return !r.IsNil()
+		case *JoinRequest:
+			return r != nil
+		case *SignedJoinRequest:
+			return !r.IsNil()
+		}
+	case TierTrusted:
+		switch r := req.(type) {
+		case *JoinRequest:
+			return r != nil && r.Tier == TierMember
+		case *SignedJoinRequest:
+			return !r.IsNil() && r.Tier == TierMember
+		}
+	}
+	return false
+}
 
 // signableObjectID renders id in at most 69 bytes ("data1" and 64 zbase32
 // characters); a nil id renders as "none".

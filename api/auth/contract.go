@@ -17,9 +17,11 @@ type Contract struct {
 
 	ExpiresAt astral.Time
 
-	// ApprovalID names the Approval (api/user.SignedApproval) this contract
-	// carries out. Nil when the contract carries out no Approval, e.g. a
-	// membership the user key signs in a ceremony.
+	// ApprovalID names the Approval this contract carries out: the entry ID
+	// (astral.ResolveObjectID) of the stored api/user.SignedApproval, the key
+	// SwarmState stores it under, not the ID of the unsigned Approval body.
+	// Nil when the contract carries out no Approval, e.g. a membership the
+	// user key signs in a ceremony.
 	//
 	// why last: fields encode in order with no tags, so a new field changes
 	// every contract's bytes and ObjectID either way; appending keeps the

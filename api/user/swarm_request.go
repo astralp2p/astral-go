@@ -1,6 +1,7 @@
 package user
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"time"
@@ -83,6 +84,40 @@ func (r *ContractRequest) ValidTimeout() bool { return ValidRequestTimeout(r.Fil
 
 // Expired reports whether now is past Timeout.
 func (r *ContractRequest) Expired(now time.Time) bool { return now.After(r.Timeout.Time()) }
+
+// Covers reports whether c's permits are among those r requests: c has at
+// least one permit, and each encodes byte-equal (Action, Constraints and
+// Delegation) to one of r.Permits. It checks permits only; who issued c and
+// whom it names are the caller's to check. A host carrying out an Approval
+// copies r.Permits into the contract, which always covers.
+func (r *ContractRequest) Covers(c *auth.Contract) bool {
+	if r == nil || c == nil || len(c.Permits) == 0 {
+		return false
+	}
+	requested := make(map[string]bool, len(r.Permits))
+	for _, p := range r.Permits {
+		if b, ok := permitBytes(p); ok {
+			requested[b] = true
+		}
+	}
+	for _, p := range c.Permits {
+		if b, ok := permitBytes(p); !ok || !requested[b] {
+			return false
+		}
+	}
+	return true
+}
+
+func permitBytes(p *auth.Permit) (string, bool) {
+	if p == nil {
+		return "", false
+	}
+	var buf bytes.Buffer
+	if _, err := p.WriteTo(&buf); err != nil {
+		return "", false
+	}
+	return buf.String(), true
+}
 
 // SignedContractRequest is the SwarmState form of a ContractRequest.
 type SignedContractRequest struct {

@@ -21,7 +21,9 @@ import (
 // without changing the action type or any of its call sites. Each is left unset
 // by an op that names neither.
 //
-// It replaces AdoptAction and ExpelAction, whose Subject it carries unchanged.
+// It replaced AdoptAction and ExpelAction. ExpelAction is back as its own
+// type because expelling is the one action a PrivilegedMembership does not
+// cover (D7); AdminSwarmAction still serves expel until G7 switches op_expel.
 type AdminSwarmAction struct {
 	auth.Action
 	Subject  *astral.Identity
