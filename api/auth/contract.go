@@ -16,6 +16,16 @@ type Contract struct {
 	Permits []*Permit
 
 	ExpiresAt astral.Time
+
+	// ApprovalID names the Approval (api/user.SignedApproval) this contract
+	// carries out. Nil when the contract carries out no Approval, e.g. a
+	// membership the user key signs in a ceremony.
+	//
+	// why last: fields encode in order with no tags, so a new field changes
+	// every contract's bytes and ObjectID either way; appending keeps the
+	// earlier fields at their offsets. Contracts encoded before this field
+	// existed no longer decode (new swarms only, D11).
+	ApprovalID *astral.ObjectID
 }
 
 type Permit struct {
@@ -78,12 +88,70 @@ func (c *Contract) SignableHash() []byte {
 	return id.Hash[:]
 }
 
+// SignableText is one fixed-shape ASCII line:
+//
+//	<issuer> grants <subject> [<word> ]permits (<n>) until <YYYY-MM-DD hh:mm:ss>
+//
+// <word> is the PermitWord of the first permit whose action declares one, e.g.
+// the tier of a membership; it is absent otherwise. The commitment the signer
+// prefixes binds everything else, ApprovalID included.
 func (c *Contract) SignableText() string {
+	return contractText(c, c.permitWord(), len(c.Permits))
+}
+
+// PermitWorder is implemented by an action type whose permit names itself in a
+// contract's signable text, so a signer such as a Coldcard shows it.
+//
+// A word longer than MaxPermitWordLen or outside [a-z_] is ignored, which keeps
+// the line within the signer's limit.
+type PermitWorder interface {
+	PermitWord() string
+}
+
+// MaxPermitWordLen is the longest PermitWord a contract's signable text carries
+// (len("privileged_member")).
+const MaxPermitWordLen = 17
+
+func (c *Contract) permitWord() string {
+	for _, p := range c.Permits {
+		if p == nil {
+			continue
+		}
+		w, ok := astral.New(string(p.Action)).(PermitWorder)
+		if !ok {
+			continue
+		}
+		if word := w.PermitWord(); validPermitWord(word) {
+			return word
+		}
+	}
+	return ""
+}
+
+func validPermitWord(w string) bool {
+	if w == "" || len(w) > MaxPermitWordLen {
+		return false
+	}
+	for i := 0; i < len(w); i++ {
+		if (w[i] < 'a' || w[i] > 'z') && w[i] != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+// contractText takes the permit count apart from c so a test can render the
+// worst case, a count of math.MaxUint32, without building that many permits.
+func contractText(c *Contract, word string, permits int) string {
+	if word != "" {
+		word += " "
+	}
 	return fmt.Sprintf(
-		"%s grants %s permits (%d) until %s",
+		"%s grants %s %spermits (%d) until %s",
 		c.Issuer.String(),
 		c.Subject.String(),
-		len(c.Permits),
+		word,
+		permits,
 		c.ExpiresAt.Time().Format("2006-01-02 15:04:05"),
 	)
 }
