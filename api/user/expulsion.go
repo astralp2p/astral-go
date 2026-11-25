@@ -39,6 +39,10 @@ func (e *Expulsion) SignableText() string {
 	return fmt.Sprintf("%s expels %s from the swarm", e.Issuer.String(), e.Subject.String())
 }
 
+// Signer returns the identity whose signature the expulsion carries: the
+// user key, in a SwarmState expel (D7).
+func (e *Expulsion) Signer() *astral.Identity { return e.Issuer }
+
 // SignedExpulsion pairs an Expulsion body with the issuer's signature. It is the
 // wire, stored, and propagated form of a ban.
 type SignedExpulsion struct {
@@ -59,6 +63,8 @@ func (e *SignedExpulsion) ReadFrom(src io.Reader) (int64, error) {
 
 func (e SignedExpulsion) MarshalJSON() ([]byte, error)  { return astral.Objectify(&e).MarshalJSON() }
 func (e *SignedExpulsion) UnmarshalJSON(b []byte) error { return astral.Objectify(e).UnmarshalJSON(b) }
+
+func (e *SignedExpulsion) Signature() *crypto.Signature { return e.IssuerSig }
 
 // IsNil guards against both a nil receiver and an embedded nil *Expulsion.
 func (e *SignedExpulsion) IsNil() bool { return e == nil || e.Expulsion == nil }
