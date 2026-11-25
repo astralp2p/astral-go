@@ -21,6 +21,9 @@ type LinkInfo struct {
 	Network         astral.String8
 	HighPressure    astral.Bool
 	BytesThroughput astral.Uint64
+	Age             astral.Duration
+	RTT             *astral.Duration // smoothed round trip of the keepalive pings; nil until the first pong
+	RTTAge          *astral.Duration // time since the last pong; nil until the first pong
 }
 
 var _ astral.Object = &LinkInfo{}
@@ -48,7 +51,10 @@ func (s LinkInfo) MarshalText() (text []byte, err error) {
 		d = ">"
 	}
 
-	_, err = fmt.Fprintf(b, "%v %v %v %v throughput=%v high=%v", s.ID, d, s.RemoteIdentity, s.RemoteEndpoint, s.BytesThroughput, bool(s.HighPressure))
+	_, err = fmt.Fprintf(b, "%v %v %v %v throughput=%v high=%v age=%v", s.ID, d, s.RemoteIdentity, s.RemoteEndpoint, s.BytesThroughput, bool(s.HighPressure), s.Age)
+	if err == nil && s.RTT != nil {
+		_, err = fmt.Fprintf(b, " rtt=%v", *s.RTT)
+	}
 
 	return b.Bytes(), err
 }
