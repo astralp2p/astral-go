@@ -24,7 +24,6 @@ import (
 	_ "github.com/astralp2p/astral-go/api/nearby"
 	_ "github.com/astralp2p/astral-go/api/nodes"
 	_ "github.com/astralp2p/astral-go/api/objects"
-	_ "github.com/astralp2p/astral-go/api/policy"
 	_ "github.com/astralp2p/astral-go/api/secp256k1"
 	_ "github.com/astralp2p/astral-go/api/services"
 	_ "github.com/astralp2p/astral-go/api/shell"

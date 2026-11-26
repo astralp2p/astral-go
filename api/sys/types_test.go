@@ -16,8 +16,8 @@ func TestRegisterManagerRequestRoundTrip(t *testing.T) {
 		Name:         "control-plane",
 		GrantPermits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}},
 		Policies: []*PolicyBinding{
-			{Policy: PolicyAppRegister, Operation: "cp.approve_app"},
-			{Policy: PolicySwarmJoin, Operation: "cp.approve_join", Timeout: astral.Duration(time.Minute)},
+			{Policy: "app_register", Operation: "cp.approve_app"},
+			{Policy: "swarm_join", Operation: "cp.approve_join", Timeout: astral.Duration(time.Minute)},
 		},
 	}
 

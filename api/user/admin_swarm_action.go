@@ -10,13 +10,13 @@ import (
 // AdminSwarmAction requests permission for Actor to change what the swarm is:
 // which nodes belong to it, and which objects it carries.
 //
-// Adopting, expelling, adding an asset and removing one are one action because
+// Admitting, expelling, adding an asset and removing one are one action because
 // an issuer granting control over the swarm's membership would not expect its
 // asset set to be governed separately. Both decide what the swarm holds, and
 // both propagate from this node to every sibling.
 //
 // Subject and ObjectID declare the nouns a call touches — Subject the node a
-// call adopts or expels, ObjectID the asset it adds or removes. Nothing
+// call admits or expels, ObjectID the asset it adds or removes. Nothing
 // evaluates them yet; they are recorded so a constraint can bind to them later
 // without changing the action type or any of its call sites. Each is left unset
 // by an op that names neither.

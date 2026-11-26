@@ -7,8 +7,8 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// DeleteMailbox removes a participant: revokes every access token of it, its
-// grants and its alias, and stops hosting its mailbox, deleting the mail it
+// DeleteMailbox removes a participant: revokes every access token of it,
+// unsets its alias, and stops hosting its mailbox, deleting the mail it
 // owns. It revokes no contract: the signed relay and hosting contracts stay
 // valid until they expire, and the withdrawal holds on this node alone. id
 // takes a hex public key or an alias resolved via the directory, and the errors

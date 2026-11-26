@@ -7,14 +7,12 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// RegisterRequest is the registration an app sends to apphost.register. The
-// node passes it to the app register policy as an AppRegisterRequest, which
-// adds the caller's web origin.
+// RegisterRequest is the registration an app sends to apphost.register.
 //
 // Name is the name the app gives itself; the node does not verify it.
-// GrantPermits are the permits the app asks to hold as node-local grants;
-// ContractPermits are the permits it asks to hold in a signed node→app
-// contract. Both carry their constraints.
+// GrantPermits and ContractPermits are the permits the app asks for, each with
+// its constraints; the node files both lists as one contract request in
+// SwarmState. GrantPermits keeps its name for the wire.
 //
 // Vfs asks the node to create a VFS for the app. Evaluator asks the node to
 // name the app the evaluator of that VFS, at the endpoint

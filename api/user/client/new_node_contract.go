@@ -8,7 +8,9 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// NewContract requests a new node-binding contract for the user identified by alias from the remote user module.
+// NewContract asks the remote user module for an unsigned node contract, the
+// node's PrivilegedMembership from the user identified by alias, which the
+// user key signs in the setup ceremony.
 func (client *Client) NewContract(ctx *astral.Context, alias string) (contract *auth.Contract, err error) {
 	ch, err := client.queryCh(ctx, user.OpNewNodeContract, query.Args{"user": alias})
 	if err != nil {

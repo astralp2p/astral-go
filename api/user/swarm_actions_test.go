@@ -107,35 +107,3 @@ func TestSwarmActionsAreDistinct(t *testing.T) {
 		t.Fatal("an admin_swarm permit must not allow see_swarm")
 	}
 }
-
-// TestNodeContractCarriesBothSwarmPermits pins what a management node receives:
-// the two swarm actions, delegable one hop, and nothing else beside membership.
-func TestNodeContractCarriesBothSwarmPermits(t *testing.T) {
-	contract, err := NewNodeContract(&astral.Identity{}, &astral.Identity{}, true, 0)
-	if err != nil {
-		t.Fatalf("new node contract: %v", err)
-	}
-
-	for _, want := range []string{
-		SwarmMembershipAction{}.ObjectType(),
-		SeeSwarmAction{}.ObjectType(),
-		AdminSwarmAction{}.ObjectType(),
-	} {
-		if len(contract.HasPermit(want)) == 0 {
-			t.Fatalf("management node contract is missing a %v permit", want)
-		}
-	}
-
-	if len(contract.Permits) != 3 {
-		t.Fatalf("permits: got %d, want 3", len(contract.Permits))
-	}
-
-	plain, err := NewNodeContract(&astral.Identity{}, &astral.Identity{}, false, 0)
-	if err != nil {
-		t.Fatalf("new node contract: %v", err)
-	}
-
-	if len(plain.Permits) != 1 {
-		t.Fatalf("a non-management contract carries membership alone: got %d permits", len(plain.Permits))
-	}
-}

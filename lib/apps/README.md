@@ -110,12 +110,11 @@ err := apps.ServeWith(ctx, routing.NewApp(api), reg)
 ## Node permits
 
 Each piece of a served app calls node ops that check an action. The app's
-identity holds each action through a node-local grant or a signed contract;
-`apphost.register` asks for `mod.auth.serve_apps_action` and
-`mod.auth.use_blueprints_action` on every registration, and for others only
-when the app names them in the `GrantPermits` or `ContractPermits` of the
-`mod.apphost.register_request` it sends, or a trusted web origin it registers
-from is entitled to them.
+identity holds each action through a signed contract; `apphost.register`
+asks for `mod.auth.serve_apps_action` and `mod.auth.use_blueprints_action` on
+every registration, and for others only when the app names them in the
+`GrantPermits` or `ContractPermits` of the `mod.apphost.register_request` it
+sends. The node writes them once an approval answers the request.
 
 | Option | Node op | Action |
 |---|---|---|
