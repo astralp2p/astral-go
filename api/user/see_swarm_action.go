@@ -8,12 +8,12 @@ import (
 )
 
 // SeeSwarmAction requests permission for Actor to read what the swarm is: the
-// active contract's metadata, the sibling nodes and their link state, the bans
-// the user has issued, and the asset set together with its delta ledger.
+// active contract's metadata, the sibling nodes and their link state, and the
+// bans the user has issued.
 //
 // One action covers every read in the user module, because between them they
 // answer a single question — who and what belongs to this swarm. Splitting them
-// protects nothing: a caller that can list siblings and stream the asset ledger
+// protects nothing: a caller that can list siblings and read the bans
 // already holds what guarding the contract metadata alone would keep from it.
 //
 // It replaces InfoAction, which named user.info and nothing else while the five

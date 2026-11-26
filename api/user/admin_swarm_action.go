@@ -8,23 +8,16 @@ import (
 )
 
 // AdminSwarmAction requests permission for Actor to change what the swarm is:
-// which nodes belong to it, and which objects it carries.
+// which nodes belong to it. Expelling is its own ExpelAction, because a
+// PrivilegedMembership does not cover it (D7).
 //
-// Introducing a node, adding an asset and removing one are one action because
-// an issuer granting control over the swarm's membership would not expect its
-// asset set to be governed separately. Both decide what the swarm holds, and
-// both propagate from this node to every sibling. Expelling is its own
-// ExpelAction, because a PrivilegedMembership does not cover it (D7).
-//
-// Subject and ObjectID declare the nouns a call touches — Subject the node a
-// call introduces, ObjectID the asset it adds or removes. Nothing evaluates
-// them yet; they are recorded so a constraint can bind to them later without
-// changing the action type or any of its call sites. Each is left unset by an
-// op that names neither.
+// Subject declares the noun a call touches, the node a call introduces.
+// Nothing evaluates it yet; it is recorded so a constraint can bind to it
+// later without changing the action type or any of its call sites. It is left
+// unset by an op that names no node.
 type AdminSwarmAction struct {
 	auth.Action
-	Subject  *astral.Identity
-	ObjectID *astral.ObjectID
+	Subject *astral.Identity
 }
 
 func (AdminSwarmAction) ObjectType() string { return "mod.user.admin_swarm_action" }

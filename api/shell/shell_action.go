@@ -29,6 +29,6 @@ func (a *ShellAction) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 // why: MustAdd, not a discarded Add. A registration that never succeeds and
-// says nothing is the defect class that stopped asset sync; this name is new,
-// so a panic here can only mean a real collision.
+// says nothing leaves a type unregistered without a trace; this name is new, so
+// a panic here can only mean a real collision.
 func init() { astral.MustAdd(&ShellAction{}) }
