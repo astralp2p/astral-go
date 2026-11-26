@@ -11,8 +11,9 @@ var errMissingAction = errors.New("missing action")
 var errUnknownAction = errors.New("unknown action")
 var errRequiresConstraints = errors.New("requires constraints")
 
-// ValidatePermit reports a permit the node must refuse before asking any
-// policy or writing anything. The error wraps ErrInvalidPermit and names the action.
+// ValidatePermit reports a permit the node must refuse before filing a
+// request, asking an authority or writing anything. The error wraps
+// ErrInvalidPermit and names the action.
 //
 // The rules apply in order:
 //   - a nil permit or an empty Action is refused;

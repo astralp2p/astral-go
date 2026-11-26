@@ -12,8 +12,8 @@ import (
 //
 // why: shell.shell mounts every loaded module's op router behind one session,
 // so admission is node-wide administration rather than one capability. The
-// action exists to carry that admission on the permit rail, where a grant
-// records it and a revoke withdraws it.
+// action exists to carry that admission on the permit rail, where a contract
+// or the swarm rules carry it.
 type ShellAction struct {
 	auth.Action
 }

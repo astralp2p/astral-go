@@ -7,32 +7,10 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// The policy names a PolicyBinding takes. Each names the admission policy of
-// one module op: app_register and grant_request decide apphost.register and
-// apphost.request_grant; swarm_join, swarm_invite and contract_accept decide
-// user.request_membership, user.accept_membership and user.accept_contract.
-const (
-	PolicyAppRegister    = "app_register"
-	PolicyGrantRequest   = "grant_request"
-	PolicySwarmJoin      = "swarm_join"
-	PolicySwarmInvite    = "swarm_invite"
-	PolicyContractAccept = "contract_accept"
-)
-
-// PolicyNames lists every policy name a PolicyBinding takes.
-var PolicyNames = []string{
-	PolicyAppRegister,
-	PolicyGrantRequest,
-	PolicySwarmJoin,
-	PolicySwarmInvite,
-	PolicyContractAccept,
-}
-
 // RegisterManagerRequest is the registration an app sends to
 // sys.register_manager to become the node's manager. Name, GrantPermits and
 // ContractPermits mean what they mean in apphost.RegisterRequest. Policies
-// names the policies the manager answers: the node stores each as a delegate
-// whose identity is the new manager.
+// stays on the wire only: the node refuses a request that names any.
 type RegisterManagerRequest struct {
 	Name            astral.String8
 	GrantPermits    []*auth.Permit
@@ -58,9 +36,8 @@ func (r *RegisterManagerRequest) UnmarshalJSON(b []byte) error {
 	return astral.Objectify(r).UnmarshalJSON(b)
 }
 
-// PolicyBinding names the op of the manager that answers one policy. Policy
-// is one of PolicyNames. Operation is the op the node asks. Timeout bounds
-// one question as policy.Delegate.Timeout does.
+// PolicyBinding is the wire form of one entry of
+// RegisterManagerRequest.Policies. The node refuses every binding.
 type PolicyBinding struct {
 	Policy    astral.String8
 	Operation astral.String8

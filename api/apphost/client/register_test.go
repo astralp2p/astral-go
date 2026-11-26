@@ -181,7 +181,7 @@ func TestReadAccessToken_ReturnsTheMintedToken(t *testing.T) {
 
 // A failure past the accept gate arrives as an error object, not as a token.
 func TestReadAccessToken_NodeRefusalIsReturnedNotSwallowed(t *testing.T) {
-	token, err := readAccessToken(astral.NewContext(nil), answer(t, astral.NewError("register policy refused")))
+	token, err := readAccessToken(astral.NewContext(nil), answer(t, astral.NewError("registration failed")))
 	if err == nil {
 		t.Fatal("expected the node's refusal to surface")
 	}

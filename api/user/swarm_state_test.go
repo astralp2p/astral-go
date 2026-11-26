@@ -281,8 +281,8 @@ func TestContractTier_RejectsNonMemberships(t *testing.T) {
 		{Action: astral.String8(TierMember.Action())},
 		{Action: astral.String8(TierTrusted.Action())},
 	}}
-	node, _ := NewNodeContract(astral.GenerateIdentity(), astral.GenerateIdentity(), true, time.Hour)
-	for _, c := range []*auth.Contract{nil, {}, two, node} {
+	other := &auth.Contract{Permits: []*auth.Permit{{Action: astral.String8("mod.test.other_action")}}}
+	for _, c := range []*auth.Contract{nil, {}, two, other} {
 		if tier, ok := ContractTier(c); ok {
 			t.Errorf("ContractTier(%+v) = %q", c, tier)
 		}

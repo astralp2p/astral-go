@@ -25,28 +25,24 @@ func RegisterWith(ctx *astral.Context, req *apphost.RegisterRequest) (*apphost.A
 // run, so the session issuing the query is normally anonymous — the credential
 // being asked for is the one the caller does not have yet.
 //
-// permits are the permits the new identity asks to hold as node-local grants,
-// each a full auth.Permit with its constraints. A grant authorizes on this
-// node alone, and grants add up. Asking is not receiving: the node's register
-// policy decides what it writes, and the answer carries the token alone, so a
-// caller learns what it holds by using it.
+// permits are the permits the new identity asks for, each a full auth.Permit
+// with its constraints. Asking is not receiving: the node files the permits as
+// a request in SwarmState and writes them once an approval answers it, and the
+// answer carries the token alone, so a caller learns what it holds by using it
+// or waits for the outcome with apphost.request_contract.
 //
-// Register asks for grants alone, so nothing it names becomes portable.
 // RegisterWith also names the app and asks for contract permits.
 //
-// The node accepts the query before its register policy decides, so a refusal
-// arrives as the error object apphost.ErrRegistrationDeclined, which surfaces
-// here as an error, as does any failure past the accept gate. A delegated
-// policy may wait on a person. The wait ends with ctx: Register closes the
-// query, which tells the policy that nobody waits for its answer, and returns
-// ctx's error.
+// The node accepts the query before it answers, so a failure past the accept
+// gate arrives as an error object, which surfaces here as an error. The wait
+// ends with ctx: Register closes the query and returns ctx's error.
 func (client *Client) Register(ctx *astral.Context, permits ...*auth.Permit) (*apphost.AccessToken, error) {
 	return client.RegisterWith(ctx, &apphost.RegisterRequest{GrantPermits: permits})
 }
 
 // RegisterWith is Register with the whole registration: the app's name and
-// both permit lists, each permit with its constraints. The node's register
-// policy decides what it writes. The query carries no arguments; req travels
+// both permit lists, each permit with its constraints. The query carries no
+// arguments; req travels
 // on the channel as one object, even when it is empty. A nil req is refused
 // with apphost.ErrProtocolError before anything is sent.
 func (client *Client) RegisterWith(ctx *astral.Context, req *apphost.RegisterRequest) (*apphost.AccessToken, error) {

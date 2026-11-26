@@ -15,11 +15,10 @@ func RegisterManager(ctx *astral.Context, req *sys.RegisterManagerRequest) (*app
 }
 
 // RegisterManager provisions a fresh App identity as apphost.register does and
-// appoints it the node's manager: the node stores a delegate for each policy
-// req.Policies names, with the new identity as delegate identity, and records
-// the appointment. Only a fresh node appoints a manager. The node's gate may
-// deny the query before the op runs (the default gate denies it on an
-// unclaimed node); a node the gate admits that is not fresh answers
+// appoints it the node's manager: the node records the appointment, and
+// refuses a req that names any Policies. Only a fresh node appoints a
+// manager. The node's gate may deny the query before the op runs (the default
+// gate denies it on an unclaimed node); a node the gate admits that is not fresh answers
 // sys.ErrNotFresh. Either surfaces here as an error. The query carries no
 // arguments; req travels on the channel as one object. A nil req is refused
 // with sys.ErrProtocolError before anything is sent.

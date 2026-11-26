@@ -18,9 +18,8 @@ import (
 	"github.com/astralp2p/astral-go/lib/routing"
 )
 
-// A stalled node accepts a query and never answers it, as a node does while a
-// delegated register policy waits on a person, or one that hangs past the
-// accept. It reads all the caller sends.
+// A stalled node accepts a query and never answers it, as one that hangs
+// past the accept does. It reads all the caller sends.
 //
 // stalledRouters reaches one over each transport a caller meets: in-process
 // routing, and a socket conn of the type lib/apphost.Router returns. A
@@ -129,8 +128,8 @@ func endsWithCtx(t *testing.T, call func(*astral.Context) error) {
 	}
 }
 
-// The node accepts apphost.register before its policy decides, so only ctx
-// ends a wait for a policy that never answers.
+// The node accepts apphost.register before it answers, so only ctx ends a
+// wait for a node that never answers.
 func TestRegisterWith_EndsWithCtx(t *testing.T) {
 	for name, router := range stalledRouters(t, apphost.MethodRegister) {
 		t.Run(name, func(t *testing.T) {
@@ -151,30 +150,6 @@ func TestWhoami_EndsWithCtx(t *testing.T) {
 			endsWithCtx(t, func(ctx *astral.Context) error {
 				_, err := client.Whoami(ctx)
 				return err
-			})
-		})
-	}
-}
-
-func TestGrant_EndsWithCtx(t *testing.T) {
-	for name, router := range stalledRouters(t, apphost.MethodGrant) {
-		t.Run(name, func(t *testing.T) {
-			client := New(nil, astrald.New(router))
-			endsWithCtx(t, func(ctx *astral.Context) error {
-				return client.Grant(ctx, &apphost.GrantRequest{Identity: astral.GenerateIdentity(), Permits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}}})
-			})
-		})
-	}
-}
-
-// The node accepts apphost.request_grant before its policy decides, so only
-// ctx ends a wait for a policy that never answers.
-func TestRequestGrant_EndsWithCtx(t *testing.T) {
-	for name, router := range stalledRouters(t, apphost.MethodRequestGrant) {
-		t.Run(name, func(t *testing.T) {
-			client := New(nil, astrald.New(router))
-			endsWithCtx(t, func(ctx *astral.Context) error {
-				return client.RequestGrant(ctx, &apphost.RequestGrantRequest{Permits: []*auth.Permit{{Action: "mod.user.see_swarm_action"}}})
 			})
 		})
 	}
