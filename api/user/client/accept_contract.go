@@ -7,8 +7,9 @@ import (
 	"github.com/astralp2p/astral-go/astral/channel"
 )
 
-// AcceptContract activates a fully-signed node contract as the target node's
-// active contract, returning once the node acknowledges it. The caller
+// AcceptContract activates a fully-signed membership contract (the
+// PrivilegedMembership the user key signs in the ceremony) as the target
+// node's active contract, returning once the node acknowledges it. The caller
 // supplies a contract already signed by both the issuer and the subject, which
 // the node validates, stores, and activates.
 //

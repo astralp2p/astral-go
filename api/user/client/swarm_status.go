@@ -7,8 +7,8 @@ import (
 )
 
 // SwarmStatus lists every node in the user's swarm, each with its alias and
-// whether a link to it stands. A node belongs to the swarm when it holds an
-// active swarm-membership contract issued by the same user as the target node.
+// whether a link to it stands. The members are the identities whose membership
+// holds in the target node's SwarmState.
 //
 // The target node is rejected with code 2 when it holds no active contract:
 // swarm membership is what the answer is derived from, so a node belonging to

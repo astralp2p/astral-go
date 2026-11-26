@@ -8,8 +8,8 @@ import (
 )
 
 // DeleteAgent removes an agent: deletes the messaging participant under it —
-// every access token and grant, its alias, the node's hosting of its mailbox
-// and its mail — and then its record. A participant the node no longer hosts
+// its access tokens, its alias, the node's hosting of its mailbox and its
+// mail — and then its record. A participant the node no longer hosts
 // is not an error: the record is deleted all the same. The MCP endpoint checks
 // the token on every request, so a later request presenting it is refused; a
 // request already running is not cut short. The signed relay and hosting
