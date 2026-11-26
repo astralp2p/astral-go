@@ -7,10 +7,10 @@ import (
 	"github.com/astralp2p/astral-go/lib/query"
 )
 
-// Introduce asks the target node to push its active node contract to node and
-// then sync with node. node indexes the contract, so the target joins node's
-// local swarm. The call blocks until node accepted the contract; the sync runs
-// after the answer. Mirrors the astrald op OpIntroduce.
+// Introduce asks the target node to offer its active contract to node's
+// SwarmState and then sync with node. node stores the membership, so the target
+// joins node's local swarm. The call blocks until node accepted the contract;
+// the sync runs after the answer. Mirrors the astrald op OpIntroduce.
 //
 // The target refuses a query of network origin, refuses without an active
 // contract with user.ErrNoActiveContract, refuses node naming the target or its

@@ -226,7 +226,8 @@ func notify(ch chan struct{}) {
 
 // NotGranted returns the watched services the caller holds no discovery
 // permit for on some contributing node. Their private offerings there are
-// filtered; an app can ask for a grant to see them.
+// filtered; an app can ask for a discovery permit in its registration or
+// contract request to see them.
 func (w *Watcher) NotGranted() []string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
