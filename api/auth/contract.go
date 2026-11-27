@@ -20,8 +20,10 @@ type Contract struct {
 	ExpiresAt astral.Time
 
 	// RequestID names the request this contract answers: the entry ID
-	// (astral.ResolveObjectID) of the stored signed request, e.g. an
-	// api/user.SignedContractRequest, not the ID of the request body. An offer
+	// (astral.ResolveObjectID) of the stored signed request, not the ID of the
+	// request body: an api/user.SignedContractRequest for an offer and the
+	// contract that carries it out, or an api/user.SignedJoinRequest for a
+	// membership a carrier signs in the carrier session. An offer
 	// (a contract only its issuer has signed) and the contract its subject
 	// completes from it carry the same RequestID. Nil when the contract answers
 	// no stored request.
@@ -115,6 +117,12 @@ const MaxContractTextLen = 240 - 23
 // they only narrow a permit. So the text never shows a grant narrower than the
 // one signed. The commitment the signer prefixes binds everything else,
 // RequestID included.
+//
+// why not every permit as "<action type>:<depth>": with two 66-byte identities
+// and the commitment prefix, that list leaves a Privileged membership at 255
+// bytes ("mod.user.privileged_member_action:0"), so a Coldcard could not sign
+// the one contract the user key must sign in a ceremony. A single depth never
+// understates a permit's Delegation, and "+<n>" keeps every action counted.
 func (c *Contract) SignableText() string {
 	return contractText(c, c.summarize())
 }

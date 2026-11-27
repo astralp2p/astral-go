@@ -65,8 +65,11 @@ func (t Tier) Action() string {
 
 // NewMembership builds the membership contract by which issuer admits subject
 // at tier. requestID is the entry ID of the stored request the membership
-// answers (auth.Contract.RequestID), or nil when it answers none, e.g. a
-// membership signed in a carrier session or a ceremony. The contract carries
+// answers (auth.Contract.RequestID): for a membership a carrier signs in the
+// carrier session, the entry ID of the joiner's SignedJoinRequest, also when
+// the user key issues it in a ceremony during that join. It is nil only when
+// the membership answers no request, e.g. one the user key signs directly
+// outside a join. The contract carries
 // one non-delegable tier permit and expires after duration. It counts only
 // once both issuer and subject have signed it.
 func NewMembership(issuer, subject *astral.Identity, tier Tier, requestID *astral.ObjectID, duration time.Duration) (*auth.Contract, error) {
