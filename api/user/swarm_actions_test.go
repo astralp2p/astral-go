@@ -42,7 +42,6 @@ func TestAdminSwarmActionRoundTrip(t *testing.T) {
 		a    *AdminSwarmAction
 	}{
 		{"membership call", &AdminSwarmAction{Action: auth.NewAction(nil), Subject: &astral.Identity{}}},
-		{"asset call", &AdminSwarmAction{Action: auth.NewAction(nil), ObjectID: &astral.ObjectID{}}},
 		{"neither noun", &AdminSwarmAction{Action: auth.NewAction(nil)}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

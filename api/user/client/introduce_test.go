@@ -12,7 +12,7 @@ import (
 )
 
 // astrald names the target of user.introduce `identity` and declares it
-// required, as it does for user.sync_with (see sync_with_test.go). The op below
+// required. The op below
 // mirrors astrald's declaration and answers with reply, so routing the real
 // client through it pins the wire key and the reply handling.
 

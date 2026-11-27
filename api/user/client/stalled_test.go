@@ -21,11 +21,10 @@ func stalledClient(t *testing.T) *Client {
 	t.Helper()
 	ops := routing.NewOpRouter()
 	for _, name := range []string{
-		user.OpAcceptContract, user.OpAddAsset,
-		user.OpAssets, user.OpBootstrap, user.OpContract, user.OpDeriveIdentity, user.OpExpel, user.OpInfo,
+		user.OpAcceptContract,
+		user.OpBootstrap, user.OpContract, user.OpDeriveIdentity, user.OpExpel, user.OpInfo,
 		user.OpJoin, user.OpListExpelled, user.OpListSiblings, user.OpNewNodeContract,
-		user.OpRemoveAsset, user.OpSwarmStatus, user.OpSyncAssets,
-		user.OpSyncWith,
+		user.OpSwarmStatus,
 	} {
 		op, err := routing.NewOp(func(_ *astral.Context, q *routing.IncomingQuery) error {
 			conn := q.AcceptRaw()
@@ -49,15 +48,12 @@ func stalledClient(t *testing.T) *Client {
 func TestEveryCallEndsWithCtx(t *testing.T) {
 	c := stalledClient(t)
 	node := astral.GenerateIdentity()
-	object, _ := astral.ResolveObjectID(astral.NewString8("asset"))
 	contract := &auth.Contract{Issuer: node, Subject: node}
 
 	calls := map[string]func(*astral.Context) error{
 		"AcceptContract": func(ctx *astral.Context) error {
 			return c.AcceptContract(ctx, &auth.SignedContract{Contract: contract})
 		},
-		"AddAsset":       func(ctx *astral.Context) error { return c.AddAsset(ctx, object) },
-		"Assets":         func(ctx *astral.Context) error { _, err := c.Assets(ctx); return err },
 		"Bootstrap":      func(ctx *astral.Context) error { _, err := c.Bootstrap(ctx, "some words", ""); return err },
 		"Contract":       func(ctx *astral.Context) error { _, err := c.Contract(ctx); return err },
 		"DeriveIdentity": func(ctx *astral.Context) error { _, err := c.DeriveIdentity(ctx, "", ""); return err },
@@ -67,10 +63,7 @@ func TestEveryCallEndsWithCtx(t *testing.T) {
 		"ListExpelled":   func(ctx *astral.Context) error { _, err := c.ListExpelled(ctx); return err },
 		"ListSiblings":   func(ctx *astral.Context) error { _, err := c.ListSiblings(ctx, 0); return err },
 		"NewContract":    func(ctx *astral.Context) error { _, err := c.NewContract(ctx, "alias"); return err },
-		"RemoveAsset":    func(ctx *astral.Context) error { return c.RemoveAsset(ctx, object) },
 		"SwarmStatus":    func(ctx *astral.Context) error { _, err := c.SwarmStatus(ctx); return err },
-		"SyncAssets":     func(ctx *astral.Context) error { _, _, err := c.SyncAssets(ctx, 0); return err },
-		"SyncWith":       func(ctx *astral.Context) error { return c.SyncWith(ctx, node) },
 	}
 
 	for name, call := range calls {
