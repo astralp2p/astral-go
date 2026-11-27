@@ -72,23 +72,62 @@ func (t Tier) Action() string {
 // outside a join. The contract carries
 // one non-delegable tier permit and expires after duration. It counts only
 // once both issuer and subject have signed it.
+//
+// NewMembership reads the clock, so two calls never build the same body. A
+// membership signed in the carrier session must have the same body each time
+// the joiner resends its request; it is built with NewMembershipUntil and
+// JoinMembershipExpiry instead.
 func NewMembership(issuer, subject *astral.Identity, tier Tier, requestID *astral.ObjectID, duration time.Duration) (*auth.Contract, error) {
+	if duration <= 0 {
+		return nil, errors.New("membership: duration must be positive")
+	}
+	return NewMembershipUntil(issuer, subject, tier, requestID, astral.Time(time.Now().Add(duration)))
+}
+
+// NewMembershipUntil is NewMembership with an explicit expiry: the contract
+// expires at expiresAt, which must be set. It reads no clock, so the same
+// arguments always build the same body; whether expiresAt lies in the future
+// is the caller's to check.
+func NewMembershipUntil(issuer, subject *astral.Identity, tier Tier, requestID *astral.ObjectID, expiresAt astral.Time) (*auth.Contract, error) {
 	switch {
 	case issuer.IsZero() || subject.IsZero():
 		return nil, errors.New("membership: issuer and subject are required")
 	case !tier.IsValid():
 		return nil, fmt.Errorf("membership: invalid tier %q", string(tier))
-	case duration <= 0:
-		return nil, errors.New("membership: duration must be positive")
+	case expiresAt.Time().IsZero():
+		return nil, errors.New("membership: expiry is required")
 	}
 
 	return &auth.Contract{
 		Issuer:    issuer,
 		Subject:   subject,
 		Permits:   []*auth.Permit{{Action: astral.String8(tier.Action())}},
-		ExpiresAt: astral.Time(time.Now().Add(duration)),
+		ExpiresAt: expiresAt,
 		RequestID: requestID,
 	}, nil
+}
+
+// JoinMembershipExpiry returns the expiry of the membership that answers req
+// in the carrier session: req.FiledAt plus validity, but no later than
+// issuerExpiry, the expiry of the issuer's own membership. A zero issuerExpiry
+// sets no bound; it is passed when the user key issues the membership, since
+// the user key holds no membership. The result is a function of its arguments
+// alone, never of the time of signing, so a joiner that resends the same
+// signed request after a dropped connection receives a membership with the
+// same body, as long as the issuer's membership is the same.
+//
+// FiledAt is the joiner's claim: checking that req is not filed in the future
+// is the caller's, and issuerExpiry caps what a joiner gains by a later
+// FiledAt in any case.
+func JoinMembershipExpiry(req *JoinRequest, validity time.Duration, issuerExpiry astral.Time) astral.Time {
+	if req == nil {
+		return astral.Time{}
+	}
+	expires := req.FiledAt.Time().Add(validity)
+	if bound := issuerExpiry.Time(); !bound.IsZero() && bound.Before(expires) {
+		expires = bound
+	}
+	return astral.Time(expires)
 }
 
 // ContractTier returns the tier a contract grants. It returns false unless the

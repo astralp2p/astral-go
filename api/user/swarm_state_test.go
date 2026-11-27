@@ -285,6 +285,88 @@ func TestNewMembership(t *testing.T) {
 	}
 }
 
+func TestNewMembershipUntil(t *testing.T) {
+	issuer, subject := astral.GenerateIdentity(), astral.GenerateIdentity()
+	request := sampleRequestID()
+	at := astral.Time(time.Date(2026, 12, 1, 10, 0, 0, 0, time.UTC))
+
+	c1, err := NewMembershipUntil(issuer, subject, TierTrusted, request, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c2, err := NewMembershipUntil(issuer, subject, TierTrusted, request, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c1.ExpiresAt.Time().Equal(at.Time()) || c1.RequestID != request || !TierOnly(c1, TierTrusted) {
+		t.Fatalf("NewMembershipUntil: %+v", c1)
+	}
+	var b1, b2 bytes.Buffer
+	if _, err := c1.WriteTo(&b1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c2.WriteTo(&b2); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
+		t.Fatal("the same arguments built two different bodies")
+	}
+
+	for _, bad := range []struct {
+		issuer, subject *astral.Identity
+		tier            Tier
+		at              astral.Time
+	}{
+		{nil, subject, TierMember, at},
+		{issuer, nil, TierMember, at},
+		{issuer, subject, "admin", at},
+		{issuer, subject, TierMember, astral.Time{}},
+	} {
+		if _, err := NewMembershipUntil(bad.issuer, bad.subject, bad.tier, nil, bad.at); err == nil {
+			t.Errorf("NewMembershipUntil(%v, %v, %q, %v) succeeded", bad.issuer, bad.subject, bad.tier, bad.at)
+		}
+	}
+}
+
+func TestJoinMembershipExpiry(t *testing.T) {
+	filed := time.Date(2026, 12, 1, 10, 0, 0, 0, time.UTC)
+	req := &JoinRequest{
+		Joiner:  astral.GenerateIdentity(),
+		Carrier: astral.GenerateIdentity(),
+		Tier:    TierMember,
+		FiledAt: astral.Time(filed),
+		Timeout: RequestDeadline(astral.Time(filed)),
+	}
+	const validity = 30 * 24 * time.Hour
+	full := filed.Add(validity)
+
+	for _, tc := range []struct {
+		name   string
+		issuer astral.Time
+		want   time.Time
+	}{
+		{"user key, no bound", astral.Time{}, full},
+		{"issuer outlives the validity", astral.Time(full.Add(time.Hour)), full},
+		{"issuer expires first", astral.Time(filed.Add(time.Hour)), filed.Add(time.Hour)},
+		{"issuer expires at the same time", astral.Time(full), full},
+	} {
+		got := JoinMembershipExpiry(req, validity, tc.issuer)
+		if !got.Time().Equal(tc.want) {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+		if again := JoinMembershipExpiry(req, validity, tc.issuer); !again.Time().Equal(got.Time()) {
+			t.Errorf("%s: a second call gave %v, then %v", tc.name, got, again)
+		}
+	}
+
+	if !JoinMembershipExpiry(nil, validity, astral.Time{}).Time().IsZero() {
+		t.Error("a nil request has no expiry")
+	}
+	if _, err := NewMembershipUntil(req.Carrier, req.Joiner, req.Tier, sampleRequestID(), JoinMembershipExpiry(nil, validity, astral.Time{})); err == nil {
+		t.Error("NewMembershipUntil accepted the zero expiry of a nil request")
+	}
+}
+
 func TestContractTier_RejectsNonMemberships(t *testing.T) {
 	two := &auth.Contract{Permits: []*auth.Permit{
 		{Action: astral.String8(TierMember.Action())},
