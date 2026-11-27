@@ -8,9 +8,10 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// Approval answers the request RequestID with yes. Issuer signs it. The node
-// the Approval touches carries it out: it signs a contract whose ApprovalID is
-// the entry ID of this Approval's SignedApproval (see EntryKindOf).
+// Approval answers the request RequestID with yes. Issuer signs it. Only an
+// ExpelRequest is answered by an Approval; a request that yields a contract is
+// answered by an offer, a contract its issuer signs whose RequestID names the
+// request, and the request's filer co-signs it (auth.Contract.RequestID).
 //
 // An Approval counts whenever it is given: nodes cannot tell when it was
 // signed, so, like the Decline rule (D3), its effect needs no clock. Answering
@@ -67,7 +68,9 @@ func (a *SignedApproval) Signature() *crypto.Signature { return a.IssuerSig }
 func (a *SignedApproval) IsNil() bool { return a == nil || a.Approval == nil }
 
 // Decline answers the request RequestID with no. Issuer signs it. A Decline
-// beats every Approval of the same request, even one already carried out.
+// closes its request: no offer for it is accepted or co-signed afterwards. A
+// contract its issuer and subject both signed before keeps its authority; only
+// an expel of a party in its chain or its expiry ends it.
 type Decline struct {
 	Issuer *astral.Identity
 	// RequestID is the entry ID of the stored signed request, as in Approval.

@@ -7,8 +7,8 @@ import (
 	"github.com/astralp2p/astral-go/astral"
 )
 
-// swarmEntryEvents returns one populated value of every SwarmState event
-// type, and one with its optional IDs left nil.
+// swarmEntryEvents returns one populated value of every SwarmState and member
+// event type, and one with its optional IDs left nil.
 func swarmEntryEvents() []astral.Object {
 	issuer, subject := astral.GenerateIdentity(), astral.GenerateIdentity()
 	return []astral.Object{
@@ -17,8 +17,12 @@ func swarmEntryEvents() []astral.Object {
 		&SwarmRequestApproved{RequestID: sampleRequestID()},
 		&SwarmRequestDeclined{RequestID: sampleRequestID()},
 		&SwarmRequestExpired{RequestID: sampleRequestID()},
-		&SwarmContractAdded{ContractID: sampleRequestID(), Issuer: issuer, Subject: subject, ApprovalID: sampleRequestID()},
+		&SwarmOfferAdded{OfferID: sampleRequestID(), RequestID: sampleRequestID(), Issuer: issuer, Subject: subject},
+		&SwarmContractAdded{ContractID: sampleRequestID(), Issuer: issuer, Subject: subject, RequestID: sampleRequestID()},
 		&SwarmContractAdded{ContractID: sampleRequestID(), Issuer: issuer, Subject: subject},
+		&SwarmMemberJoined{NodeID: subject},
+		&SwarmMemberLeft{NodeID: subject},
+		&SwarmNodeBanned{NodeID: subject},
 	}
 }
 

@@ -31,7 +31,7 @@ func ValidRequestTimeout(filedAt, timeout astral.Time) bool {
 func signableTime(t astral.Time) string { return t.Time().Format("2006-01-02 15:04:05") }
 
 // ContractRequest asks for permits for Identity, e.g. an app FiledBy hosts.
-// FiledBy signs it. A Privileged node answers it with an Approval or a Decline.
+// FiledBy signs it. A Privileged node answers it with an offer or a Decline.
 type ContractRequest struct {
 	FiledBy  *astral.Identity
 	Identity *astral.Identity
@@ -88,9 +88,41 @@ func (r *ContractRequest) Expired(now time.Time) bool { return now.After(r.Timeo
 // Covers reports whether c's permits are among those r requests: c has at
 // least one permit, and each encodes byte-equal (Action, Constraints and
 // Delegation) to one of r.Permits. It checks permits only; who issued c and
-// whom it names are the caller's to check. A host carrying out an Approval
-// copies r.Permits into the contract, which always covers.
+// whom it names are the caller's to check. A contract that copies r.Permits
+// always covers.
+//
+// Covers is the rule for the contract that carries a request out, the host's
+// contract to the app r names. An approver's offer to the filer carries each
+// permit one delegation hop deeper, so Covers refuses every valid offer; an
+// offer is checked with CoversOffer.
 func (r *ContractRequest) Covers(c *auth.Contract) bool {
+	return r.covers(c, 0, false)
+}
+
+// CoversOffer reports whether offer is no wider than r: offer has at least one
+// permit, each has the Action and Constraints of one of r.Permits and a
+// Delegation exactly 1 more than that permit's, and no two of its permits are
+// equal. An offer may carry a subset of r.Permits. A permit at Delegation 0,
+// one that matches no requested permit, one at any other depth, or a repeated
+// permit fails the check. Like Covers it checks permits only; that offer names
+// r as its RequestID and r's filer as its Subject, and who issued it, are the
+// caller's to check. The completed approver-to-host contract follows the same
+// rule.
+//
+// why: the approver's contract to the host must let the host pass the
+// requested permits on to the app in one more hop, and no further; a depth
+// equal to the request's would leave the host unable to issue the app's
+// contract, and a larger one would let the app delegate beyond what was asked.
+// Every node's merge check applies this rule, so it admits one fixed set of
+// offers, and a repeated permit adds no authority.
+func (r *ContractRequest) CoversOffer(offer *auth.Contract) bool {
+	return r.covers(offer, 1, true)
+}
+
+// covers checks each of c's permits, with its Delegation lowered by extra,
+// byte-equal against r.Permits. With distinct set, two equal permits in c
+// fail the check.
+func (r *ContractRequest) covers(c *auth.Contract, extra astral.Uint8, distinct bool) bool {
 	if r == nil || c == nil || len(c.Permits) == 0 {
 		return false
 	}
@@ -100,10 +132,18 @@ func (r *ContractRequest) Covers(c *auth.Contract) bool {
 			requested[b] = true
 		}
 	}
+	seen := make(map[string]bool, len(c.Permits))
 	for _, p := range c.Permits {
-		if b, ok := permitBytes(p); !ok || !requested[b] {
+		if p == nil || p.Delegation < extra {
 			return false
 		}
+		lowered := *p
+		lowered.Delegation -= extra
+		b, ok := permitBytes(&lowered)
+		if !ok || !requested[b] || (distinct && seen[b]) {
+			return false
+		}
+		seen[b] = true
 	}
 	return true
 }

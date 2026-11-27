@@ -3,6 +3,8 @@ package auth
 import (
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 
 	"github.com/astralp2p/astral-go/api/crypto"
 	"github.com/astralp2p/astral-go/astral"
@@ -17,17 +19,24 @@ type Contract struct {
 
 	ExpiresAt astral.Time
 
-	// ApprovalID names the Approval this contract carries out: the entry ID
-	// (astral.ResolveObjectID) of the stored api/user.SignedApproval, the key
-	// SwarmState stores it under, not the ID of the unsigned Approval body.
-	// Nil when the contract carries out no Approval, e.g. a membership the
-	// user key signs in a ceremony.
+	// RequestID names the request this contract answers: the entry ID
+	// (astral.ResolveObjectID) of the stored signed request, not the ID of the
+	// request body: an api/user.SignedContractRequest for an offer and the
+	// contract that carries it out, or an api/user.SignedJoinRequest for a
+	// membership a carrier signs in the carrier session. An offer
+	// (a contract only its issuer has signed) and the contract its subject
+	// completes from it carry the same RequestID. Nil when the contract answers
+	// no stored request.
 	//
-	// why last: fields encode in order with no tags, so a new field changes
-	// every contract's bytes and ObjectID either way; appending keeps the
-	// earlier fields at their offsets. Contracts encoded before this field
-	// existed no longer decode (new swarms only, D11).
-	ApprovalID *astral.ObjectID
+	// The link never adds or redirects authority: a contract has authority only
+	// when both its issuer and its subject signed it.
+	//
+	// why a request, not its answer: an offer is itself the answer, and an
+	// entry cannot name an entry that contains it.
+	// why last: fields encode in order with no tags; appending keeps the
+	// earlier fields at their offsets. New swarms only (D11): a contract
+	// encoded with another field layout does not decode.
+	RequestID *astral.ObjectID
 }
 
 type Permit struct {
@@ -90,22 +99,38 @@ func (c *Contract) SignableHash() []byte {
 	return id.Hash[:]
 }
 
-// SignableText is one fixed-shape ASCII line:
+// MaxContractTextLen is the longest SignableText of a contract: a text signer
+// such as a Coldcard signs at most 240 bytes, and the commitment prefix
+// "[<20 base64 characters>] " takes 23 of them (astrald mod/crypto).
+const MaxContractTextLen = 240 - 23
+
+// SignableText is one fixed-shape ASCII line of at most MaxContractTextLen
+// bytes:
 //
-//	<issuer> grants <subject> [<word> ]permits (<n>) until <YYYY-MM-DD hh:mm:ss>
+//	<issuer> grants <subject> <actions> depth <d> until <YYYY-MM-DD hh:mm:ss>
 //
-// <word> is the PermitWord of the first permit whose action declares one, e.g.
-// the tier of a membership; it is absent otherwise. The commitment the signer
-// prefixes binds everything else, ApprovalID included.
+// <actions> lists the distinct permit actions in permit order, comma
+// separated, each by its actionWord. When the line has no room for every
+// action, or an action has no actionWord, the list ends with "+<n>", the
+// number of actions not shown; a contract without permits shows "none".
+// <d> is the largest Delegation among the permits. Constraints are not shown;
+// they only narrow a permit. So the text never shows a grant narrower than the
+// one signed. The commitment the signer prefixes binds everything else,
+// RequestID included.
+//
+// why not every permit as "<action type>:<depth>": with two 66-byte identities
+// and the commitment prefix, that list leaves a Privileged membership at 255
+// bytes ("mod.user.privileged_member_action:0"), so a Coldcard could not sign
+// the one contract the user key must sign in a ceremony. A single depth never
+// understates a permit's Delegation, and "+<n>" keeps every action counted.
 func (c *Contract) SignableText() string {
-	return contractText(c, c.permitWord(), len(c.Permits))
+	return contractText(c, c.summarize())
 }
 
-// PermitWorder is implemented by an action type whose permit names itself in a
-// contract's signable text, so a signer such as a Coldcard shows it.
+// PermitWorder is implemented by an action type whose permit names itself by
+// a short word in a contract's signable text, e.g. the tier of a membership.
 //
-// A word longer than MaxPermitWordLen or outside [a-z_] is ignored, which keeps
-// the line within the signer's limit.
+// A word longer than MaxPermitWordLen or outside [a-z_] is ignored.
 type PermitWorder interface {
 	PermitWord() string
 }
@@ -114,20 +139,34 @@ type PermitWorder interface {
 // (len("privileged_member")).
 const MaxPermitWordLen = 17
 
-func (c *Contract) permitWord() string {
-	for _, p := range c.Permits {
-		if p == nil {
-			continue
-		}
-		w, ok := astral.New(string(p.Action)).(PermitWorder)
-		if !ok {
-			continue
-		}
+// actionWord returns how a contract's signable text names action: its
+// PermitWord when its registered type declares a valid one, else
+// "<module>.<name>" for an action type "mod.<module>.<name>_action" whose
+// parts are in [a-z0-9_]. It returns false for any other action, which the
+// text counts but does not name.
+//
+// why only these shapes: a word holds no '.' and a shortened type holds one,
+// so a shortened type renders like no word and no other type; both use only
+// [a-z0-9_.], so no action forges the line's separators.
+func actionWord(action string) (string, bool) {
+	if w, ok := astral.New(action).(PermitWorder); ok {
 		if word := w.PermitWord(); validPermitWord(word) {
-			return word
+			return word, true
 		}
 	}
-	return ""
+	rest, ok := strings.CutPrefix(action, "mod.")
+	if !ok {
+		return "", false
+	}
+	rest, ok = strings.CutSuffix(rest, "_action")
+	if !ok {
+		return "", false
+	}
+	module, name, ok := strings.Cut(rest, ".")
+	if !ok || !actionPart(module) || !actionPart(name) {
+		return "", false
+	}
+	return module + "." + name, true
 }
 
 func validPermitWord(w string) bool {
@@ -142,20 +181,94 @@ func validPermitWord(w string) bool {
 	return true
 }
 
-// contractText takes the permit count apart from c so a test can render the
-// worst case, a count of math.MaxUint32, without building that many permits.
-func contractText(c *Contract, word string, permits int) string {
-	if word != "" {
-		word += " "
+func actionPart(s string) bool {
+	if s == "" {
+		return false
 	}
-	return fmt.Sprintf(
-		"%s grants %s %spermits (%d) until %s",
-		c.Issuer.String(),
-		c.Subject.String(),
-		word,
-		permits,
-		c.ExpiresAt.Time().Format("2006-01-02 15:04:05"),
-	)
+	for i := 0; i < len(s); i++ {
+		if (s[i] < 'a' || s[i] > 'z') && (s[i] < '0' || s[i] > '9') && s[i] != '_' {
+			return false
+		}
+	}
+	return true
+}
+
+// permitSummary is what a contract's signable text shows of its permits.
+type permitSummary struct {
+	words  []string // the actionWord of each distinct action that has one, in permit order
+	hidden uint64   // distinct actions without an actionWord
+	depth  uint8    // the largest Delegation
+}
+
+func (c *Contract) summarize() permitSummary {
+	var s permitSummary
+	seen := make(map[string]bool, len(c.Permits))
+	for _, p := range c.Permits {
+		if p == nil {
+			continue
+		}
+		s.depth = max(s.depth, uint8(p.Delegation))
+		if seen[string(p.Action)] {
+			continue
+		}
+		seen[string(p.Action)] = true
+		if w, ok := actionWord(string(p.Action)); ok {
+			s.words = append(s.words, w)
+		} else {
+			s.hidden++
+		}
+	}
+	return s
+}
+
+// contractText takes the summary apart from c so a test can render the worst
+// case, e.g. math.MaxUint32 hidden actions, without building that many permits.
+func contractText(c *Contract, s permitSummary) string {
+	head := c.Issuer.String() + " grants " + c.Subject.String() + " "
+	tail := fmt.Sprintf(" depth %d until %s", s.depth, c.ExpiresAt.Time().Format("2006-01-02 15:04:05"))
+	return head + actionList(s, MaxContractTextLen-len(head)-len(tail)) + tail
+}
+
+// actionList renders the longest prefix of s.words that fits in budget bytes
+// together with the "+<n>" count of the actions left out.
+func actionList(s permitSummary, budget int) string {
+	if len(s.words) == 0 && s.hidden == 0 {
+		return "none"
+	}
+	total := uint64(len(s.words)) + s.hidden
+	shown, used := 0, 0
+	for _, w := range s.words {
+		next := used + len(w)
+		if shown > 0 {
+			next++ // the comma before w
+		}
+		if next+overflowLen(shown+1, total) > budget {
+			break
+		}
+		shown, used = shown+1, next
+	}
+	list := strings.Join(s.words[:shown], ",")
+	if left := total - uint64(shown); left > 0 {
+		if shown > 0 {
+			list += ","
+		}
+		list += "+" + strconv.FormatUint(left, 10)
+	}
+	return list
+}
+
+// overflowLen is the length of the ",+<n>" or "+<n>" a list of shown words out
+// of total actions ends with, or 0 when every action is shown.
+func overflowLen(shown int, total uint64) int {
+	left := total - uint64(shown)
+	if left == 0 {
+		return 0
+	}
+	n := 1 + len(strconv.FormatUint(left, 10))
+	if shown > 0 {
+		n++
+	}
+	return n
 }
 
 func init() {

@@ -8,7 +8,7 @@ import (
 // An entry's ID is astral.ResolveObjectID of the signed form exactly as stored,
 // signatures included: the key SwarmState stores it under and the ID every
 // reference holds (Approval.RequestID, Decline.RequestID,
-// auth.Contract.ApprovalID). It differs from the ID of the unsigned body, which
+// auth.Contract.RequestID). It differs from the ID of the unsigned body, which
 // SignableHash commits to.
 
 // EntryKindOf returns the SwarmState directory an entry belongs in. Only signed

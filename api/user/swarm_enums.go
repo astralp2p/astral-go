@@ -32,18 +32,32 @@ func (t Tier) IsValid() bool {
 func (t Tier) String() string { return string(t) }
 
 // RequestStatus is a request's status, derived from SwarmState and never stored.
-// Precedence: declined, approved, expired, pending.
+// Precedence: fulfilled, declined, approved, expired, offered, pending.
+//
+// why fulfilled first: a Decline closes only its request; a contract both
+// parties signed keeps its authority, so the status shows it.
 type RequestStatus astral.String8
 
 const (
-	RequestPending  RequestStatus = "pending"  // no answer yet and the timeout has not passed
-	RequestApproved RequestStatus = "approved" // an Approval exists and no Decline
-	RequestDeclined RequestStatus = "declined" // a Decline exists; it beats any Approval
-	RequestExpired  RequestStatus = "expired"  // no answer and the timeout has passed
+	RequestPending   RequestStatus = "pending"   // no answer yet and the timeout has not passed
+	RequestOffered   RequestStatus = "offered"   // a valid offer exists and the timeout has not passed
+	RequestFulfilled RequestStatus = "fulfilled" // a contract with both signatures names the request
+	RequestApproved  RequestStatus = "approved"  // an ExpelRequest has a counting Approval, or the user key expelled its Subject, and no Decline
+	RequestDeclined  RequestStatus = "declined"  // a Decline exists and no contract fulfils the request
+	RequestExpired   RequestStatus = "expired"   // the timeout has passed with no other status
 )
 
+// RequestStatuses lists every valid RequestStatus.
+var RequestStatuses = []RequestStatus{
+	RequestPending, RequestOffered, RequestFulfilled, RequestApproved, RequestDeclined, RequestExpired,
+}
+
 func (s RequestStatus) IsValid() bool {
-	return s == RequestPending || s == RequestApproved || s == RequestDeclined || s == RequestExpired
+	switch s {
+	case RequestPending, RequestOffered, RequestFulfilled, RequestApproved, RequestDeclined, RequestExpired:
+		return true
+	}
+	return false
 }
 
 func (s RequestStatus) String() string { return string(s) }

@@ -14,6 +14,9 @@ type SignableObject interface {
 type SignableTextObject interface {
 	SignableObject
 
-	// SignableText returns a human-readable text of the contract no longer than 200 characters.
+	// SignableText returns a human-readable, printable ASCII line of the object.
+	// A text signer signs it after a 23-byte commitment prefix, and a Coldcard
+	// signs at most 240 bytes, so the line is at most 217 bytes (see
+	// auth.MaxContractTextLen).
 	SignableText() string
 }

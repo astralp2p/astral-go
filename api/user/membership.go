@@ -64,26 +64,70 @@ func (t Tier) Action() string {
 }
 
 // NewMembership builds the membership contract by which issuer admits subject
-// at tier. approvalID is the Approval the membership carries out; it is nil
-// when the user key signs the membership in a ceremony (a Privileged node).
-// The contract carries one non-delegable tier permit and expires after duration.
-func NewMembership(issuer, subject *astral.Identity, tier Tier, approvalID *astral.ObjectID, duration time.Duration) (*auth.Contract, error) {
+// at tier. requestID is the entry ID of the stored request the membership
+// answers (auth.Contract.RequestID): for a membership a carrier signs in the
+// carrier session, the entry ID of the joiner's SignedJoinRequest, also when
+// the user key issues it in a ceremony during that join. It is nil only when
+// the membership answers no request, e.g. one the user key signs directly
+// outside a join. The contract carries
+// one non-delegable tier permit and expires after duration. It counts only
+// once both issuer and subject have signed it.
+//
+// NewMembership reads the clock, so two calls never build the same body. A
+// membership signed in the carrier session must have the same body each time
+// the joiner resends its request; it is built with NewMembershipUntil and
+// JoinMembershipExpiry instead.
+func NewMembership(issuer, subject *astral.Identity, tier Tier, requestID *astral.ObjectID, duration time.Duration) (*auth.Contract, error) {
+	if duration <= 0 {
+		return nil, errors.New("membership: duration must be positive")
+	}
+	return NewMembershipUntil(issuer, subject, tier, requestID, astral.Time(time.Now().Add(duration)))
+}
+
+// NewMembershipUntil is NewMembership with an explicit expiry: the contract
+// expires at expiresAt, which must be set. It reads no clock, so the same
+// arguments always build the same body; whether expiresAt lies in the future
+// is the caller's to check.
+func NewMembershipUntil(issuer, subject *astral.Identity, tier Tier, requestID *astral.ObjectID, expiresAt astral.Time) (*auth.Contract, error) {
 	switch {
 	case issuer.IsZero() || subject.IsZero():
 		return nil, errors.New("membership: issuer and subject are required")
 	case !tier.IsValid():
 		return nil, fmt.Errorf("membership: invalid tier %q", string(tier))
-	case duration <= 0:
-		return nil, errors.New("membership: duration must be positive")
+	case expiresAt.Time().IsZero():
+		return nil, errors.New("membership: expiry is required")
 	}
 
 	return &auth.Contract{
-		Issuer:     issuer,
-		Subject:    subject,
-		Permits:    []*auth.Permit{{Action: astral.String8(tier.Action())}},
-		ExpiresAt:  astral.Time(time.Now().Add(duration)),
-		ApprovalID: approvalID,
+		Issuer:    issuer,
+		Subject:   subject,
+		Permits:   []*auth.Permit{{Action: astral.String8(tier.Action())}},
+		ExpiresAt: expiresAt,
+		RequestID: requestID,
 	}, nil
+}
+
+// JoinMembershipExpiry returns the expiry of the membership that answers req
+// in the carrier session: req.FiledAt plus validity, but no later than
+// issuerExpiry, the expiry of the issuer's own membership. A zero issuerExpiry
+// sets no bound; it is passed when the user key issues the membership, since
+// the user key holds no membership. The result is a function of its arguments
+// alone, never of the time of signing, so a joiner that resends the same
+// signed request after a dropped connection receives a membership with the
+// same body, as long as the issuer's membership is the same.
+//
+// FiledAt is the joiner's claim: checking that req is not filed in the future
+// is the caller's, and issuerExpiry caps what a joiner gains by a later
+// FiledAt in any case.
+func JoinMembershipExpiry(req *JoinRequest, validity time.Duration, issuerExpiry astral.Time) astral.Time {
+	if req == nil {
+		return astral.Time{}
+	}
+	expires := req.FiledAt.Time().Add(validity)
+	if bound := issuerExpiry.Time(); !bound.IsZero() && bound.Before(expires) {
+		expires = bound
+	}
+	return astral.Time(expires)
 }
 
 // ContractTier returns the tier a contract grants. It returns false unless the
@@ -134,8 +178,8 @@ type Membership struct {
 }
 
 // MembershipOf views c as a membership. It returns false when c is nil or does
-// not carry exactly one tier permit. It checks neither signatures, expiry,
-// approval links nor expels.
+// not carry exactly one tier permit. It checks neither signatures, expiry nor
+// expels; a membership counts only with a valid IssuerSig and SubjectSig.
 func MembershipOf(c *auth.SignedContract) (*Membership, bool) {
 	if c.IsNil() {
 		return nil, false

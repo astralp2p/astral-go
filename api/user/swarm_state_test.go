@@ -137,7 +137,7 @@ func TestSwarmEnums_RoundTrip(t *testing.T) {
 		v := v
 		values = append(values, &v)
 	}
-	for _, v := range []RequestStatus{RequestPending, RequestApproved, RequestDeclined, RequestExpired} {
+	for _, v := range RequestStatuses {
 		v := v
 		values = append(values, &v)
 	}
@@ -180,6 +180,14 @@ func TestSwarmEnums_IsValid(t *testing.T) {
 	}
 	if !TierPrivilegedMember.IsValid() || !RequestExpired.IsValid() || !EntryWait.IsValid() || !EntryExpels.IsValid() {
 		t.Fatal("a declared value reports invalid")
+	}
+	for _, s := range RequestStatuses {
+		if !s.IsValid() {
+			t.Fatalf("%q reports invalid", s)
+		}
+	}
+	if len(RequestStatuses) != 6 || !RequestOffered.IsValid() || !RequestFulfilled.IsValid() {
+		t.Fatal("RequestStatuses lacks offered or fulfilled")
 	}
 }
 
@@ -235,28 +243,29 @@ func TestRequestTimeout(t *testing.T) {
 func TestNewMembership(t *testing.T) {
 	issuer, subject := astral.GenerateIdentity(), astral.GenerateIdentity()
 	for _, tier := range Tiers {
-		for _, approval := range []*astral.ObjectID{nil, sampleRequestID()} {
-			c, err := NewMembership(issuer, subject, tier, approval, time.Hour)
+		for _, request := range []*astral.ObjectID{nil, sampleRequestID()} {
+			c, err := NewMembership(issuer, subject, tier, request, time.Hour)
 			if err != nil {
 				t.Fatalf("%s: %v", tier, err)
 			}
 			if got, ok := ContractTier(c); !ok || got != tier {
 				t.Fatalf("ContractTier: got %q %v, want %q", got, ok, tier)
 			}
-			if c.ApprovalID != approval {
-				t.Fatalf("approvalID not carried")
+			if c.RequestID != request {
+				t.Fatalf("requestID not carried")
 			}
 			if err := auth.ValidatePermit(c.Permits[0]); err != nil {
 				t.Fatalf("%s permit invalid: %v", tier, err)
 			}
-			if !strings.Contains(c.SignableText(), " "+string(tier)+" permits (1) until ") {
-				t.Fatalf("signable text lacks the tier word: %q", c.SignableText())
+			if !strings.Contains(c.SignableText(), " "+string(tier)+" depth 0 until ") {
+				t.Fatalf("signable text lacks the tier word or depth: %q", c.SignableText())
 			}
 
 			m, ok := MembershipOf(&auth.SignedContract{Contract: c})
-			if !ok || m.Tier != tier || !m.Subject.IsEqual(subject) {
+			if !ok || m.Tier != tier || !m.Subject.IsEqual(subject) || m.RequestID != request {
 				t.Fatalf("MembershipOf: %+v %v", m, ok)
 			}
+			membershipRoundTrip(t, m)
 		}
 	}
 
@@ -273,6 +282,88 @@ func TestNewMembership(t *testing.T) {
 		if _, err := NewMembership(bad.issuer, bad.subject, bad.tier, nil, bad.d); err == nil {
 			t.Errorf("NewMembership(%v, %v, %q, %v) succeeded", bad.issuer, bad.subject, bad.tier, bad.d)
 		}
+	}
+}
+
+func TestNewMembershipUntil(t *testing.T) {
+	issuer, subject := astral.GenerateIdentity(), astral.GenerateIdentity()
+	request := sampleRequestID()
+	at := astral.Time(time.Date(2026, 12, 1, 10, 0, 0, 0, time.UTC))
+
+	c1, err := NewMembershipUntil(issuer, subject, TierTrusted, request, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c2, err := NewMembershipUntil(issuer, subject, TierTrusted, request, at)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !c1.ExpiresAt.Time().Equal(at.Time()) || c1.RequestID != request || !TierOnly(c1, TierTrusted) {
+		t.Fatalf("NewMembershipUntil: %+v", c1)
+	}
+	var b1, b2 bytes.Buffer
+	if _, err := c1.WriteTo(&b1); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := c2.WriteTo(&b2); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(b1.Bytes(), b2.Bytes()) {
+		t.Fatal("the same arguments built two different bodies")
+	}
+
+	for _, bad := range []struct {
+		issuer, subject *astral.Identity
+		tier            Tier
+		at              astral.Time
+	}{
+		{nil, subject, TierMember, at},
+		{issuer, nil, TierMember, at},
+		{issuer, subject, "admin", at},
+		{issuer, subject, TierMember, astral.Time{}},
+	} {
+		if _, err := NewMembershipUntil(bad.issuer, bad.subject, bad.tier, nil, bad.at); err == nil {
+			t.Errorf("NewMembershipUntil(%v, %v, %q, %v) succeeded", bad.issuer, bad.subject, bad.tier, bad.at)
+		}
+	}
+}
+
+func TestJoinMembershipExpiry(t *testing.T) {
+	filed := time.Date(2026, 12, 1, 10, 0, 0, 0, time.UTC)
+	req := &JoinRequest{
+		Joiner:  astral.GenerateIdentity(),
+		Carrier: astral.GenerateIdentity(),
+		Tier:    TierMember,
+		FiledAt: astral.Time(filed),
+		Timeout: RequestDeadline(astral.Time(filed)),
+	}
+	const validity = 30 * 24 * time.Hour
+	full := filed.Add(validity)
+
+	for _, tc := range []struct {
+		name   string
+		issuer astral.Time
+		want   time.Time
+	}{
+		{"user key, no bound", astral.Time{}, full},
+		{"issuer outlives the validity", astral.Time(full.Add(time.Hour)), full},
+		{"issuer expires first", astral.Time(filed.Add(time.Hour)), filed.Add(time.Hour)},
+		{"issuer expires at the same time", astral.Time(full), full},
+	} {
+		got := JoinMembershipExpiry(req, validity, tc.issuer)
+		if !got.Time().Equal(tc.want) {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+		if again := JoinMembershipExpiry(req, validity, tc.issuer); !again.Time().Equal(got.Time()) {
+			t.Errorf("%s: a second call gave %v, then %v", tc.name, got, again)
+		}
+	}
+
+	if !JoinMembershipExpiry(nil, validity, astral.Time{}).Time().IsZero() {
+		t.Error("a nil request has no expiry")
+	}
+	if _, err := NewMembershipUntil(req.Carrier, req.Joiner, req.Tier, sampleRequestID(), JoinMembershipExpiry(nil, validity, astral.Time{})); err == nil {
+		t.Error("NewMembershipUntil accepted the zero expiry of a nil request")
 	}
 }
 
@@ -345,6 +436,7 @@ func TestSignableText_WorstCase(t *testing.T) {
 		t.Fatal(err)
 	}
 	ms.ExpiresAt = worstTime
+	// a membership is a contract: auth tests the permit-list worst case
 
 	for _, tc := range []struct {
 		obj  crypto.SignableTextObject
@@ -357,7 +449,7 @@ func TestSignableText_WorstCase(t *testing.T) {
 		{ap, ap.SignableText()},
 		{de, de.SignableText()},
 		{ex, ex.SignableText()},
-		{ms, ms.SignableText()}, // one tier permit; auth tests the permit-count worst case
+		{ms, ms.SignableText()}, // one tier permit
 	} {
 		line := signableLine(t, tc.obj, tc.text)
 		if len(line) > 240 {
@@ -401,5 +493,39 @@ func TestTierOnly(t *testing.T) {
 		if TierOnly(c, TierTrusted) {
 			t.Errorf("TierOnly accepted %v", name)
 		}
+	}
+}
+
+// membershipRoundTrip shows a membership with a request link survives the
+// SwarmState form, both signatures included, in binary and JSON.
+func membershipRoundTrip(t *testing.T, m *Membership) {
+	t.Helper()
+	sc := &auth.SignedContract{Contract: m.Contract, IssuerSig: dummySig(), SubjectSig: dummySig()}
+	data, err := astral.EncodeBytes(sc)
+	if err != nil {
+		t.Fatalf("encode: %v", err)
+	}
+	bin, err := astral.DecodeAs[*auth.SignedContract](data)
+	if err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	sameObject(t, sc, bin)
+
+	j, err := json.Marshal(sc)
+	if err != nil {
+		t.Fatalf("marshal: %v", err)
+	}
+	var js auth.SignedContract
+	if err := json.Unmarshal(j, &js); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	sameObject(t, sc, &js)
+
+	got, ok := MembershipOf(bin)
+	if !ok || got.Tier != m.Tier {
+		t.Fatalf("MembershipOf after round trip: %+v %v", got, ok)
+	}
+	if (got.RequestID == nil) != (m.RequestID == nil) || (m.RequestID != nil && *got.RequestID != *m.RequestID) {
+		t.Fatalf("requestID changed: got %v, want %v", got.RequestID, m.RequestID)
 	}
 }
