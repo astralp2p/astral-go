@@ -372,3 +372,34 @@ func TestSignableText_WorstCase(t *testing.T) {
 		t.Logf("%-22T %3d bytes  %s", tc.obj, len(line), line)
 	}
 }
+
+func TestTierOnly(t *testing.T) {
+	issuer, subject := astral.GenerateIdentity(), astral.GenerateIdentity()
+	m, err := NewMembership(issuer, subject, TierTrusted, nil, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !TierOnly(m, TierTrusted) {
+		t.Fatal("TierOnly refused a membership NewMembership built")
+	}
+	if TierOnly(m, TierMember) {
+		t.Fatal("TierOnly accepted another tier")
+	}
+	cs := astral.NewBundle()
+	if err := cs.Append(astral.NewString8("x")); err != nil {
+		t.Fatal(err)
+	}
+	tier := astral.String8(TierTrusted.Action())
+	for name, c := range map[string]*auth.Contract{
+		"nil":         nil,
+		"no permit":   {},
+		"delegable":   {Permits: []*auth.Permit{{Action: tier, Delegation: 1}}},
+		"constrained": {Permits: []*auth.Permit{{Action: tier, Constraints: cs}}},
+		"extra":       {Permits: []*auth.Permit{{Action: tier}, {Action: "mod.test.other_action"}}},
+		"nil permit":  {Permits: []*auth.Permit{nil}},
+	} {
+		if TierOnly(c, TierTrusted) {
+			t.Errorf("TierOnly accepted %v", name)
+		}
+	}
+}

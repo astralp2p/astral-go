@@ -110,6 +110,21 @@ func ContractTier(c *auth.Contract) (Tier, bool) {
 	return found, found != ""
 }
 
+// TierOnly reports whether c holds tier's permit and nothing else: one
+// non-delegable, unconstrained permit, as NewMembership builds it.
+//
+// why: ContractTier ignores permits that name no tier, so a membership could
+// carry more than its tier; a check that a membership grants only its tier
+// reads this one rule.
+func TierOnly(c *auth.Contract, tier Tier) bool {
+	if c == nil || len(c.Permits) != 1 || c.Permits[0] == nil {
+		return false
+	}
+	p := c.Permits[0]
+	return string(p.Action) == tier.Action() && p.Delegation == 0 &&
+		(p.Constraints == nil || len(p.Constraints.Objects()) == 0)
+}
+
 // Membership is a view over a signed membership contract and its tier. It is
 // not a wire type: its codec methods are the embedded SignedContract's, so it
 // encodes as that contract alone.
