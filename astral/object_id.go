@@ -2,6 +2,7 @@ package astral
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"database/sql/driver"
 	"encoding/base32"
 	"encoding/binary"
@@ -275,6 +276,24 @@ func (id *ObjectID) IsZero() bool {
 		}
 	}
 	return true
+}
+
+// EmptyID is the full ID of empty content: Size 0 and the SHA-256 of no bytes.
+var EmptyID = ObjectID{Hash: sha256.Sum256(nil)}
+
+// IsEmpty reports whether the id names empty content. A nil receiver is not empty.
+func (id *ObjectID) IsEmpty() bool {
+	return id != nil && *id == EmptyID
+}
+
+// IsPartial reports whether the id carries the Hash alone: Size 0 and not EmptyID. A nil
+// receiver is partial.
+//
+// why: no content other than empty content hashes to the SHA-256 of no bytes, so a hash-only
+// lookup of that hash can only name empty content, whose full ID has Size 0 too. EmptyID is
+// therefore a full ID, and empty content is stored and read like any other object.
+func (id *ObjectID) IsPartial() bool {
+	return id == nil || (id.Size == 0 && !id.IsEmpty())
 }
 
 func init() {
