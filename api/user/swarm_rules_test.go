@@ -127,7 +127,10 @@ func TestContractRequest_CoversOffer(t *testing.T) {
 		want bool
 	}{
 		{"each one deeper", offer(deeper(p1, 1), deeper(p2, 1)), true},
-		{"reordered subset", offer(deeper(p2, 1)), true},
+		{"reordered", offer(deeper(p2, 1), deeper(p1, 1)), true},
+		{"subset", offer(deeper(p2, 1)), true},
+		{"repeated permit", offer(deeper(p1, 1), deeper(p1, 1)), false},
+		{"subset with a repeat", offer(deeper(p2, 1), deeper(p2, 1)), false},
 		{"copy of the request", offer(p1, p2), false},
 		{"two deeper", offer(deeper(p1, 2)), false},
 		{"one permit not deeper", offer(deeper(p1, 1), p2), false},

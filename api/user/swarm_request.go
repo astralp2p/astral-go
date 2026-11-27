@@ -96,28 +96,33 @@ func (r *ContractRequest) Expired(now time.Time) bool { return now.After(r.Timeo
 // permit one delegation hop deeper, so Covers refuses every valid offer; an
 // offer is checked with CoversOffer.
 func (r *ContractRequest) Covers(c *auth.Contract) bool {
-	return r.covers(c, 0)
+	return r.covers(c, 0, false)
 }
 
 // CoversOffer reports whether offer is no wider than r: offer has at least one
-// permit, and each has the Action and Constraints of one of r.Permits and a
-// Delegation exactly 1 more than that permit's. A permit at Delegation 0, one
-// that matches no requested permit, or one at any other depth fails the
-// check. Like Covers it checks permits only; that offer names r as its
-// RequestID and r's filer as its Subject, and who issued it, are the
-// caller's to check.
+// permit, each has the Action and Constraints of one of r.Permits and a
+// Delegation exactly 1 more than that permit's, and no two of its permits are
+// equal. An offer may carry a subset of r.Permits. A permit at Delegation 0,
+// one that matches no requested permit, one at any other depth, or a repeated
+// permit fails the check. Like Covers it checks permits only; that offer names
+// r as its RequestID and r's filer as its Subject, and who issued it, are the
+// caller's to check. The completed approver-to-host contract follows the same
+// rule.
 //
 // why: the approver's contract to the host must let the host pass the
 // requested permits on to the app in one more hop, and no further; a depth
 // equal to the request's would leave the host unable to issue the app's
 // contract, and a larger one would let the app delegate beyond what was asked.
+// Every node's merge check applies this rule, so it admits one fixed set of
+// offers, and a repeated permit adds no authority.
 func (r *ContractRequest) CoversOffer(offer *auth.Contract) bool {
-	return r.covers(offer, 1)
+	return r.covers(offer, 1, true)
 }
 
 // covers checks each of c's permits, with its Delegation lowered by extra,
-// byte-equal against r.Permits.
-func (r *ContractRequest) covers(c *auth.Contract, extra astral.Uint8) bool {
+// byte-equal against r.Permits. With distinct set, two equal permits in c
+// fail the check.
+func (r *ContractRequest) covers(c *auth.Contract, extra astral.Uint8, distinct bool) bool {
 	if r == nil || c == nil || len(c.Permits) == 0 {
 		return false
 	}
@@ -127,15 +132,18 @@ func (r *ContractRequest) covers(c *auth.Contract, extra astral.Uint8) bool {
 			requested[b] = true
 		}
 	}
+	seen := make(map[string]bool, len(c.Permits))
 	for _, p := range c.Permits {
 		if p == nil || p.Delegation < extra {
 			return false
 		}
 		lowered := *p
 		lowered.Delegation -= extra
-		if b, ok := permitBytes(&lowered); !ok || !requested[b] {
+		b, ok := permitBytes(&lowered)
+		if !ok || !requested[b] || (distinct && seen[b]) {
 			return false
 		}
+		seen[b] = true
 	}
 	return true
 }

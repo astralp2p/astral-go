@@ -41,10 +41,11 @@ func (e *SwarmRequestFiled) UnmarshalJSON(b []byte) error {
 }
 
 // SwarmRequestApproved is emitted when an ExpelRequest's status becomes
-// RequestApproved; no other request kind is answered by an Approval.
-// ApprovalID is the lowest entry ID among the request's counting Approvals;
-// for an ExpelRequest carried out by the root key's Expulsion, it is that
-// Expulsion's entry ID.
+// RequestApproved; no other request kind is approved. An ExpelRequest is
+// approved by a counting Approval, or by the user key's Expulsion of the
+// request's Subject. ApprovalID is the lowest entry ID among the request's
+// counting Approvals, or, when none exists, the lowest entry ID among the user
+// key's Expulsions whose Subject is the request's Subject.
 type SwarmRequestApproved struct {
 	RequestID  *astral.ObjectID
 	ApprovalID *astral.ObjectID

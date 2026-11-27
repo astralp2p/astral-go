@@ -42,7 +42,7 @@ const (
 	RequestPending   RequestStatus = "pending"   // no answer yet and the timeout has not passed
 	RequestOffered   RequestStatus = "offered"   // a valid offer exists and the timeout has not passed
 	RequestFulfilled RequestStatus = "fulfilled" // a contract with both signatures names the request
-	RequestApproved  RequestStatus = "approved"  // an ExpelRequest has an Approval and no Decline
+	RequestApproved  RequestStatus = "approved"  // an ExpelRequest has a counting Approval, or the user key expelled its Subject, and no Decline
 	RequestDeclined  RequestStatus = "declined"  // a Decline exists and no contract fulfils the request
 	RequestExpired   RequestStatus = "expired"   // the timeout has passed with no other status
 )
