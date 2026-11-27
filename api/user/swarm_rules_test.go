@@ -109,6 +109,47 @@ func TestContractRequest_Covers(t *testing.T) {
 	}
 }
 
+func TestContractRequest_CoversOffer(t *testing.T) {
+	a, b := astral.GenerateIdentity(), astral.GenerateIdentity()
+	p1 := &auth.Permit{Action: "test.one", Delegation: 1}
+	p2 := &auth.Permit{Action: "test.two"}
+	req := NewContractRequest(a, b, []*auth.Permit{p1, p2})
+	offer := func(ps ...*auth.Permit) *auth.Contract { return &auth.Contract{Issuer: a, Subject: b, Permits: ps} }
+	deeper := func(p *auth.Permit, by astral.Uint8) *auth.Permit {
+		q := *p
+		q.Delegation += by
+		return &q
+	}
+
+	for _, tc := range []struct {
+		name string
+		c    *auth.Contract
+		want bool
+	}{
+		{"each one deeper", offer(deeper(p1, 1), deeper(p2, 1)), true},
+		{"reordered subset", offer(deeper(p2, 1)), true},
+		{"copy of the request", offer(p1, p2), false},
+		{"two deeper", offer(deeper(p1, 2)), false},
+		{"one permit not deeper", offer(deeper(p1, 1), p2), false},
+		{"other action", offer(&auth.Permit{Action: "test.three", Delegation: 1}), false},
+		{"added constraint", offer(&auth.Permit{Action: "test.two", Delegation: 1, Constraints: constrained(astral.NewString8("x"))}), false},
+		{"nil permit", offer(deeper(p1, 1), nil), false},
+		{"no permits", offer(), false},
+		{"nil contract", nil, false},
+	} {
+		if got := req.CoversOffer(tc.c); got != tc.want {
+			t.Errorf("%s: got %v, want %v", tc.name, got, tc.want)
+		}
+	}
+
+	if (*ContractRequest)(nil).CoversOffer(offer(deeper(p1, 1))) {
+		t.Error("a nil request covers no offer")
+	}
+	if req.Covers(offer(deeper(p1, 1))) {
+		t.Error("Covers takes an offer one hop deeper for a byte-equal carry-out")
+	}
+}
+
 func TestExpelAction(t *testing.T) {
 	sent := &ExpelAction{Action: auth.NewAction(astral.GenerateIdentity()), Subject: astral.GenerateIdentity()}
 	var buf bytes.Buffer

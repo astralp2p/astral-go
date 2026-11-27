@@ -90,7 +90,34 @@ func (r *ContractRequest) Expired(now time.Time) bool { return now.After(r.Timeo
 // Delegation) to one of r.Permits. It checks permits only; who issued c and
 // whom it names are the caller's to check. A contract that copies r.Permits
 // always covers.
+//
+// Covers is the rule for the contract that carries a request out, the host's
+// contract to the app r names. An approver's offer to the filer carries each
+// permit one delegation hop deeper, so Covers refuses every valid offer; an
+// offer is checked with CoversOffer.
 func (r *ContractRequest) Covers(c *auth.Contract) bool {
+	return r.covers(c, 0)
+}
+
+// CoversOffer reports whether offer is no wider than r: offer has at least one
+// permit, and each has the Action and Constraints of one of r.Permits and a
+// Delegation exactly 1 more than that permit's. A permit at Delegation 0, one
+// that matches no requested permit, or one at any other depth fails the
+// check. Like Covers it checks permits only; that offer names r as its
+// RequestID and r's filer as its Subject, and who issued it, are the
+// caller's to check.
+//
+// why: the approver's contract to the host must let the host pass the
+// requested permits on to the app in one more hop, and no further; a depth
+// equal to the request's would leave the host unable to issue the app's
+// contract, and a larger one would let the app delegate beyond what was asked.
+func (r *ContractRequest) CoversOffer(offer *auth.Contract) bool {
+	return r.covers(offer, 1)
+}
+
+// covers checks each of c's permits, with its Delegation lowered by extra,
+// byte-equal against r.Permits.
+func (r *ContractRequest) covers(c *auth.Contract, extra astral.Uint8) bool {
 	if r == nil || c == nil || len(c.Permits) == 0 {
 		return false
 	}
@@ -101,7 +128,12 @@ func (r *ContractRequest) Covers(c *auth.Contract) bool {
 		}
 	}
 	for _, p := range c.Permits {
-		if b, ok := permitBytes(p); !ok || !requested[b] {
+		if p == nil || p.Delegation < extra {
+			return false
+		}
+		lowered := *p
+		lowered.Delegation -= extra
+		if b, ok := permitBytes(&lowered); !ok || !requested[b] {
 			return false
 		}
 	}
