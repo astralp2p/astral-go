@@ -64,10 +64,12 @@ func (t Tier) Action() string {
 }
 
 // NewMembership builds the membership contract by which issuer admits subject
-// at tier. approvalID is the Approval the membership carries out; it is nil
-// when the user key signs the membership in a ceremony (a Privileged node).
-// The contract carries one non-delegable tier permit and expires after duration.
-func NewMembership(issuer, subject *astral.Identity, tier Tier, approvalID *astral.ObjectID, duration time.Duration) (*auth.Contract, error) {
+// at tier. requestID is the entry ID of the stored request the membership
+// answers (auth.Contract.RequestID), or nil when it answers none, e.g. a
+// membership signed in a carrier session or a ceremony. The contract carries
+// one non-delegable tier permit and expires after duration. It counts only
+// once both issuer and subject have signed it.
+func NewMembership(issuer, subject *astral.Identity, tier Tier, requestID *astral.ObjectID, duration time.Duration) (*auth.Contract, error) {
 	switch {
 	case issuer.IsZero() || subject.IsZero():
 		return nil, errors.New("membership: issuer and subject are required")
@@ -78,11 +80,11 @@ func NewMembership(issuer, subject *astral.Identity, tier Tier, approvalID *astr
 	}
 
 	return &auth.Contract{
-		Issuer:     issuer,
-		Subject:    subject,
-		Permits:    []*auth.Permit{{Action: astral.String8(tier.Action())}},
-		ExpiresAt:  astral.Time(time.Now().Add(duration)),
-		ApprovalID: approvalID,
+		Issuer:    issuer,
+		Subject:   subject,
+		Permits:   []*auth.Permit{{Action: astral.String8(tier.Action())}},
+		ExpiresAt: astral.Time(time.Now().Add(duration)),
+		RequestID: requestID,
 	}, nil
 }
 
@@ -134,8 +136,8 @@ type Membership struct {
 }
 
 // MembershipOf views c as a membership. It returns false when c is nil or does
-// not carry exactly one tier permit. It checks neither signatures, expiry,
-// approval links nor expels.
+// not carry exactly one tier permit. It checks neither signatures, expiry nor
+// expels; a membership counts only with a valid IssuerSig and SubjectSig.
 func MembershipOf(c *auth.SignedContract) (*Membership, bool) {
 	if c.IsNil() {
 		return nil, false

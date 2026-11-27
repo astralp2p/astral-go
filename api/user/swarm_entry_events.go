@@ -40,10 +40,11 @@ func (e *SwarmRequestFiled) UnmarshalJSON(b []byte) error {
 	return astral.Objectify(e).UnmarshalJSON(b)
 }
 
-// SwarmRequestApproved is emitted when a request's status becomes
-// RequestApproved. ApprovalID is the lowest entry ID among the request's
-// counting Approvals; for an ExpelRequest carried out by the root key's
-// Expulsion, it is that Expulsion's entry ID.
+// SwarmRequestApproved is emitted when an ExpelRequest's status becomes
+// RequestApproved; no other request kind is answered by an Approval.
+// ApprovalID is the lowest entry ID among the request's counting Approvals;
+// for an ExpelRequest carried out by the root key's Expulsion, it is that
+// Expulsion's entry ID.
 type SwarmRequestApproved struct {
 	RequestID  *astral.ObjectID
 	ApprovalID *astral.ObjectID
@@ -121,15 +122,48 @@ func (e *SwarmRequestExpired) UnmarshalJSON(b []byte) error {
 	return astral.Objectify(e).UnmarshalJSON(b)
 }
 
-// SwarmContractAdded is emitted once when a stored contract first counts: it
-// has not expired, neither its issuer nor its subject is expelled, and the
-// Approval it carries out (ApprovalID, when set) counts for a request that is
-// approved. A membership counts when its link holds.
+// SwarmOfferAdded is emitted once when a valid offer first appears: a
+// contract only its issuer has signed, accepted by the merge check, whose
+// request RequestID is live and not declined, and whose issuer is not
+// expelled. OfferID is the offer's entry ID. The offer and the contract its
+// subject completes from it share the ID of the unsigned contract body. Every
+// node emits it for every valid offer; a handler filters by Subject.
+type SwarmOfferAdded struct {
+	OfferID   *astral.ObjectID
+	RequestID *astral.ObjectID
+	Issuer    *astral.Identity
+	Subject   *astral.Identity
+}
+
+var _ astral.Object = &SwarmOfferAdded{}
+
+func (SwarmOfferAdded) ObjectType() string { return "mod.user.swarm_offer_added" }
+
+func (e SwarmOfferAdded) WriteTo(w io.Writer) (int64, error) {
+	return astral.Objectify(&e).WriteTo(w)
+}
+
+func (e *SwarmOfferAdded) ReadFrom(r io.Reader) (int64, error) {
+	return astral.Objectify(e).ReadFrom(r)
+}
+
+func (e SwarmOfferAdded) MarshalJSON() ([]byte, error) {
+	return astral.Objectify(&e).MarshalJSON()
+}
+
+func (e *SwarmOfferAdded) UnmarshalJSON(b []byte) error {
+	return astral.Objectify(e).UnmarshalJSON(b)
+}
+
+// SwarmContractAdded is emitted once when a stored contract first counts: its
+// issuer and its subject both signed it, it has not expired, and neither
+// party is expelled. RequestID is the contract's auth.Contract.RequestID, nil
+// when it answers no stored request. An offer never fires it.
 type SwarmContractAdded struct {
 	ContractID *astral.ObjectID
 	Issuer     *astral.Identity
 	Subject    *astral.Identity
-	ApprovalID *astral.ObjectID
+	RequestID  *astral.ObjectID
 }
 
 var _ astral.Object = &SwarmContractAdded{}
@@ -157,5 +191,6 @@ func init() {
 	_ = astral.Add(&SwarmRequestApproved{})
 	_ = astral.Add(&SwarmRequestDeclined{})
 	_ = astral.Add(&SwarmRequestExpired{})
+	_ = astral.Add(&SwarmOfferAdded{})
 	_ = astral.Add(&SwarmContractAdded{})
 }

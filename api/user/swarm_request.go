@@ -31,7 +31,7 @@ func ValidRequestTimeout(filedAt, timeout astral.Time) bool {
 func signableTime(t astral.Time) string { return t.Time().Format("2006-01-02 15:04:05") }
 
 // ContractRequest asks for permits for Identity, e.g. an app FiledBy hosts.
-// FiledBy signs it. A Privileged node answers it with an Approval or a Decline.
+// FiledBy signs it. A Privileged node answers it with an offer or a Decline.
 type ContractRequest struct {
 	FiledBy  *astral.Identity
 	Identity *astral.Identity
@@ -88,8 +88,8 @@ func (r *ContractRequest) Expired(now time.Time) bool { return now.After(r.Timeo
 // Covers reports whether c's permits are among those r requests: c has at
 // least one permit, and each encodes byte-equal (Action, Constraints and
 // Delegation) to one of r.Permits. It checks permits only; who issued c and
-// whom it names are the caller's to check. A host carrying out an Approval
-// copies r.Permits into the contract, which always covers.
+// whom it names are the caller's to check. A contract that copies r.Permits
+// always covers.
 func (r *ContractRequest) Covers(c *auth.Contract) bool {
 	if r == nil || c == nil || len(c.Permits) == 0 {
 		return false
